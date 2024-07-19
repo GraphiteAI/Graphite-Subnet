@@ -1,0 +1,18 @@
+body {
+    background-color: #000 !important;  
+    color: #3ecf8e !important;
+}
+
+.swagger-ui .topbar .info h1, .swagger-ui .info h2, .swagger-ui .info h3, .swagger-ui .info h4, .swagger-ui .info h5, .swagger-ui .info h6, .swagger-ui .info p, .swagger-ui .info a {
+    color: #3ecf8e !important;  /* Change this to your desired text color */
+    background-color: #000 !important; 
+}
+
+.scheme-container {
+    background-color: #000 !important; 
+}
+
+#swagger-ui {
+    color: #3ecf8e !important; 
+    background-color: #000 !important; 
+}
