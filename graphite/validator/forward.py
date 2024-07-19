@@ -256,16 +256,28 @@ async def forward(self):
         pass
     
     try:
-        wandb.init(
-            entity='graphite-ai',
-            project="Graphite-Subnet",
-            config=configDict,
-            name=json.dumps({
-                "n_nodes": graphsynapse_req.problem.n_nodes,
-                "time": time.time(),
-                "validator": self.wallet.hotkey.ss58_address,
-                }),
-        )
+        if self.subtensor.network == "test":
+            wandb.init(
+                entity='graphite-ai',
+                project="Graphite-Subnet-Test",
+                config=configDict,
+                name=json.dumps({
+                    "n_nodes": graphsynapse_req.problem.n_nodes,
+                    "time": time.time(),
+                    "validator": self.wallet.hotkey.ss58_address,
+                    }),
+            )
+        else:
+            wandb.init(
+                entity='graphite-ai',
+                project="Graphite-Subnet",
+                config=configDict,
+                name=json.dumps({
+                    "n_nodes": graphsynapse_req.problem.n_nodes,
+                    "time": time.time(),
+                    "validator": self.wallet.hotkey.ss58_address,
+                    }),
+            )
     except Exception as e:
         print(f"Error initializing W&B: {e}")
         wandb.init(mode="offline")
