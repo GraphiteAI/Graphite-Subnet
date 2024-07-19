@@ -77,9 +77,9 @@ class HPNSolver(BaseSolver):
         coordinates = formatted_problem
         size = len(coordinates)
         B = 1 # batch size set to 1 as default
-        X = torch.from_numpy(coordinates).float()
+        X = torch.from_numpy(coordinates).float().to(self.device)
         X = X.unsqueeze(0)
-        mask = torch.zeros(B,size)
+        mask = torch.zeros(B,size).to(self.device)
 
         solution = []
 
