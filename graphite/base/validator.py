@@ -192,7 +192,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 shutil.rmtree(run_dir)
                 bt.logging.info(f"Deleted {run_dir}")
         except AttributeError:
-            print("Nothing to delete")
+            pass
 
     def run(self):
         """
