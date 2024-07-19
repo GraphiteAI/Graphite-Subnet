@@ -1,8 +1,28 @@
+# The MIT License (MIT)
+# Copyright © 2023 Yuma Rao
+# Graphite-AI
+# Copyright © 2024 Graphite-AI
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+# documentation files (the “Software”), to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+# the Software.
+
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+# THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
 from pydantic import BaseModel, Field, model_validator, conint, confloat, ValidationError, field_validator
 from typing import List, Union, Optional
 import numpy as np
 import bittensor as bt
 import pprint
+import math
 
 class IsAlive(bt.Synapse):
     answer: Optional[str] = None
@@ -33,9 +53,7 @@ class GraphProblem(BaseModel):
                 self.nodes = self.generate_random_coordinates(self.n_nodes)
                 self.edges = self.get_distance_matrix(self.nodes)
             elif self.edges and not self.nodes: # convert problem into a General TSP and solve instead
-                self.directed = True
-                self.problem_type = 'General TSP'
-                self.nodes = None # we should not have any ghost values 
+                raise ValueError("Undirected graph should have defined nodes(coordinates) instead of edges")
             elif not self.edges and self.nodes:
                 self.edges = self.get_distance_matrix(self.nodes)
         else: # we need to generate a set of random edge weights for this General TSP
@@ -57,6 +75,29 @@ class GraphProblem(BaseModel):
 
         if not all(len(row)==self.n_nodes for row in self.edges):
             raise ValueError(f"The length of edges {len(self.edges)} does not match n_nodes {self.n_nodes}")
+        return self
+    
+    @model_validator(mode='after')
+    def validate_values(self):
+        if self.directed:
+            # check edges; Non-diagonal must be valid number
+            for i in range(self.n_nodes):
+                for j in range(self.n_nodes):
+                    if i != j:
+                        assert isinstance(self.edges[i][j], (float, int)), TypeError(f"Found value in edges at index {(i,j)} of type {type(self.edges[i][j])}")
+                        assert (math.isfinite(self.edges[i][j]) and np.isfinite(self.edges[i][j])), ValueError(f"Found non-finite value in edges at index {(i,j)} of value {self.edges[i][j]}")
+        else:
+            # check nodes
+            for i, node in enumerate(self.nodes):
+                for j, coordinate_val in enumerate(node):
+                    assert isinstance(coordinate_val, (float, int)), TypeError(f"Found value in nodes at index {(i,j)} of type {type(coordinate_val)}")
+                    assert (math.isfinite(self.edges[i][j]) and np.isfinite(self.edges[i][j])), ValueError(f"Found non-finite value in nodes at index {(i,j)} of value {coordinate_val}")
+        return self
+    
+    @model_validator(mode='after')
+    def force_obj_function(self):
+        if self.problem_type in ['Metric TSP', 'General TSP']:
+            assert self.objective_function == 'min', ValueError('Subnet currently only supports minimization TSP')
         return self
 
     def generate_random_coordinates(self, n_cities, grid_size=1000):
@@ -141,6 +182,10 @@ if __name__=="__main__":
     print(f"_____________________________")
     random_metric_tsp = GraphProblem(n_nodes=8)
     pprint.pprint(random_metric_tsp.get_info(3))
+    output = GraphSynapse(problem=random_metric_tsp)
+    print("HEREEEE", output)
+    print(type(random_metric_tsp))
+    print(type(output))
 
     print('\n\n_____________________________')
     print(f"Testing fixed coordinate initialization")
@@ -148,9 +193,18 @@ if __name__=="__main__":
     pprint.pprint(metric_tsp.get_info(3))
 
     print('\n\n_____________________________')
+    print(f"Testing error infinite coordinate initialization")
+    try:
+        metric_tsp = GraphProblem(n_nodes=3, nodes=[[1,np.inf],[2,0],[3,5]])
+    except ValidationError as e:
+        print(e)
+
+    print('\n\n_____________________________')
     print(f"Testing erroneous edges input initialization")
-    false_metric_tsp = GraphProblem(n_nodes=3, edges=[[1,0,5],[2,0,7],[3,5,2]])
-    pprint.pprint(false_metric_tsp.get_info(3))
+    try:
+        false_metric_tsp = GraphProblem(n_nodes=3, edges=[[1,0,5],[2,0,7],[3,5,2]])
+    except ValueError as e:
+        print(e)
 
     print('\n\n_____________________________')
     print(f"Testing erroneous nodes input initialization")
@@ -174,4 +228,12 @@ if __name__=="__main__":
         false_metric_tsp = GraphProblem(n_nodes=3, nodes=[[-1,5],[2,7],[-3.2,2]])
         pprint.pprint(false_metric_tsp.get_info(3))
     except ValidationError as e:
+        print(e)
+
+    print('\n\n_____________________________')
+    print(f"Testing enforce objective function")
+    try:
+        false_metric_tsp = GraphProblem(n_nodes=3, objective_function='max')
+        pprint.pprint(false_metric_tsp.get_info(3))
+    except ValueError as e:
         print(e)
