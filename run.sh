@@ -264,6 +264,7 @@ while true; do
 
     # Proceed with checks only at the 30-minute mark
     latest_version=$(check_variable_value_on_github $repository $version_location $version $branch)
+    echo "$repository $version_location $version $branch"
 
     while [ -z "$latest_version" ]; do
         echo "Waiting for latest version to be set..."
