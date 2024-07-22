@@ -18,11 +18,13 @@
 # DEALINGS IN THE SOFTWARE.
 
 from pydantic import BaseModel, Field, model_validator, conint, confloat, ValidationError, field_validator
+from graphite.protocol_utils import ProblemType, ObjectiveFunction
 from typing import List, Union, Optional, Literal
 import numpy as np
 import bittensor as bt
 import pprint
 import math
+import json
 
 class IsAlive(bt.Synapse):
     answer: Optional[str] = None
@@ -34,8 +36,8 @@ class IsAlive(bt.Synapse):
     )
 
 class GraphProblem(BaseModel):
-    problem_type: Literal['Metric TSP', 'General TSP'] = Field('Metric TSP', description="Problem Type")
-    objective_function: str = Field('min', description="Objective Function")
+    problem_type: ProblemType = Field(ProblemType.METRIC_TSP, description="Problem Type")
+    objective_function: ObjectiveFunction = Field(ObjectiveFunction.MIN, description="Objective Function")
     visit_all: bool = Field(True, description="Visit All Nodes")
     to_origin: bool = Field(True, description="Return to Origin")
     n_nodes: conint(ge=2) = Field(10, description="Number of Nodes (must be >= 2)")
@@ -92,12 +94,6 @@ class GraphProblem(BaseModel):
                 for j, coordinate_val in enumerate(node):
                     assert isinstance(coordinate_val, (float, int)), TypeError(f"Found value in nodes at index {(i,j)} of type {type(coordinate_val)}")
                     assert (math.isfinite(self.edges[i][j]) and np.isfinite(self.edges[i][j])), ValueError(f"Found non-finite value in nodes at index {(i,j)} of value {coordinate_val}")
-        return self
-    
-    @model_validator(mode='after')
-    def force_obj_function(self):
-        if self.problem_type in ['Metric TSP', 'General TSP']:
-            assert self.objective_function == 'min', ValueError('Subnet currently only supports minimization TSP')
         return self
 
     def generate_random_coordinates(self, n_cities, grid_size=1000):
@@ -231,9 +227,50 @@ if __name__=="__main__":
         print(e)
 
     print('\n\n_____________________________')
-    print(f"Testing enforce objective function")
+    print(f"Testing string validation")
     try:
         false_metric_tsp = GraphProblem(n_nodes=3, objective_function='max')
         pprint.pprint(false_metric_tsp.get_info(3))
+    except ValueError as e:
+        print(e)
+
+    print('\n\n_____________________________')
+    print(f"Testing enums validation")
+    try:
+        false_metric_tsp = GraphProblem(n_nodes=3, objective_function=ObjectiveFunction.MIN)
+        pprint.pprint(false_metric_tsp.get_info(3))
+    except ValueError as e:
+        print(e)
+
+    print('\n\n_____________________________')
+    print(f"Testing  bad string validation")
+    try:
+        false_metric_tsp = GraphProblem(n_nodes=3, objective_function='some string')
+        pprint.pprint(false_metric_tsp.get_info(3))
+    except ValueError as e:
+        print(e)
+
+    print('\n\n_____________________________')
+    print(f"Testing synapse instantiation")
+    try:
+        false_metric_tsp = GraphProblem(n_nodes=3, objective_function='max')
+        synapse = GraphSynapse(problem=false_metric_tsp)
+        pprint.pprint(false_metric_tsp.get_info(2))
+        print(synapse)
+
+    except ValueError as e:
+        print(e)
+
+    print('\n\n_____________________________')
+    print(f"Mock communication")
+    try:
+        false_metric_tsp = GraphProblem(n_nodes=3, objective_function='max')
+        synapse = GraphSynapse(problem=false_metric_tsp)
+        print(f"JSON str: {synapse.model_dump_json()}")
+        headers_dict = json.loads(synapse.model_dump_json())
+        print(headers_dict)
+        # rebuild the synapse
+        rebuilt_synapse  = GraphSynapse.from_headers(headers_dict)
+        print(rebuilt_synapse)
     except ValueError as e:
         print(e)
