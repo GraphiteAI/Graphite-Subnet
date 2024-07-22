@@ -61,7 +61,7 @@ python3 neurons/validator.py --netuid NETUID --subtensor.network NETWORK --walle
 ```
 For auto updates, please use `pm2` to run the validator with the following command:
 ```
-pm2 start --name PROC_NAME --interpreter=python3 neurons/validator.py -- --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.trace --axon.port PORT --organic False
+pm2 start neurons/validator.py --name PROC_NAME --interpreter python3 -- --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.trace --axon.port PORT --organic False
 ```
 Please replace: `PROC_NAME`, `NAME`, `NETWORK`, `HOTKEY`, `PORT` 
 - Mainnet: `NETIUD 43`
