@@ -59,7 +59,7 @@ These problems are then sent to miners to challenge them. Running a synthetic va
 ```bash
 python3 neurons/validator.py --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.trace --axon.port PORT --organic False
 ```
-For auto updates, please use `pm2` to run the validator with the following command:
+For auto restart, please use `pm2` to run the validator with the following command:
 ```
 pm2 start neurons/validator.py --name PROC_NAME --interpreter python3 -- --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.trace --axon.port PORT --organic False
 ```
