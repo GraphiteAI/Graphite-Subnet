@@ -64,9 +64,10 @@ For auto updates, please use `pm2` to run the validator with the following comma
 pm2 start neurons/validator.py --name PROC_NAME --interpreter python3 -- --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.trace --axon.port PORT --organic False
 ```
 Please replace: `PROC_NAME`, `NAME`, `NETWORK`, `HOTKEY`, `PORT` 
-- Mainnet: `NETIUD 43`
-- Testnet: `NETUID 65`
+- Mainnet: `NETIUD 43`, `NETWORK finney or NETWORK <your_local_subtensor_endpoint>`
+- Testnet: `NETUID 65`, `NETWORK test`
 
+Edit the logging flag per your needs
 
 <a id="organic-vali"></a>
 
