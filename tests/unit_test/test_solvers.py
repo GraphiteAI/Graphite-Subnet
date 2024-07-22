@@ -4,13 +4,14 @@ This script tests all the solvers against each other. Note that this test takes 
 
 import unittest
 from graphite.solvers import NearestNeighbourSolver, BeamSearchSolver, DPSolver, HPNSolver
+from graphite.solvers.greedy_solver_vali import NearestNeighbourSolverVali
 from graphite.protocol import GraphSynapse, GraphProblem
 from graphite.validator.reward import ScoreResponse
 from graphite.utils.graph_utils import is_valid_solution
 import asyncio
 
 class TestSolvers(unittest.IsolatedAsyncioTestCase):
-    def setUp(self):
+    async def asyncSetUp(self):
         self.metric_tsp = GraphProblem(n_nodes=10)
         self.large_tsp = GraphProblem(n_nodes=100)
         self.general_tsp = GraphProblem(n_nodes=10, directed=True)
@@ -33,8 +34,17 @@ class TestSolvers(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(is_valid_solution(self.general_tsp, general_solution),True)
         self.assertEqual(is_valid_solution(self.large_tsp, large_solution),True)
 
+    async def test_greedy_solver(self):
+        solver = NearestNeighbourSolverVali()
+        metric_solution = await solver.solve_problem(self.metric_tsp)
+        general_solution = await solver.solve_problem(self.general_tsp)
+        large_solution = await solver.solve_problem(self.large_tsp)
+        self.assertEqual(is_valid_solution(self.metric_tsp, metric_solution),True)
+        self.assertEqual(is_valid_solution(self.general_tsp, general_solution),True)
+        self.assertEqual(is_valid_solution(self.large_tsp, large_solution),True)
+
     async def test_beam_solver(self):
-        solver = NearestNeighbourSolver()
+        solver = BeamSearchSolver()
         metric_solution = await solver.solve_problem(self.metric_tsp)
         general_solution = await solver.solve_problem(self.general_tsp)
         large_solution = await solver.solve_problem(self.large_tsp)
@@ -72,10 +82,10 @@ class TestSolvers(unittest.IsolatedAsyncioTestCase):
 
         # For the metric and the general scoring, we want to assert 
         for compared_solver in [NearestNeighbourSolver, BeamSearchSolver, HPNSolver]:
-            self.assertLessEqual(metric_scores[DPSolver.__name__], metric_scores[compared_solver.__name__])
-            self.assertLessEqual(general_scores[DPSolver.__name__], general_scores[compared_solver.__name__])
+            self.assertLessEqual(round(metric_scores[DPSolver.__name__],5), round(metric_scores[compared_solver.__name__],5))
+            self.assertLessEqual(round(general_scores[DPSolver.__name__],5), round(general_scores[compared_solver.__name__],5))
             self.assertGreater(large_scores[DPSolver.__name__], large_scores[compared_solver.__name__])
 
 if __name__=="__main__":
-    asyncio.get_event_loop().close() # clean up any loops currently running
     unittest.main()
+

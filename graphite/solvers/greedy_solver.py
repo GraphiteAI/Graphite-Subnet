@@ -28,15 +28,11 @@ import random
 
 import bittensor as bt
 
-DEFAULT_SOLVER_TIMEOUT = 5
-
 class NearestNeighbourSolver(BaseSolver):
-    def __init__(self, problem_types:List[str]=['Metric TSP', 'General TSP']):
-        self.problem_types = problem_types
+    def __init__(self, problem_types:List[GraphProblem]=[GraphProblem(n_nodes=2), GraphProblem(n_nodes=2, directed=True, problem_type='General TSP')]):
+        super().__init__(problem_types=problem_types)
 
-    @timeout(DEFAULT_SOLVER_TIMEOUT)
-    async def solve(self, formatted_problem)->List[int]:
-
+    async def solve(self, formatted_problem, future_id:int)->List[int]:
         distance_matrix = formatted_problem
         n = len(distance_matrix[0])
         visited = [False] * n
@@ -50,6 +46,8 @@ class NearestNeighbourSolver(BaseSolver):
         yield_frequency = max(1, int(n // 5))
 
         for node in range(n - 1):
+            if self.future_tracker.get(future_id):
+                return None
             if node % yield_frequency == 0:
                 await asyncio.sleep(0) # Add a small sleep to yield control to the event loop through the for loop
 

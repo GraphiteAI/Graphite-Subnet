@@ -28,14 +28,12 @@ import torch
 import time
 import asyncio
 
-DEFAULT_SOLVER_TIMEOUT = 30
-
 class HPNSolver(BaseSolver):
     '''
     implement solve method and necessary transformations
     '''
-    def __init__(self, problem_types:List[str]=['Metric TSP'], weights_fp:str = 'graphite/models/model_weights/hpn_base_model.pkl'):
-        self.problem_types = problem_types
+    def __init__(self, problem_types:List[GraphProblem]=[GraphProblem(n_nodes=2)], weights_fp:str = 'graphite/models/model_weights/hpn_base_model.pkl'):
+        super().__init__(problem_types=problem_types)
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu') # assign device to run the model on
         self.critic = HPN(n_feature=2, n_hidden=128) # instantiate model to handle metric 2-d geographic TSP problems
         self.critic = self.critic.to(self.device)
@@ -72,8 +70,7 @@ class HPNSolver(BaseSolver):
         best_indices = [visited_indices[idx] for idx in best_solutions[0]]
         return best_indices
 
-    @timeout(seconds=DEFAULT_SOLVER_TIMEOUT)
-    async def solve(self, formatted_problem, post_process:bool=False)->List[int]:
+    async def solve(self, formatted_problem, future_id:int, post_process:bool=False)->List[int]:
         coordinates = formatted_problem
         size = len(coordinates)
         B = 1 # batch size set to 1 as default
@@ -91,7 +88,8 @@ class HPNSolver(BaseSolver):
         visited_indices = []  # To store the sequence of node indices
 
         for k in range(size):
-            await asyncio.sleep(0) # Add a small sleep to yield control to the event loop through the for loop
+            if self.future_tracker.get(future_id):
+                return None
             Transcontext, output, h, c, _ = self.critic(Transcontext, x=x, X_all=X, h=h, c=c, mask=mask)
             idx = torch.argmax(output, dim=1)
             x = Y[[i for i in range(B)], idx.data]

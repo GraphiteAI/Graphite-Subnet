@@ -24,21 +24,19 @@ from graphite.utils.graph_utils import timeout
 import asyncio
 import time
 
-DEFAULT_SOLVER_TIMEOUT = 30
-
 class BeamSearchSolver(BaseSolver):
-    def __init__(self, problem_types:List[str]=['Metric TSP', 'General TSP']):
-        self.problem_types = problem_types
+    def __init__(self, problem_types:List[GraphProblem]=[GraphProblem(n_nodes=2), GraphProblem(n_nodes=2, directed=True, problem_type='General TSP')]):
+        super().__init__(problem_types=problem_types)
 
-    @timeout(DEFAULT_SOLVER_TIMEOUT)
-    async def solve(self, formatted_problem, beam_width:int=3)->List[int]:
+    async def solve(self, formatted_problem, future_id:int, beam_width:int=3)->List[int]:
         distance_matrix = formatted_problem
         n = len(distance_matrix[0])
 
         # Initialize the beam with the starting point (0) and a total distance of 0
         beam = [(0, [0], 0)]
         for _ in range(n - 1):
-            await asyncio.sleep(0) # Add a small sleep to yield control to the event loop through the for loop
+            if self.future_tracker.get(future_id):
+                return None
             candidates = []
 
             # Expand each path in the beam
@@ -66,7 +64,6 @@ class BeamSearchSolver(BaseSolver):
 
     def problem_transformations(self, problem: GraphProblem):
         return problem.edges
-        
     
 if __name__=='__main__':
     # runs the solver on a test MetricTSP

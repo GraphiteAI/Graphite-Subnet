@@ -17,7 +17,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-from typing import List
+from typing import List, Union
 from graphite.solvers.base_solver import BaseSolver
 from graphite.protocol import GraphProblem
 from graphite.utils.graph_utils import timeout
@@ -28,14 +28,11 @@ import random
 
 import bittensor as bt
 
-DEFAULT_SOLVER_TIMEOUT = 5
-
 class NearestNeighbourSolverVali(BaseSolver):
-    def __init__(self, problem_types:List[str]=['Metric TSP', 'General TSP']):
-        self.problem_types = problem_types
+    def __init__(self, problem_types:List[GraphProblem]=[GraphProblem(n_nodes=2), GraphProblem(n_nodes=2, directed=True, problem_type='General TSP')]):
+        super().__init__(problem_types=problem_types)
 
-    @timeout(DEFAULT_SOLVER_TIMEOUT)
-    async def solve(self, formatted_problem, current_num_concurrent_forwards)->List[int]:
+    async def solve(self, formatted_problem:List[List[Union[int, float]]], future_id:int)->List[int]:
         distance_matrix = formatted_problem
         n = len(distance_matrix[0])
         visited = [False] * n
@@ -46,12 +43,9 @@ class NearestNeighbourSolverVali(BaseSolver):
         route.append(current_node)
         visited[current_node] = True
 
-        yield_frequency = max(1, int(n // 5 * current_num_concurrent_forwards))
-
         for node in range(n - 1):
-            if node % yield_frequency == 0:
-                await asyncio.sleep(0) # Add a small sleep to yield control to the event loop through the for loop
-
+            if self.future_tracker.get(future_id):
+                return None
             # Find the nearest unvisited neighbour
             nearest_distance = np.inf
             nearest_node = random.choice([i for i, is_visited in enumerate(visited) if not is_visited])# pre-set as random unvisited node
@@ -69,7 +63,6 @@ class NearestNeighbourSolverVali(BaseSolver):
         # Return to the starting node
         total_distance += distance_matrix[current_node][route[0]]
         route.append(route[0])
-
         return route
 
     def problem_transformations(self, problem: GraphProblem):
