@@ -24,13 +24,10 @@ from graphite.utils.graph_utils import timeout
 import asyncio
 import time
 
-DEFAULT_SOLVER_TIMEOUT = 30
-
 class BeamSearchSolver(BaseSolver):
     def __init__(self, problem_types:List[str]=['Metric TSP', 'General TSP']):
         self.problem_types = problem_types
 
-    @timeout(DEFAULT_SOLVER_TIMEOUT)
     async def solve(self, formatted_problem, beam_width:int=3)->List[int]:
         distance_matrix = formatted_problem
         n = len(distance_matrix[0])

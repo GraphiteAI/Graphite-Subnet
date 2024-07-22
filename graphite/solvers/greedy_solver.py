@@ -28,13 +28,10 @@ import random
 
 import bittensor as bt
 
-DEFAULT_SOLVER_TIMEOUT = 5
-
 class NearestNeighbourSolver(BaseSolver):
     def __init__(self, problem_types:List[str]=['Metric TSP', 'General TSP']):
         self.problem_types = problem_types
 
-    @timeout(DEFAULT_SOLVER_TIMEOUT)
     async def solve(self, formatted_problem)->List[int]:
 
         distance_matrix = formatted_problem
