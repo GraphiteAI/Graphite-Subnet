@@ -18,7 +18,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 from pydantic import BaseModel, Field, model_validator, conint, confloat, ValidationError, field_validator
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Literal
 import numpy as np
 import bittensor as bt
 import pprint
@@ -34,7 +34,7 @@ class IsAlive(bt.Synapse):
     )
 
 class GraphProblem(BaseModel):
-    problem_type: str = Field('Metric TSP', description="Problem Type")
+    problem_type: Literal['Metric TSP', 'General TSP'] = Field('Metric TSP', description="Problem Type")
     objective_function: str = Field('min', description="Objective Function")
     visit_all: bool = Field(True, description="Visit All Nodes")
     to_origin: bool = Field(True, description="Return to Origin")

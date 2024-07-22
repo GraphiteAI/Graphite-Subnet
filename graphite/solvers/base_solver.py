@@ -23,16 +23,19 @@ from graphite.utils.graph_utils import valid_problem, timeout
 from graphite.protocol import GraphProblem
 import bittensor as bt
 import asyncio
+import concurrent.futures
+import time
 
-DEFAULT_SOLVER_TIMEOUT = 30
+DEFAULT_SOLVER_TIMEOUT = 20
 
 class BaseSolver(ABC):
-    def __init__(self, problem_variants:List[str]):
-        self.problem_types = [problem.problem_type for problem in problem_variants] # defining what problems the solver is equipped to solve
+    def __init__(self, problem_types:List[GraphProblem]):
+        self.problem_types = [problem.problem_type for problem in problem_types] # defining what problems the solver is equipped to solve
+        self.future_tracker = {}
     
     #TODO evolve the abstract method to handle the different problem classes and objective functions
     @abstractmethod
-    async def solve(self, formatted_problem, *args, **kwargs)->List[int]:
+    async def solve(self, formatted_problem, future_id, *args, **kwargs)->List[int]:
         '''
         Abstract class that handles the solving of GraphProblems contained within the Synapse.
 
@@ -65,12 +68,26 @@ class BaseSolver(ABC):
         Checks for the integrity of the data (that the problem is legitimate) are handled outside the forward function
         '''
         if self.is_valid_problem(problem):
-            task = self.loop.create_task(self.solve(self.problem_transformations(problem)))
-            result = self.loop.run_until_complete(
-                asyncio.wait_for(task, timeout=timeout)
-                )
-            return result
+            future_id = id(problem)
+            self.future_tracker[future_id] = False
+
+            transformed_problem = self.problem_transformations(problem)
+            
+            loop = asyncio.get_running_loop()
+            start_time = time.time()
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                # Submit the asynchronous task to the executor
+                future = loop.run_in_executor(executor, lambda: asyncio.run(self.solve(transformed_problem,future_id)))
+                try:
+                    result = await asyncio.wait_for(future, timeout)
+                    return result
+                except asyncio.TimeoutError:
+                    print(f"Task {future_id} timed out after: {time.time() - start_time}, with timeout set to {timeout}")
+                    self.future_tracker[future_id] = True
+                    return False
+                except Exception as exc:
+                    print(f"Task generated an exception: {exc}")
+                    return False
         else:
-            # solver is unable to solve the given problem
             bt.logging.error(f"current solver: {self.__class__.__name__} cannot handle received problem: {problem.problem_type}")
             return False
