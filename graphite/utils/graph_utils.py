@@ -162,7 +162,7 @@ def valid_problem(problem:GraphProblem)->bool:
             return True
         else:
             bt.logging.info(f"Received an invalid Metric TSP problem")
-            bt.logging.info(problem.get_info(verbosity=3))
+            bt.logging.info(problem.get_info(verbosity=2))
             return False
         
     elif problem.problem_type == 'General TSP':
@@ -170,7 +170,7 @@ def valid_problem(problem:GraphProblem)->bool:
             return True
         else:
             bt.logging.info(f"Received an invalid General TSP problem")
-            bt.logging.info(problem.get_info(verbosity=3))
+            bt.logging.info(problem.get_info(verbosity=2))
             return False
         
     else:

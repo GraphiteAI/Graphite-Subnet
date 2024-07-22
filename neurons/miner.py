@@ -83,7 +83,7 @@ class Miner(BaseMinerNeuron):
         The 'forward' function is a placeholder and should be overridden with logic that is appropriate for
         the miner's intended operation. This method demonstrates a basic transformation of input data.
         """
-        bt.logging.info(f"received synapse: {synapse}")
+        bt.logging.info(f"received synapse with problem: {synapse.problem.get_info(verbosity=2)}")
         
         bt.logging.info(
             f"Miner received input to solve {synapse.problem.n_nodes}"
