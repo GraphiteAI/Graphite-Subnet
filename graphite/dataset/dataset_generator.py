@@ -112,7 +112,7 @@ class DatasetGenerator(ABC):
     def serialize_dataset(cls, problems: List[GraphProblem], sizes:List[str]):
         # the data should be json serializable given the coerced data types defined in the GraphProblem
         meta_data = {
-            'problem_type': 'Metric TSP',
+            'problem_type': problems[0].problem_type.value,
             'n_samples': len(problems),
             'problems': [problem.model_dump_json() for problem in problems],
             'problem_sizes': sizes

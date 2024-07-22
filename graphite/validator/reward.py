@@ -23,6 +23,7 @@ from typing import List
 from graphite.utils.constants import BENCHMARK_SOLUTIONS, COST_FUNCTIONS
 from graphite.utils.graph_utils import is_valid_solution
 from graphite.protocol import GraphProblem, GraphSynapse
+from graphite.protocol_utils import *
 from graphite.solvers import NearestNeighbourSolver, BeamSearchSolver, DPSolver, HPNSolver
 from graphite.solvers.greedy_solver_vali import NearestNeighbourSolverVali
 import bittensor as bt
@@ -39,8 +40,8 @@ def is_approximately_equal(value1, value2, tolerance_percentage=0.00001):
     tolerance = tolerance_percentage / 100 * value1
     return np.isclose(value1, value2, atol=tolerance)
 
-def score_worse_than_reference(score, reference, objective_function):
-    if objective_function == "min":
+def score_worse_than_reference(score, reference, objective_function:ObjectiveFunction):
+    if objective_function.value == "min":
         if score > reference:
             return True
         else:
@@ -76,7 +77,7 @@ class ScoreResponse:
             self.benchmark_path =  await self.solver.solve(self.solver.problem_transformations(self.problem), self._current_num_concurrent_forwards)
         else:
             # solver is unable to solve the given problem
-            bt.logging.error(f"current solver: {self.__class__.__name__} cannot handle received problem: {self.problem.problem_type}")
+            bt.logging.error(f"current solver: {self.__class__.__name__} cannot handle received problem: {self.problem.problem_type.value}")
             return False
         self.synapse.solution = self.benchmark_path
         bt.logging.info(f"Validator found solution: {self.benchmark_path}")
@@ -103,7 +104,7 @@ class ScoreResponse:
 
 # we let scores range from 0.2 to 1 based on min_max_scaling w.r.t benchmark and best scores
 # if no score is better than benchmark, scores that fail the benchmark (already set to None) are given a reward of 0 and the rest that match the benchmark get 1.0
-def scaled_rewards(scores, benchmark: float, objective_function:str = 'min'):
+def scaled_rewards(scores, benchmark: float, objective_function:ObjectiveFunction = ObjectiveFunction.MIN):
     def score_gap(score, best_score, reference):
         if is_approximately_equal(score, reference):
             return 0.2 # matched the benchmark so assign a floor score
@@ -120,8 +121,8 @@ def scaled_rewards(scores, benchmark: float, objective_function:str = 'min'):
     # bt.logging.info(f"With the valid scores of: {filtered_scores}")
     # print(f"With the valid scores of: {filtered_scores}")
     if filtered_scores:
-        best_score = min(filtered_scores) if objective_function=='min' else max(filtered_scores)
-        worst_score = max(filtered_scores) if objective_function=='min' else min(filtered_scores)
+        best_score = min(filtered_scores) if objective_function.value=='min' else max(filtered_scores)
+        worst_score = max(filtered_scores) if objective_function.value=='min' else min(filtered_scores)
     else:
         # this means that no valid score was found
         return [0 for score in scores]

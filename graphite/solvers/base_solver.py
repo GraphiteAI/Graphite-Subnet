@@ -89,5 +89,5 @@ class BaseSolver(ABC):
                     print(f"Task generated an exception: {exc}")
                     return False
         else:
-            bt.logging.error(f"current solver: {self.__class__.__name__} cannot handle received problem: {problem.problem_type}")
+            bt.logging.error(f"current solver: {self.__class__.__name__} cannot handle received problem: {problem.problem_type.value}")
             return False

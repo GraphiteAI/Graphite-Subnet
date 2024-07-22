@@ -40,8 +40,8 @@ def get_tour_distance(synapse:GraphSynapse)->float:
     Takes a synapse as its only argument
     '''
     problem = synapse.problem
-    if 'TSP' not in problem.problem_type:
-        raise ValueError(f"get_tour_distance is an invalid function for processing {problem.problem_type}")
+    if 'TSP' not in problem.problem_type.value:
+        raise ValueError(f"get_tour_distance is an invalid function for processing {problem.problem_type.value}")
     
     if not synapse.solution:
         return np.inf
@@ -157,16 +157,16 @@ def is_valid_solution(problem:GraphProblem, solution:List[int]):
             return True
 
 def valid_problem(problem:GraphProblem)->bool:
-    if problem.problem_type == 'Metric TSP':
-        if (problem.directed==False) and (problem.visit_all==True) and (problem.to_origin==True) and (problem.objective_function=='min'):
+    if problem.problem_type.value == 'Metric TSP':
+        if (problem.directed==False) and (problem.visit_all==True) and (problem.to_origin==True) and (problem.objective_function.value=='min'):
             return True
         else:
             bt.logging.info(f"Received an invalid Metric TSP problem")
             bt.logging.info(problem.get_info(verbosity=3))
             return False
         
-    elif problem.problem_type == 'General TSP':
-        if (problem.directed==True) and (problem.visit_all==True) and (problem.to_origin==True) and (problem.objective_function=='min'):
+    elif problem.problem_type.value == 'General TSP':
+        if (problem.directed==True) and (problem.visit_all==True) and (problem.to_origin==True) and (problem.objective_function.value=='min'):
             return True
         else:
             bt.logging.info(f"Received an invalid General TSP problem")
@@ -174,7 +174,7 @@ def valid_problem(problem:GraphProblem)->bool:
             return False
         
     else:
-        bt.logging.info(f"Received an invalid problem of type: {problem.problem_type}")
+        bt.logging.info(f"Received an invalid problem of type: {problem.problem_type.value}")
         return False
 
 def timeout(seconds=30, error_message="Solver timed out"):

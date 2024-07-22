@@ -108,10 +108,10 @@ async def forward(self):
     
     try:
         if prob_select == 1:
-            problems, sizes = MetricTSPGenerator.generate_and_save_dataset(1)
+            problems, sizes = MetricTSPGenerator.generate_n_samples(1)
             test_problem_obj = problems[0]
         else:
-            problems, sizes = GeneralTSPGenerator.generate_and_save_dataset(1)
+            problems, sizes = GeneralTSPGenerator.generate_n_samples(1)
             test_problem_obj = problems[0]
     except ValidationError as e:
         bt.logging.debug(f"{'Metric TSP' if prob_select==1 else 'General TSP'}")
@@ -211,11 +211,11 @@ async def forward(self):
                     "sync_tensorboard": False,
                 }
     try:
-        configDict["problem_type"] = graphsynapse_req.problem.problem_type
+        configDict["problem_type"] = graphsynapse_req.problem.problem_type.value
     except:
         pass
     try:
-        configDict["objective_function"] = graphsynapse_req.problem.objective_function
+        configDict["objective_function"] = graphsynapse_req.problem.objective_function.value
     except:
         pass
     try:

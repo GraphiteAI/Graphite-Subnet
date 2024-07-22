@@ -19,15 +19,16 @@
 
 from graphite.solvers import *
 from graphite.utils.graph_utils import get_tour_distance
+from graphite.protocol_utils import ProblemType
 
 BENCHMARK_SOLUTIONS = {
-    'Metric TSP': NearestNeighbourSolver,
-    'General TSP': NearestNeighbourSolver
+    ProblemType.METRIC_TSP: NearestNeighbourSolver,
+    ProblemType.GENERAL_TSP: NearestNeighbourSolver
 } # mapping benchmark solvers to each problem
 
 COST_FUNCTIONS = {
-    'Metric TSP': get_tour_distance,
-    'General TSP': get_tour_distance
+    ProblemType.METRIC_TSP: get_tour_distance,
+    ProblemType.GENERAL_TSP: get_tour_distance
 }
 
 HEURISTIC_SOLVERS = [NearestNeighbourSolver, BeamSearchSolver, HPNSolver]
