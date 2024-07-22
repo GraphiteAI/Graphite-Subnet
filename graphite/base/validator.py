@@ -218,15 +218,17 @@ class BaseValidatorNeuron(BaseNeuron):
         self.sync()
 
         bt.logging.info(f"Validator starting at block: {self.block}")
-
+        self.last_synthetic_req = 0
         # This loop maintains the validator's operations until intentionally stopped.
         try:
             while True:
                 bt.logging.info(f"step({self.step}) block({self.block})")
 
                 # Run multiple forwards concurrently.
-                self.concurrencyIdx = 0
-                self.loop.run_until_complete(self.concurrent_forward())
+                if self.block - self.last_synthetic_req > 1 * 60 / 12:
+                    self.last_synthetic_req = self.block
+                    self.concurrencyIdx = 0
+                    self.loop.run_until_complete(self.concurrent_forward())
 
                 # Check if we should exit.
                 if self.should_exit:
