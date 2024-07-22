@@ -22,6 +22,9 @@ from typing import List
 from graphite.utils.graph_utils import valid_problem, timeout
 from graphite.protocol import GraphProblem
 import bittensor as bt
+import asyncio
+
+DEFAULT_SOLVER_TIMEOUT = 30
 
 class BaseSolver(ABC):
     def __init__(self, problem_variants:List[str]):
@@ -53,7 +56,7 @@ class BaseSolver(ABC):
         '''
         return valid_problem(problem) and problem.problem_type in self.problem_types
     
-    async def solve_problem(self, problem: GraphProblem):
+    async def solve_problem(self, problem: GraphProblem, timeout:int=DEFAULT_SOLVER_TIMEOUT):
         '''
         This method implements the security checks
         Then it makes the necessary transformations to the problem
@@ -62,7 +65,11 @@ class BaseSolver(ABC):
         Checks for the integrity of the data (that the problem is legitimate) are handled outside the forward function
         '''
         if self.is_valid_problem(problem):
-            return await self.solve(self.problem_transformations(problem))
+            task = self.loop.create_task(self.solve(self.problem_transformations(problem)))
+            result = self.loop.run_until_complete(
+                asyncio.wait_for(task, timeout=timeout)
+                )
+            return result
         else:
             # solver is unable to solve the given problem
             bt.logging.error(f"current solver: {self.__class__.__name__} cannot handle received problem: {problem.problem_type}")

@@ -28,8 +28,6 @@ import torch
 import time
 import asyncio
 
-DEFAULT_SOLVER_TIMEOUT = 30
-
 class HPNSolver(BaseSolver):
     '''
     implement solve method and necessary transformations
@@ -72,7 +70,6 @@ class HPNSolver(BaseSolver):
         best_indices = [visited_indices[idx] for idx in best_solutions[0]]
         return best_indices
 
-    @timeout(seconds=DEFAULT_SOLVER_TIMEOUT)
     async def solve(self, formatted_problem, post_process:bool=False)->List[int]:
         coordinates = formatted_problem
         size = len(coordinates)

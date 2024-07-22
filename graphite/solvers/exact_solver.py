@@ -25,13 +25,10 @@ import numpy as np
 import asyncio
 import time
 
-DEFAULT_SOLVER_TIMEOUT = 20
-
 class DPSolver(BaseSolver):
     def __init__(self, problem_types:List[str]=['Metric TSP', 'General TSP']):
         self.problem_types = problem_types
 
-    @timeout(DEFAULT_SOLVER_TIMEOUT)
     async def solve(self, formatted_problem:List[List[Union[int, float]]])->List[int]:
         distance_matrix = formatted_problem
         if not self.is_solvable(distance_matrix):
