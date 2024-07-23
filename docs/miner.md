@@ -68,6 +68,11 @@ python3 neurons/miner.py --netuid NETUID --subtensor.network NETWORK --wallet.na
 ```
 If you are running on a remote server, ensure that your internal and external ports are correct. If they differ, please add the --axon.external_port <EXTERNAL_PORT> flag.
 
+using pm2:
+```bash
+pm2 start neurons/miner.py --name graphite_miner --interpreter python -- --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.trace --axon.port PORT
+```
+
 For more detailed instructions on creating a wallet and registering onto a subnet, refer to our [installation guide](./installation.md).
 
 <hr>
