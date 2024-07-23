@@ -81,7 +81,7 @@ For more detailed instructions on creating a wallet and registering onto a subne
 
 ## Succeeding as a Miner 🏆
 
-Miners on the Graphite-AI subnet are tasked to solve graph optimization problems which have a myriad of real-world applications (refer to [subnet_overview.md](./subnet_overview.md) for more information.) Miners are rewarded based on their ability to produce good solutions within a given timeframe (default as 30 seconds).
+Miners on the Graphite-AI subnet are tasked to solve graph optimization problems which have a myriad of real-world applications (refer to [subnet_overview.md](./subnet_overview.md) for more information.) Miners are rewarded based on their ability to produce good solutions within a given timeframe (default as 20 seconds).
 
 We currently pose 2 types of graph problems: the Metric Travelling Salesman Problem (TSP) and the General TSP. Various approaches to the problems have been researched. 
 
