@@ -108,7 +108,7 @@ Credits to [AhmedStohy](https://github.com/AhmedStohy/Hybrid-Pointer-Networks) f
 <a id="improving-the-stock-miner-code"></a>
 
 ### Improving the Stock Miner Code 🛠️
-Changes to the miner code can be made by changing the way that problems are assigned to solvers. The solvers are implemented as classes that are instantiated along with the Miner. Simply edit the import statements and change the instantiated solver to your desired solver class.
+Changes to the miner code can be made by changing the way that problems are assigned to different solvers. The solvers are implemented as classes that are instantiated along with the Miner. Simply edit the import statements and change the instantiated solver to your desired solver class.
 
 A basic implementation is provided in the miner code. 
 
