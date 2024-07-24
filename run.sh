@@ -263,18 +263,19 @@ check_and_restart_pm2 "$proc_name" "$script" ${args[@]}
 
 # Continuous checking and updating logic
 while true; do
-    # Get the current minute
+    # Get the current time
     current_minute=$(date +'%M')
-    echo "Current minute: $current_minute"
+    current_hour=$(date +'%H')
+    echo "Current time: $current_hour:$current_minute"
 
-    # Check if the current minute is even
-    if [ $((10#$current_minute % 2)) -ne 0 ]; then
-        sleep 30 # Sleep for 5 seconds and check again
-        echo "slept for 30 seconds"
+    # Check if the current minute is at the top of the hour
+    if [ "$current_minute" != "00" ]; then
+        sleep 60 # Sleep for 60 seconds and check again
+        echo "Not the top of the hour, slept for 60 seconds"
         continue
     fi
 
-    # Proceed with checks only at the 30-minute mark
+    # Proceed with checks only at the top of the hour
     remote_version=$(check_variable_value_on_github $repository $version_location $version $branch)
 
     while [ -z "$remote_version" ]; do
@@ -300,5 +301,5 @@ while true; do
     else
         echo "You are up-to-date with the remote version."
     fi
-    sleep 45
+    sleep 60 # Sleep for 60 seconds to avoid multiple checks within the same minute
 done
