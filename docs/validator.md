@@ -63,7 +63,7 @@ For auto restart, please use `pm2` to run the validator with the following comma
 ```
 pm2 start neurons/validator.py --name PROC_NAME --interpreter python3 -- --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.trace --axon.port PORT --organic False
 ```
-For auto update, please run `run.sh` which runs a script that checks github for the current repository version every hour. If your local version differs, it pulls the new repository and installs it.
+For auto update, please run `run.sh` which runs a script that checks github for the current repository version every hour. If your local version differs, it pulls the new repository and installs it:
 ```
 source run.sh --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.debug --axon.port PORT --organic False
 ```
