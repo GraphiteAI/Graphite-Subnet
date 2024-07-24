@@ -275,19 +275,19 @@ while true; do
     fi
 
     # Proceed with checks only at the 30-minute mark
-    latest_version=$(check_variable_value_on_github $repository $version_location $version $branch)
+    remote_version=$(check_variable_value_on_github $repository $version_location $version $branch)
 
-    while [ -z "$latest_version" ]; do
-        echo "Waiting for latest version to be set..."
+    while [ -z "$remote_version" ]; do
+        echo "Waiting for remote version to be set..."
         sleep 1
     done
 
-    latest_version="${latest_version#"${latest_version%%[![:space:]]*}"}"
+    remote_version="${remote_version#"${remote_version%%[![:space:]]*}"}"
     current_version="${current_version#"${current_version%%[![:space:]]*}"}"
-    echo "Latest version: $latest_version, Current version: $current_version" 
+    echo "Remote version: $remote_version, Current version: $current_version" 
 
-    if [ -n "$latest_version" ] && ! echo "$latest_version" | grep -q "Error" && are_versions_different $current_version $latest_version; then
-        echo "Updating due to version mismatch. Current: $current_version, Latest: $latest_version"
+    if [ -n "$remote_version" ] && ! echo "$remote_version" | grep -q "Error" && are_versions_different $current_version $remote_version; then
+        echo "Updating due to version mismatch. Current: $current_version, Remote: $remote_version"
         if git pull origin $branch; then
             echo "New version published. Updating the local copy."
             pip install -e .
@@ -298,7 +298,7 @@ while true; do
             echo "Please stash your changes using git stash."
         fi
     else
-        echo "You are up-to-date with the latest version."
+        echo "You are up-to-date with the remote version."
     fi
     sleep 45
 done
