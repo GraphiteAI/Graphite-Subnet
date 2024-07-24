@@ -42,6 +42,18 @@ version_less_than() {
     [ "$1" = "$2" ] && return 1 || version_less_than_or_equal $1 $2
 }
 
+are_versions_different() {
+    local version1="$1"
+    local version2="$2"
+
+    # Check if the versions are different
+    if [ "$version1" != "$version2" ]; then
+        return 0  # Return 0 (true) if versions are different
+    else
+        return 1  # Return 1 (false) if versions are the same
+    fi
+}
+
 # compares the local version vs the current version on the repository
 get_version_difference() {
     local tag1="$1"
@@ -274,7 +286,7 @@ while true; do
     current_version="${current_version#"${current_version%%[![:space:]]*}"}"
     echo "Latest version: $latest_version, Current version: $current_version" 
 
-    if [ -n "$latest_version" ] && ! echo "$latest_version" | grep -q "Error" && version_less_than $current_version $latest_version; then
+    if [ -n "$latest_version" ] && ! echo "$latest_version" | grep -q "Error" && are_versions_different $current_version $latest_version; then
         echo "Updating due to version mismatch. Current: $current_version, Latest: $latest_version"
         if git pull origin $branch; then
             echo "New version published. Updating the local copy."
