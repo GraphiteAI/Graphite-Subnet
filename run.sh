@@ -6,7 +6,7 @@ proc_name="auto_update_validator"
 args=()
 version_location="graphite/__init__.py"
 version="__version__"
-repository="GraphiteAI/Graphite_Subnet"
+repository="GraphiteAI/Graphite-Subnet"
 repository_path="https://github.com/$repository"
 
 old_args=$@
@@ -264,16 +264,15 @@ while true; do
 
     # Proceed with checks only at the 30-minute mark
     latest_version=$(check_variable_value_on_github $repository $version_location $version $branch)
-    echo "$repository $version_location $version $branch"
 
     while [ -z "$latest_version" ]; do
         echo "Waiting for latest version to be set..."
         sleep 1
     done
 
-    echo "Latest version: $latest_version"
     latest_version="${latest_version#"${latest_version%%[![:space:]]*}"}"
     current_version="${current_version#"${current_version%%[![:space:]]*}"}"
+    echo "Latest version: $latest_version, Current version: $current_version" 
 
     if [ -n "$latest_version" ] && ! echo "$latest_version" | grep -q "Error" && version_less_than $current_version $latest_version; then
         echo "Updating due to version mismatch. Current: $current_version, Latest: $latest_version"
