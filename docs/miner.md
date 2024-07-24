@@ -64,9 +64,14 @@ pip install -e .
 To run a miner on the Graphite-AI subnet, miners will need to run the miner neuron. This neuron listens for incoming requests from validators and rewards are then given based on successful reponses to those requests.
 
 ```bash
-python3 neurons/miner.py --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.trace --axon.port PORT
+python3 -m neurons.miner --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.debug info --axon.port PORT
 ```
 If you are running on a remote server, ensure that your internal and external ports are correct. If they differ, please add the --axon.external_port <EXTERNAL_PORT> flag.
+
+using pm2:
+```bash
+pm2 start neurons/miner.py --name graphite_miner --interpreter python -- --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.debug info --axon.port PORT
+```
 
 For more detailed instructions on creating a wallet and registering onto a subnet, refer to our [installation guide](./installation.md).
 
@@ -76,7 +81,7 @@ For more detailed instructions on creating a wallet and registering onto a subne
 
 ## Succeeding as a Miner 🏆
 
-Miners on the Graphite-AI subnet are tasked to solve graph optimization problems which have a myriad of real-world applications (refer to [subnet_overview.md](./subnet_overview.md) for more information.) Miners are rewarded based on their ability to produce good solutions within a given timeframe (default as 30 seconds).
+Miners on the Graphite-AI subnet are tasked to solve graph optimization problems which have a myriad of real-world applications (refer to [subnet_overview.md](./subnet_overview.md) for more information.) Miners are rewarded based on their ability to produce good solutions within a given timeframe (default as 20 seconds).
 
 We currently pose 2 types of graph problems: the Metric Travelling Salesman Problem (TSP) and the General TSP. Various approaches to the problems have been researched. 
 
@@ -108,7 +113,7 @@ Credits to [AhmedStohy](https://github.com/AhmedStohy/Hybrid-Pointer-Networks) f
 <a id="improving-the-stock-miner-code"></a>
 
 ### Improving the Stock Miner Code 🛠️
-Changes to the miner code can be made by changing the way that problems are assigned to solvers. The solvers are implemented as classes that are instantiated along with the Miner. Simply edit the import statements and change the instantiated solver to your desired solver class.
+Changes to the miner code can be made by changing the way that problems are assigned to different solvers. The solvers are implemented as classes that are instantiated along with the Miner. Simply edit the import statements and change the instantiated solver to your desired solver class.
 
 A basic implementation is provided in the miner code. 
 

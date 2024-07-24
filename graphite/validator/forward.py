@@ -108,10 +108,10 @@ async def forward(self):
     
     try:
         if prob_select == 1:
-            problems, sizes = MetricTSPGenerator.generate_and_save_dataset(1)
+            problems, sizes = MetricTSPGenerator.generate_n_samples(1)
             test_problem_obj = problems[0]
         else:
-            problems, sizes = GeneralTSPGenerator.generate_and_save_dataset(1)
+            problems, sizes = GeneralTSPGenerator.generate_n_samples(1)
             test_problem_obj = problems[0]
     except ValidationError as e:
         bt.logging.debug(f"{'Metric TSP' if prob_select==1 else 'General TSP'}")

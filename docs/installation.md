@@ -217,18 +217,18 @@ Wallets
 > To receive testnet TAO, you can request some from the Community Moderators in the <a href="https://discord.gg/N65us8J5">Bittensor Discord</a>.
 
 > [!TIP]
-> Graphite is Subnet 49 on the mainnet and Subnet 65 on the testnet.
+> Graphite is Subnet 43 on the mainnet and Subnet 65 on the testnet.
 
 To register your wallets onto the subnet, you can run:
 
 <strong>Mainnet</strong>
 ```sh
-btcli wallet register --wallet.name <your_wallet_name> --wallet.hotkey <your_hotkey_name> --netuid 43
+btcli subnet register --wallet.name <your_wallet_name> --wallet.hotkey <your_hotkey_name> --netuid 43
 ```
 
 <strong>Testnet</strong>
 ```sh
-btcli wallet register --wallet.name <your_wallet_name> --wallet.hotkey <your_hotkey_name> --netuid 65 --subtensor.network test
+btcli subnet register --wallet.name <your_wallet_name> --wallet.hotkey <your_hotkey_name> --netuid 65 --subtensor.network test
 ```
 
 <hr>
