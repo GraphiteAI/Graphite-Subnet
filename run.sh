@@ -6,7 +6,7 @@ proc_name="auto_update_validator"
 args=()
 version_location="graphite/__init__.py"
 version="__version__"
-repository="GraphiteAI/Graphite_Subnet"
+repository="GraphiteAI/Graphite-Subnet"
 repository_path="https://github.com/$repository"
 
 old_args=$@
@@ -40,6 +40,18 @@ version_less_than_or_equal() {
 # Checks if $1 is smaller than $2
 version_less_than() {
     [ "$1" = "$2" ] && return 1 || version_less_than_or_equal $1 $2
+}
+
+are_versions_different() {
+    local version1="$1"
+    local version2="$2"
+
+    # Check if the versions are different
+    if [ "$version1" != "$version2" ]; then
+        return 0  # Return 0 (true) if versions are different
+    else
+        return 1  # Return 1 (false) if versions are the same
+    fi
 }
 
 # compares the local version vs the current version on the repository
@@ -263,19 +275,19 @@ while true; do
     fi
 
     # Proceed with checks only at the 30-minute mark
-    latest_version=$(check_variable_value_on_github $repository $version_location $version $branch)
+    remote_version=$(check_variable_value_on_github $repository $version_location $version $branch)
 
-    while [ -z "$latest_version" ]; do
-        echo "Waiting for latest version to be set..."
+    while [ -z "$remote_version" ]; do
+        echo "Waiting for remote version to be set..."
         sleep 1
     done
 
-    echo "Latest version: $latest_version"
-    latest_version="${latest_version#"${latest_version%%[![:space:]]*}"}"
+    remote_version="${remote_version#"${remote_version%%[![:space:]]*}"}"
     current_version="${current_version#"${current_version%%[![:space:]]*}"}"
+    echo "Remote version: $remote_version, Current version: $current_version" 
 
-    if [ -n "$latest_version" ] && ! echo "$latest_version" | grep -q "Error" && version_less_than $current_version $latest_version; then
-        echo "Updating due to version mismatch. Current: $current_version, Latest: $latest_version"
+    if [ -n "$remote_version" ] && ! echo "$remote_version" | grep -q "Error" && are_versions_different $current_version $remote_version; then
+        echo "Updating due to version mismatch. Current: $current_version, Remote: $remote_version"
         if git pull origin $branch; then
             echo "New version published. Updating the local copy."
             pip install -e .
@@ -286,7 +298,7 @@ while true; do
             echo "Please stash your changes using git stash."
         fi
     else
-        echo "You are up-to-date with the latest version."
+        echo "You are up-to-date with the remote version."
     fi
     sleep 45
 done
