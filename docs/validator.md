@@ -33,14 +33,14 @@ _Compute requirements were estimated based on conservative projections of networ
   <img src="../static/wandb-settings.png" alt="WandB Settings">
 </p>
 
-4. Scroll down to `Danger Zone`. <br>
+3. Scroll down to `Danger Zone`. <br>
 <p align="center">
   <img align="center" src="../static/danger-zone.png" alt="Danger Zone">
 </p>
 
-6. Click on `Reveal` and copy the API key.
+4. Click on `Reveal` and copy the API key.
 
-7. Create a `.env` file in the root directory of the project and add the following:
+5. Create a `.env` file in the root directory of the project and add the following:
 ```bash
 WANDB_API_KEY=YOUR_API_KEY
 ```
