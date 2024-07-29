@@ -278,18 +278,15 @@ async def forward(self):
                     "validator": self.wallet.hotkey.ss58_address,
                     }),
             )
+        for rewIdx in range(self.metagraph.n.item()):
+            wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}": wandb_rewards[rewIdx], f"distance-{self.wallet.hotkey.ss58_address}": wandb_miner_distance[rewIdx]})
+
+        self.cleanup_wandb(wandb)
     except Exception as e:
         print(f"Error initializing W&B: {e}")
-        wandb.init(mode="offline")
-
-    for rewIdx in range(self.metagraph.n.item()):
-        wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}": wandb_rewards[rewIdx], f"distance-{self.wallet.hotkey.ss58_address}": wandb_miner_distance[rewIdx]})
-
-    wandb.finish()
     
     bt.logging.info(f"Scored responses: {rewards}")
     
-    self.cleanup_wandb()
     
     if len(rewards) > 0:
         self.update_scores(rewards, miner_uids)
