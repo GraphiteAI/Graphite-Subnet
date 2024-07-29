@@ -2,7 +2,7 @@
 
 # Initialize variables
 script="neurons/validator.py" # replace this with the relative script path
-proc_name="auto_update_validator"
+proc_name="auto_update_graphite_validator"
 args=()
 version_location="graphite/__init__.py"
 version="__version__"
