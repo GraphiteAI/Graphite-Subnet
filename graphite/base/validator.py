@@ -194,6 +194,17 @@ class BaseValidatorNeuron(BaseNeuron):
         except AttributeError:
             pass
 
+    def cleanup_wandb(self, wandb):
+        try:
+            run_dir = wandb.run.dir
+            wandb.finish()
+            if os.path.exists(run_dir):
+                parent_dir = os.path.dirname(run_dir)
+                shutil.rmtree(parent_dir)
+                bt.logging.debug(f"Deleted {run_dir}")
+        except:
+            pass
+
     def run(self):
         """
         Initiates and manages the main loop for the miner on the Bittensor network. The main loop handles graceful shutdown on keyboard interrupts and logs unforeseen errors.
