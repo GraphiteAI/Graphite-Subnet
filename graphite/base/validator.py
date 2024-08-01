@@ -167,10 +167,33 @@ class BaseValidatorNeuron(BaseNeuron):
         ]
         await asyncio.gather(*coroutines)
 
+    async def organic_concurrent_forward(self):
+        
+        url = f"{self.organic_endpoint}/tasks/count"
+        headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
+        api_response = requests.get(url, headers=headers)
+
+        if "count" in api_response.json():
+            if api_response.json()["count"]  < 3:
+                num_concurrent_forwards = api_response.json()["count"] 
+            else:
+                num_concurrent_forwards = 3
+        else:
+            num_concurrent_forwards = self.config.neuron.num_concurrent_forwards
+        
+        self.current_num_concurrent_forwards = num_concurrent_forwards
+        bt.logging.info(f"Organic concurrent forwards: {num_concurrent_forwards}")
+
+        coroutines = [
+            self.stagger_forward()
+            for _ in range(num_concurrent_forwards) # self.config.neuron.num_concurrent_forwards)
+        ]
+        await asyncio.gather(*coroutines)
+
     def instantiate_wandb(self):
         load_dotenv()
-        # organic_endpoint = os.getenv('MONGODB_ENDPOINT')
-        # db_bearer_token = os.getenv('MONGODB_BEARER_TOKEN')
+        self.organic_endpoint = os.getenv('MONGODB_ENDPOINT')
+        self.db_bearer_token = os.getenv('MONGODB_BEARER_TOKEN')
         wandb_api_key = os.getenv('WANDB_API_KEY')
         
         if not wandb_api_key:
@@ -231,6 +254,9 @@ class BaseValidatorNeuron(BaseNeuron):
                     self.last_synthetic_req = self.block
                     self.concurrencyIdx = 0
                     self.loop.run_until_complete(self.concurrent_forward())
+
+                self.concurrencyIdx = 0
+                self.loop.run_until_complete(self.organic_concurrent_forward())
 
                 # Check if we should exit.
                 if self.should_exit:
