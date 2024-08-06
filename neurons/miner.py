@@ -28,7 +28,7 @@ import graphite
 from graphite.base.miner import BaseMinerNeuron
 from graphite.protocol import IsAlive
 
-from graphite.solvers import NearestNeighbourSolver, DPSolver
+from graphite.solvers import NearestNeighbourSolver, DPSolver, BeamSearchSolver
 from graphite.protocol import GraphProblem, GraphSynapse
 
 
@@ -54,7 +54,7 @@ class Miner(BaseMinerNeuron):
         )
 
         self.solvers = {
-            'small': DPSolver(),
+            'small': BeamSearchSolver(),
             'large': NearestNeighbourSolver()
         }
 
@@ -88,6 +88,9 @@ class Miner(BaseMinerNeuron):
         bt.logging.info(
             f"Miner received input to solve {synapse.problem.n_nodes}"
         )
+        # from 0 - 20 consider changing dp solver for ai solver
+        # from 20 + beam solver 
+    
         # Conditional assignment of problems to each solver
         if synapse.problem.n_nodes < 15:
             # Solves the problem to optimality but is very computationally intensive

@@ -28,9 +28,20 @@ class BeamSearchSolver(BaseSolver):
     def __init__(self, problem_types:List[GraphProblem]=[GraphProblem(n_nodes=2), GraphProblem(n_nodes=2, directed=True, problem_type='General TSP')]):
         super().__init__(problem_types=problem_types)
 
+    # def get_beam_width(self, n: int) -> int:
+    #     if n <= 20:
+    #         return 3
+    #     elif n <= 50:
+    #         return 5
+    #     elif n <= 100:
+    #         return 10
+    #     else:
+    #         return 20
+
     async def solve(self, formatted_problem, future_id:int, beam_width:int=3)->List[int]:
         distance_matrix = formatted_problem
         n = len(distance_matrix[0])
+        # beam_width = self.get_beam_width(n)
 
         # Initialize the beam with the starting point (0) and a total distance of 0
         beam = [(0, [0], 0)]
