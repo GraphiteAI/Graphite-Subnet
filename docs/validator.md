@@ -87,12 +87,16 @@ For auto update and auto restart, please run `run.sh` which runs a script that c
 ```
 source run.sh --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.debug --axon.port PORT --organic False
 ```  
+<br>  
 
+For the above commands,
 Please replace: `NAME`, `NETWORK`, `HOTKEY`, `PORT` 
 - Mainnet: `NETIUD 43`, `NETWORK finney or NETWORK <your_local_subtensor_endpoint>`
 - Testnet: `NETUID 65`, `NETWORK test`
 
 Edit the logging flag per your needs
+
+<br>
 
 <a id="organic-vali"></a>
 
