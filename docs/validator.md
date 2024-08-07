@@ -89,8 +89,7 @@ source run.sh --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --w
 ```  
 <br>  
 
-For the above commands,
-Please replace: `NAME`, `NETWORK`, `HOTKEY`, `PORT` 
+_For the above commands, please replace:_ `NAME`, `NETWORK`, `HOTKEY`, `PORT` 
 - Mainnet: `NETIUD 43`, `NETWORK finney or NETWORK <your_local_subtensor_endpoint>`
 - Testnet: `NETUID 65`, `NETWORK test`
 
