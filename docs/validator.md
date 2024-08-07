@@ -77,7 +77,7 @@ Verify that your validator is running correctly using `pm2 status`. You should s
 
 
 #### <ins>Running the Validator with auto-update</ins>
-Note that you should not run this command along with the auto-restart command as it might cause unexpected behavior as they both initialize pm2 processes of the same name. Install **pm2** and **jq** on your machine before running this code.
+Note that you should **not** run this command along with the auto-restart command as it might cause unexpected behavior as they both initialize pm2 processes of the same name. Install **pm2** and **jq** on your machine before running this code.
 
 
 
