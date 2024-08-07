@@ -55,20 +55,25 @@ WANDB_API_KEY=YOUR_API_KEY
 ## Running a Synthetic Validator 
 Synthetic validators generate randomly generated graph problems by using a binned distribution to select the size of the problem (number of nodes), followed by sampling from a uniform distribution to populate either the coordinates or edges between the nodes. 
 
-These problems are then sent to miners to challenge them. Running a synthetic validator is as simple as running the following command:
+These problems are then sent to miners to challenge them. Running a synthetic validator is as simple as running ONE of the following command:
+
 ```bash
 python3 neurons/validator.py --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.trace --axon.port PORT --organic False
 ```
+
+
 For auto restart, please use `pm2` to run the validator with the following command:
 ```
-pm2 start neurons/validator.py --name PROC_NAME --interpreter python3 -- --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.trace --axon.port PORT --organic False
+pm2 start neurons/validator.py --name auto_update_graphite_validator --interpreter python3 -- --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.trace --axon.port PORT --organic False
 ```
-For auto update, please run `run.sh` which runs a script that checks github for the current repository version every hour. If your local version differs, it pulls the new repository and installs it:
+
+
+For auto update and auto restart, please run `run.sh` which runs a script that checks github for the current repository version every hour. If your local version differs, it pulls the new repository and installs it (The script is configured to run the pm2 process with the name: `auto_update_graphite_validator`):
 ```
 source run.sh --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.debug --axon.port PORT --organic False
 ```
 
-Please replace: `PROC_NAME`, `NAME`, `NETWORK`, `HOTKEY`, `PORT` 
+Please replace: `NAME`, `NETWORK`, `HOTKEY`, `PORT` 
 - Mainnet: `NETIUD 43`, `NETWORK finney or NETWORK <your_local_subtensor_endpoint>`
 - Testnet: `NETUID 65`, `NETWORK test`
 
