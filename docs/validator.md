@@ -57,6 +57,8 @@ Synthetic validators generate randomly generated graph problems by using a binne
 
 These problems are then sent to miners to challenge them. Running a synthetic validator is as simple as executing **one** of the following instructions:
 <br>
+<br>  
+
 ### Running the Validator
 ```bash
 python3 neurons/validator.py --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.trace --axon.port PORT --organic False
