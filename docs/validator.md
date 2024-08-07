@@ -62,7 +62,6 @@ These problems are then sent to miners to challenge them. Running a synthetic va
 ```bash
 python3 neurons/validator.py --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.trace --axon.port PORT --organic False
 ```  
-<br>  
 
 ### Running the Validator with auto-restart using PM2
 Install **pm2** into your machine. Navigate to your Graphite-Subnet repo and verify that you are in the right python environment.
@@ -76,7 +75,6 @@ pm2 start neurons/validator.py --name auto_update_graphite_validator --interpret
 
 Verify that your validator is running correctly using `pm2 status`. You should see that `auto_update_graphite_validator` is running. Further inspect the process logs using `pm2 logs auto_update_graphite_validator`.
 
-<br>  
 
 ### Running the Validator with auto-update
 Note that you should not run this command along with the auto-restart command as it might cause unexpected behavior as they both initialize pm2 processes of the same name. Install **pm2** and **jq** on your machine before running this code.
