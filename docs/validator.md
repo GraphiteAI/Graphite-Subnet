@@ -55,7 +55,7 @@ WANDB_API_KEY=YOUR_API_KEY
 ## Running a Synthetic Validator 
 Synthetic validators generate randomly generated graph problems by using a binned distribution to select the size of the problem (number of nodes), followed by sampling from a uniform distribution to populate either the coordinates or edges between the nodes. 
 
-These problems are then sent to miners to challenge them. Running a synthetic validator is as simple as executing **one** of the following instructions:
+These problems are then sent to miners to challenge them. Running a synthetic validator is as simple as executing <ins>**one**</ins> of the following instructions:
 <br>  
 
 ### Running the Validator
