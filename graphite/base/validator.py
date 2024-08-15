@@ -198,27 +198,30 @@ class BaseValidatorNeuron(BaseNeuron):
         await asyncio.gather(*coroutines)
 
     async def organic_concurrent_forward(self):
-        
-        url = f"{self.organic_endpoint}/tasks/count"
-        headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
-        api_response = requests.get(url, headers=headers)
+        if self.organic_endpoint != None:
+            url = f"{self.organic_endpoint}/tasks/count"
+            headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
+            api_response = requests.get(url, headers=headers)
 
-        if "count" in api_response.json():
-            if api_response.json()["count"]  < 3:
-                num_concurrent_forwards = api_response.json()["count"] 
+            if "count" in api_response.json():
+                if api_response.json()["count"]  < 3:
+                    num_concurrent_forwards = api_response.json()["count"] 
+                else:
+                    num_concurrent_forwards = 3
             else:
-                num_concurrent_forwards = 3
-        else:
-            num_concurrent_forwards = self.config.neuron.num_concurrent_forwards
-        
-        self.current_num_concurrent_forwards = num_concurrent_forwards
-        bt.logging.info(f"Organic concurrent forwards: {num_concurrent_forwards}")
+                num_concurrent_forwards = self.config.neuron.num_concurrent_forwards
+            
+            self.current_num_concurrent_forwards = num_concurrent_forwards
+            bt.logging.info(f"Organic concurrent forwards: {num_concurrent_forwards}")
 
-        coroutines = [
-            self.stagger_forward()
-            for _ in range(num_concurrent_forwards) # self.config.neuron.num_concurrent_forwards)
-        ]
-        await asyncio.gather(*coroutines)
+            coroutines = [
+                self.stagger_forward()
+                for _ in range(num_concurrent_forwards) # self.config.neuron.num_concurrent_forwards)
+            ]
+            await asyncio.gather(*coroutines)
+        else:
+            bt.logging.warning(f"You have not set your organic request endpoint. Consider setting one up or use the endpoint at: 213.173.108.215")
+            self.concurrent_forward()
 
     def instantiate_wandb(self):
         load_dotenv()
