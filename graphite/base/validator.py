@@ -63,12 +63,13 @@ class BaseValidatorNeuron(BaseNeuron):
         super().__init__(config=config)
         self.running_organic_forward = self.config.organic_forward
         bt.logging.info(f"{'Running Organic Validator' if self.running_organic_forward else 'Running Synthetic Validator'}")
+        self.instantiate_wandb()
+        self.set_env()
         if self.running_organic_forward:
             self.test_bearer_token()
         # Save a copy of the hotkeys to local memory.
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
         # instantiate wandb
-        self.instantiate_wandb()
 
         # Dendrite lets us send messages to other nodes (axons) in the network.
         if self.config.mock:
@@ -250,10 +251,12 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.info(f"You have not set your organic request endpoint. Consider setting one up or use the endpoint at: 213.173.108.215")
             await self.concurrent_forward()
 
-    def instantiate_wandb(self):
-        load_dotenv()
+    def set_env(self):
         self.organic_endpoint = os.getenv('MONGODB_ENDPOINT')
         self.db_bearer_token = os.getenv('MONGODB_BEARER_TOKEN')
+
+    def instantiate_wandb(self):
+        load_dotenv()
         bt.logging.info(f"Set organic endpoint to: {self.organic_endpoint} with api key {self.db_bearer_token}")
         wandb_api_key = os.getenv('WANDB_API_KEY')
         
