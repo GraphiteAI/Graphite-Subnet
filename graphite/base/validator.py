@@ -199,6 +199,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
     async def organic_concurrent_forward(self):
         if self.organic_endpoint != None:
+            bt.logging.info(f"running organic_concurrent_forward")
             url = f"{self.organic_endpoint}/tasks/count"
             headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
             api_response = requests.get(url, headers=headers)
@@ -221,12 +222,13 @@ class BaseValidatorNeuron(BaseNeuron):
             await asyncio.gather(*coroutines)
         else:
             bt.logging.warning(f"You have not set your organic request endpoint. Consider setting one up or use the endpoint at: 213.173.108.215")
-            self.concurrent_forward()
+            await self.concurrent_forward()
 
     def instantiate_wandb(self):
         load_dotenv()
         self.organic_endpoint = os.getenv('MONGODB_ENDPOINT')
         self.db_bearer_token = os.getenv('MONGODB_BEARER_TOKEN')
+        bt.logging.info(f"Set organic endpoint to: {self.organic_endpoint} with api key {self.db_bearer_token}")
         wandb_api_key = os.getenv('WANDB_API_KEY')
         
         if not wandb_api_key:
