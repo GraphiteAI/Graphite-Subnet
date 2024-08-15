@@ -22,7 +22,6 @@ import bittensor as bt
 from bittensor import axon, dendrite
 
 from graphite.validator.reward import get_rewards, ScoreResponse
-from graphite.utils.uids import get_available_uids
 
 import time
 
@@ -126,9 +125,16 @@ async def forward(self):
         bt.logging.debug(e)
 
     
-    available_uids = await self.get_available_uids()
-
-    miner_uids = list(available_uids.keys())
+    # available_uids = await self.get_available_uids()
+    
+    if len(api_response_output) > 0:
+        # if this is an organic request, we select the top k miners by incentive (with a mix of some outside the top k to increase solution diversity)
+        selected_uids = await self.get_top_k_uids()
+    else:
+        # select random 30 miners that are available (i.e. responded to the isAlive synapse)
+        selected_uids = await self.get_k_uids()
+    
+    miner_uids = list(selected_uids.keys())
 
     # The dendrite client queries the network.
     responses = await self.dendrite(
