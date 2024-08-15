@@ -135,6 +135,7 @@ async def forward(self):
         selected_uids = await self.get_k_uids()
     
     miner_uids = list(selected_uids.keys())
+    bt.logging.info(f"Selected UIDS: {miner_uids}")
 
     # The dendrite client queries the network.
     responses = await self.dendrite(
