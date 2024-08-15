@@ -63,6 +63,7 @@ class BaseValidatorNeuron(BaseNeuron):
         super().__init__(config=config)
         self.running_organic_forward = self.config.organic_forward
         bt.logging.info(f"{'Running Organic Validator' if self.running_organic_forward else 'Running Synthetic Validator'}")
+        self.test_bearer_token()
         # Save a copy of the hotkeys to local memory.
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
         # instantiate wandb
