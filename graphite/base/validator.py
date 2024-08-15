@@ -231,7 +231,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 if "count" in api_response.json():
                     if api_response.json()["count"]  < 3:
                         # set at least one concurrent forward
-                        num_concurrent_forwards = max(1, api_response.json()["count"])
+                        num_concurrent_forwards = api_response.json()["count"]
                     else:
                         num_concurrent_forwards = 3
                 else:
@@ -324,8 +324,6 @@ class BaseValidatorNeuron(BaseNeuron):
                 self.concurrencyIdx = 0
                 if self.running_organic_forward:
                     self.loop.run_until_complete(self.organic_concurrent_forward())
-                else:
-                    self.loop.run_until_complete(self.concurrent_forward())
 
                 # Check if we should exit.
                 if self.should_exit:
