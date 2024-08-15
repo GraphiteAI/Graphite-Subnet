@@ -61,7 +61,8 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def __init__(self, config=None):
         super().__init__(config=config)
-
+        self.running_organic_forward = self.config.organic_forward
+        bt.logging.info(f"{'Running Organic Validator' if self.running_organic_forward else 'Running Synthetic Validator'}")
         # Save a copy of the hotkeys to local memory.
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
         # instantiate wandb
@@ -315,7 +316,10 @@ class BaseValidatorNeuron(BaseNeuron):
                     self.loop.run_until_complete(self.concurrent_forward())
 
                 self.concurrencyIdx = 0
-                self.loop.run_until_complete(self.organic_concurrent_forward())
+                if self.running_organic_forward:
+                    self.loop.run_until_complete(self.organic_concurrent_forward())
+                else:
+                    self.loop.run_until_complete(self.concurrent_forward())
 
                 # Check if we should exit.
                 if self.should_exit:
@@ -478,7 +482,8 @@ class BaseValidatorNeuron(BaseNeuron):
 
         # Update the hotkeys.
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
-        self.test_bearer_token() # also test the bearer token to verify it is still valid
+        if self.running_organic_forward:
+            self.test_bearer_token() # also test the bearer token to verify it is still valid
 
     def update_scores(self, rewards: np.ndarray, uids: List[int]):
         """Performs exponential moving average on the scores based on the rewards received from the miners."""
