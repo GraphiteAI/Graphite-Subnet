@@ -39,6 +39,7 @@ from graphite.utils.config import add_validator_args
 from graphite.protocol import IsAlive
 
 import requests
+from requests import HTTPError
 
 from dotenv import load_dotenv
 import os
@@ -196,32 +197,54 @@ class BaseValidatorNeuron(BaseNeuron):
             for _ in range(num_concurrent_forwards) # self.config.neuron.num_concurrent_forwards)
         ]
         await asyncio.gather(*coroutines)
+    
+    async def test_bearer_token(self):
+        self.bearer_token_is_valid = False
+        if self.organic_endpoint != None and self.organic_endpoint != "":
+            url = f"{self.organic_endpoint}/test_key"
+            headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
+            try:
+                api_response = requests.get(url, headers=headers)
+                api_response.raise_for_status()
+                if "activated" in api_response.json()['message']:
+                    self.bearer_token_is_valid = True
+            except HTTPError as e:
+                bt.logging.error(f"Failed to validate token due to {e}")
+            except Exception as e:
+                bt.logging.error(f"The following error occurred while validating token: {e}")
+        else:
+            bt.logging.info(f"You have not set your organic request endpoint. Consider setting one up or use the endpoint at: 213.173.108.215")
+            await self.concurrent_forward()
 
     async def organic_concurrent_forward(self):
-        if self.organic_endpoint != None:
+        if self.bearer_token_is_valid:
             bt.logging.info(f"running organic_concurrent_forward")
             url = f"{self.organic_endpoint}/tasks/count"
             headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
-            api_response = requests.get(url, headers=headers)
-
-            if "count" in api_response.json():
-                if api_response.json()["count"]  < 3:
-                    num_concurrent_forwards = api_response.json()["count"] 
+            try:
+                api_response = requests.get(url, headers=headers)
+                api_response.raise_for_status()
+                if "count" in api_response.json():
+                    if api_response.json()["count"]  < 3:
+                        num_concurrent_forwards = api_response.json()["count"] 
+                    else:
+                        num_concurrent_forwards = 3
                 else:
-                    num_concurrent_forwards = 3
-            else:
-                num_concurrent_forwards = self.config.neuron.num_concurrent_forwards
-            
-            self.current_num_concurrent_forwards = num_concurrent_forwards
-            bt.logging.info(f"Organic concurrent forwards: {num_concurrent_forwards}")
+                    num_concurrent_forwards = self.config.neuron.num_concurrent_forwards
+                self.current_num_concurrent_forwards = num_concurrent_forwards
+                bt.logging.info(f"Organic concurrent forwards: {num_concurrent_forwards}")
 
-            coroutines = [
-                self.stagger_forward()
-                for _ in range(num_concurrent_forwards) # self.config.neuron.num_concurrent_forwards)
-            ]
-            await asyncio.gather(*coroutines)
+                coroutines = [
+                    self.stagger_forward()
+                    for _ in range(num_concurrent_forwards) # self.config.neuron.num_concurrent_forwards)
+                ]
+                await asyncio.gather(*coroutines)
+            except HTTPError as e:
+                bt.logging.error(f"Failed to retrieve requests due to {e}")
+            except Exception as e:
+                bt.logging.error(f"The following error occurred while requesting organic problems: {e}")
         else:
-            bt.logging.warning(f"You have not set your organic request endpoint. Consider setting one up or use the endpoint at: 213.173.108.215")
+            bt.logging.info(f"You have not set your organic request endpoint. Consider setting one up or use the endpoint at: 213.173.108.215")
             await self.concurrent_forward()
 
     def instantiate_wandb(self):

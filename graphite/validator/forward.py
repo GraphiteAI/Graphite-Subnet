@@ -60,7 +60,7 @@ async def forward(self):
     did_organic_task = False
     organic_task_id = ""
     try:
-        if self.organic_endpoint is not None and self.organic_endpoint != "":
+        if self.bearer_token_is_valid:
 
             url = f"{self.organic_endpoint}/tasks/oldest/{curr_idx}"
             headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
