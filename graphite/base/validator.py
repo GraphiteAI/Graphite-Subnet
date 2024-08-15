@@ -63,7 +63,8 @@ class BaseValidatorNeuron(BaseNeuron):
         super().__init__(config=config)
         self.running_organic_forward = self.config.organic_forward
         bt.logging.info(f"{'Running Organic Validator' if self.running_organic_forward else 'Running Synthetic Validator'}")
-        self.test_bearer_token()
+        if self.running_organic_forward:
+            self.test_bearer_token()
         # Save a copy of the hotkeys to local memory.
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
         # instantiate wandb
@@ -200,7 +201,7 @@ class BaseValidatorNeuron(BaseNeuron):
         ]
         await asyncio.gather(*coroutines)
     
-    async def test_bearer_token(self):
+    def test_bearer_token(self):
         self.bearer_token_is_valid = False
         if self.organic_endpoint != None and self.organic_endpoint != "":
             url = f"{self.organic_endpoint}/test_key"
@@ -216,8 +217,7 @@ class BaseValidatorNeuron(BaseNeuron):
             except Exception as e:
                 bt.logging.error(f"The following error occurred while validating token: {e}")
         else:
-            bt.logging.info(f"You have not set your organic request endpoint. Consider setting one up or use the endpoint at: 213.173.108.215")
-            await self.concurrent_forward()
+            bt.logging.info("You are running a synthetic validator as you have not set a bearer token.")
 
     async def organic_concurrent_forward(self):
         if self.bearer_token_is_valid:
