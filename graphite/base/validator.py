@@ -230,7 +230,8 @@ class BaseValidatorNeuron(BaseNeuron):
                 api_response.raise_for_status()
                 if "count" in api_response.json():
                     if api_response.json()["count"]  < 3:
-                        num_concurrent_forwards = api_response.json()["count"] 
+                        # set at least one concurrent forward
+                        num_concurrent_forwards = max(1, api_response.json()["count"])
                     else:
                         num_concurrent_forwards = 3
                 else:
