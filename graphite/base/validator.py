@@ -112,7 +112,7 @@ class BaseValidatorNeuron(BaseNeuron):
     
     async def get_k_uids(self, k:int=30):
         available_uids = await self.get_available_uids()
-        random_uids = random.sample(list(available_uids.keys()), k)
+        random_uids = random.sample(list(available_uids.keys()), min(k, len(available_uids)))
         return {uid: available_uids[uid] for uid in random_uids}
     
     async def get_top_k_uids(self, k:int=30, alpha:float=0.7):
