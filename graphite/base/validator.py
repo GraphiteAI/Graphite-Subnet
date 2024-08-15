@@ -254,10 +254,11 @@ class BaseValidatorNeuron(BaseNeuron):
     def set_env(self):
         self.organic_endpoint = os.getenv('MONGODB_ENDPOINT')
         self.db_bearer_token = os.getenv('MONGODB_BEARER_TOKEN')
+        bt.logging.info(f"Set organic endpoint to: {self.organic_endpoint} with api key {self.db_bearer_token}")
+
 
     def instantiate_wandb(self):
         load_dotenv()
-        bt.logging.info(f"Set organic endpoint to: {self.organic_endpoint} with api key {self.db_bearer_token}")
         wandb_api_key = os.getenv('WANDB_API_KEY')
         
         if not wandb_api_key:
