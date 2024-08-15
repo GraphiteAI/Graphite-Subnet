@@ -207,6 +207,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 api_response = requests.get(url, headers=headers)
                 api_response.raise_for_status()
                 if "activated" in api_response.json()['message']:
+                    bt.logging.info("Token is still valid")
                     self.bearer_token_is_valid = True
             except HTTPError as e:
                 bt.logging.error(f"Failed to validate token due to {e}")
@@ -477,6 +478,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
         # Update the hotkeys.
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
+        self.test_bearer_token() # also test the bearer token to verify it is still valid
 
     def update_scores(self, rewards: np.ndarray, uids: List[int]):
         """Performs exponential moving average on the scores based on the rewards received from the miners."""
