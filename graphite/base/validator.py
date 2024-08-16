@@ -185,15 +185,6 @@ class BaseValidatorNeuron(BaseNeuron):
         wandb.login(key=os.environ["wandb_key"])
         bt.logging.info(f"Logged in with key {wandb_api_key}")
 
-    def cleanup_wandb(self):
-        try:
-            run_dir = wandb.run.dir
-            if os.path.exists(run_dir):
-                shutil.rmtree(run_dir)
-                bt.logging.info(f"Deleted {run_dir}")
-        except AttributeError:
-            pass
-
     def cleanup_wandb(self, wandb):
         try:
             run_dir = wandb.run.dir
