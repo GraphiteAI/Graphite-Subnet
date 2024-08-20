@@ -93,7 +93,7 @@ class IsAlive(bt.Synapse):
         # Getting the fields of the instance
         instance_fields = self.model_dump()
 
-        required = ISALIVE_SCHEMA
+        required = ISALIVE_SCHEMA.get("required", [])
         # Iterating over the fields of the instance
         for field, value in instance_fields.items():
             # If the object is not optional, serializing it, encoding it, and adding it to the headers
@@ -313,7 +313,7 @@ class GraphSynapse(bt.Synapse):
         # Getting the fields of the instance
         instance_fields = self.model_dump()
 
-        required = MODEL_SCHEMA
+        required = MODEL_SCHEMA.get("required", [])
         # Iterating over the fields of the instance
         for field, value in instance_fields.items():
             # If the object is not optional, serializing it, encoding it, and adding it to the headers
