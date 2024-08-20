@@ -129,19 +129,19 @@ class BaseValidatorNeuron(BaseNeuron):
         sorted_axon_list = sorted(available_uids_and_incentives, key=lambda x: x[1], reverse=True)
         # query a random sample of half of the top 10% of miners:
         top_k_axons = sorted_axon_list[:min(len(sorted_axon_list),k)]
-        # if len(sorted_axon_list) > k:
-        top_n = math.ceil(k*alpha)
-        bottom_remainder = math.floor(k*(1-alpha))
-        bottom_trim = min(0, len(sorted_axon_list[k:])-bottom_remainder) # check that bottom_remainder is smaller than number of remaining values
-        top_n -= bottom_trim # substract the negative value
-        bottom_remainder += bottom_trim # add the negative value
-        assert (top_n>0) and (bottom_remainder>=0), ValueError(f'Invalid call values: calling {top_n} top miners and {bottom_remainder} bottom miners')
-        other_axons = [x[0] for x in random.sample(sorted_axon_list[k:], bottom_remainder)]
-        random_top_axons = [x[0] for x in random.sample(top_k_axons, top_n)]
-        selected_uids = random_top_axons + other_axons
-        return {uid: available_uids[uid] for uid in selected_uids}
-        # else:
-        #     return self.get_k_uids()
+        if len(sorted_axon_list) > k:
+            top_n = math.ceil(k*alpha)
+            bottom_remainder = math.floor(k*(1-alpha))
+            bottom_trim = min(0, len(sorted_axon_list[k:])-bottom_remainder) # check that bottom_remainder is smaller than number of remaining values
+            top_n -= bottom_trim # substract the negative value
+            bottom_remainder += bottom_trim # add the negative value
+            assert (top_n>0) and (bottom_remainder>=0), ValueError(f'Invalid call values: calling {top_n} top miners and {bottom_remainder} bottom miners')
+            other_axons = [x[0] for x in random.sample(sorted_axon_list[k:], bottom_remainder)]
+            random_top_axons = [x[0] for x in random.sample(top_k_axons, top_n)]
+            selected_uids = random_top_axons + other_axons
+            return {uid: available_uids[uid] for uid in selected_uids}
+        else:
+            return sorted_axon_list
 
     async def check_alive(self, axon, uid):
         # check if axon is alive
