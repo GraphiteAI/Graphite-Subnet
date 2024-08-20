@@ -141,7 +141,7 @@ class BaseValidatorNeuron(BaseNeuron):
             selected_uids = random_top_axons + other_axons
             return {uid: available_uids[uid] for uid in selected_uids}
         else:
-            return available_uids
+            return self.get_k_uids()
 
     async def check_alive(self, axon, uid):
         # check if axon is alive
