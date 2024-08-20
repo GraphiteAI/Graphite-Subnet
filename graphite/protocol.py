@@ -229,12 +229,12 @@ class GraphSynapse(bt.Synapse):
             )
 
         # Getting the fields of the instance
-        instance_fields = MODEL_SCHEMA
+        instance_fields = self.model_dump()
 
+        required = MODEL_SCHEMA
         # Iterating over the fields of the instance
         for field, value in instance_fields.items():
             # If the object is not optional, serializing it, encoding it, and adding it to the headers
-            required = self.get_required_fields()
 
             # Skipping the field if it's already in the headers or its value is None
             if field in headers or value is None:
