@@ -25,6 +25,8 @@ import argparse
 import threading
 import bittensor as bt
 import time
+import math
+import random
 
 from typing import List, Union
 from traceback import print_exception
@@ -37,6 +39,7 @@ from graphite.utils.config import add_validator_args
 from graphite.protocol import IsAlive
 
 import requests
+from requests import HTTPError
 
 from dotenv import load_dotenv
 import os
@@ -58,11 +61,15 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def __init__(self, config=None):
         super().__init__(config=config)
-
+        self.running_organic_forward = self.config.organic_forward
+        bt.logging.info(f"{'Running Organic Validator' if self.running_organic_forward else 'Running Synthetic Validator'}")
+        self.instantiate_wandb()
+        self.set_env()
+        if self.running_organic_forward:
+            self.test_bearer_token()
         # Save a copy of the hotkeys to local memory.
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
         # instantiate wandb
-        self.instantiate_wandb()
 
         # Dendrite lets us send messages to other nodes (axons) in the network.
         if self.config.mock:
@@ -107,6 +114,33 @@ class BaseValidatorNeuron(BaseNeuron):
         available_uids = {uid: axon for uid, axon in enumerate(results) if axon is not None}
 
         return available_uids
+    
+    async def get_k_uids(self, k:int=30):
+        available_uids = await self.get_available_uids()
+        random_uids = random.sample(list(available_uids.keys()), min(k, len(available_uids)))
+        return {uid: available_uids[uid] for uid in random_uids}
+    
+    async def get_top_k_uids(self, k:int=30, alpha:float=0.7):
+        assert (alpha<=1) and (alpha>0.5), ValueError("For the get_top_k_uids method, alpha needs to be between 0.5 and 1")
+        # get available_uids
+        available_uids = await self.get_available_uids()
+        incentives = self.metagraph.I
+        available_uids_and_incentives = [(uid, incentives[uid]) for uid in available_uids.keys()]
+        sorted_axon_list = sorted(available_uids_and_incentives, key=lambda x: x[1], reverse=True)
+        # query a random sample of half of the top 10% of miners:
+        top_k_axons = sorted_axon_list[:min(len(sorted_axon_list),k)]
+        if len(sorted_axon_list) > k:
+            bottom_remainder = math.floor(k*(1-alpha))
+            if bottom_remainder > (len(sorted_axon_list)-k):
+                bottom_remainder = len(sorted_axon_list) - k
+            top_n = k - bottom_remainder
+            assert (top_n>0) and (bottom_remainder>=0), ValueError(f'Invalid call values: calling {top_n} top miners and {bottom_remainder} bottom miners')
+            other_axons = [x[0] for x in random.sample(sorted_axon_list[k:], bottom_remainder)]
+            random_top_axons = [x[0] for x in random.sample(top_k_axons, top_n)]
+            selected_uids = random_top_axons + other_axons
+            return {uid: available_uids[uid] for uid in selected_uids}
+        else:
+            return sorted_axon_list
 
     async def check_alive(self, axon, uid):
         # check if axon is alive
@@ -166,11 +200,65 @@ class BaseValidatorNeuron(BaseNeuron):
             for _ in range(num_concurrent_forwards) # self.config.neuron.num_concurrent_forwards)
         ]
         await asyncio.gather(*coroutines)
+    
+    def test_bearer_token(self):
+        self.bearer_token_is_valid = False
+        if self.organic_endpoint != None and self.organic_endpoint != "":
+            url = f"{self.organic_endpoint}/test_key"
+            headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
+            try:
+                api_response = requests.get(url, headers=headers)
+                api_response.raise_for_status()
+                if "activated" in api_response.json()['message']:
+                    bt.logging.info("Token is still valid")
+                    self.bearer_token_is_valid = True
+            except HTTPError as e:
+                bt.logging.error(f"Failed to validate token due to {e}")
+            except Exception as e:
+                bt.logging.error(f"The following error occurred while validating token: {e}")
+        else:
+            bt.logging.info("You are running a synthetic validator as you have not set a bearer token.")
+
+    async def organic_concurrent_forward(self):
+        if self.bearer_token_is_valid:
+            bt.logging.info(f"running organic_concurrent_forward")
+            url = f"{self.organic_endpoint}/tasks/count"
+            headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
+            try:
+                api_response = requests.get(url, headers=headers)
+                api_response.raise_for_status()
+                if "count" in api_response.json():
+                    if api_response.json()["count"]  < 3:
+                        # set at least one concurrent forward
+                        num_concurrent_forwards = api_response.json()["count"]
+                    else:
+                        num_concurrent_forwards = 3
+                else:
+                    num_concurrent_forwards = self.config.neuron.num_concurrent_forwards
+                self.current_num_concurrent_forwards = num_concurrent_forwards
+                bt.logging.info(f"Organic concurrent forwards: {num_concurrent_forwards}")
+
+                coroutines = [
+                    self.stagger_forward()
+                    for _ in range(num_concurrent_forwards) # self.config.neuron.num_concurrent_forwards)
+                ]
+                await asyncio.gather(*coroutines)
+            except HTTPError as e:
+                bt.logging.error(f"Failed to retrieve requests due to {e}")
+            except Exception as e:
+                bt.logging.error(f"The following error occurred while requesting organic problems: {e}")
+        else:
+            bt.logging.info(f"You have not set your organic request endpoint. Consider setting one up or use the endpoint at: 213.173.108.215")
+            await self.concurrent_forward()
+
+    def set_env(self):
+        self.organic_endpoint = os.getenv('MONGODB_ENDPOINT')
+        self.db_bearer_token = os.getenv('MONGODB_BEARER_TOKEN')
+        bt.logging.info(f"Set organic endpoint to: {self.organic_endpoint} with api key {self.db_bearer_token}")
+
 
     def instantiate_wandb(self):
         load_dotenv()
-        # organic_endpoint = os.getenv('MONGODB_ENDPOINT')
-        # db_bearer_token = os.getenv('MONGODB_BEARER_TOKEN')
         wandb_api_key = os.getenv('WANDB_API_KEY')
         
         if not wandb_api_key:
@@ -231,6 +319,10 @@ class BaseValidatorNeuron(BaseNeuron):
                     self.last_synthetic_req = self.block
                     self.concurrencyIdx = 0
                     self.loop.run_until_complete(self.concurrent_forward())
+
+                self.concurrencyIdx = 0
+                if self.running_organic_forward:
+                    self.loop.run_until_complete(self.organic_concurrent_forward())
 
                 # Check if we should exit.
                 if self.should_exit:
@@ -393,6 +485,8 @@ class BaseValidatorNeuron(BaseNeuron):
 
         # Update the hotkeys.
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
+        if self.running_organic_forward:
+            self.test_bearer_token() # also test the bearer token to verify it is still valid
 
     def update_scores(self, rewards: np.ndarray, uids: List[int]):
         """Performs exponential moving average on the scores based on the rewards received from the miners."""

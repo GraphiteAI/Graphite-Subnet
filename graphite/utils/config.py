@@ -244,6 +244,13 @@ def add_validator_args(cls, parser):
         default=2,
     )
 
+    parser.add_argument(
+        "--organic_forward",
+        help="Boolean flag for running organic validator",
+        action='store_true',
+        default=False
+    )
+
 
 def config(cls):
     """
