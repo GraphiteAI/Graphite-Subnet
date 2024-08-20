@@ -22,6 +22,7 @@ import bittensor as bt
 from bittensor import axon, dendrite
 
 from graphite.validator.reward import get_rewards, ScoreResponse
+from graphite.utils.uids import get_available_uids
 
 import time
 
@@ -59,66 +60,67 @@ async def forward(self):
 
     did_organic_task = False
     organic_task_id = ""
-    try:
-        if self.bearer_token_is_valid:
+    # try:
+    #     if organic_endpoint is not None and organic_endpoint != "":
 
-            url = f"{self.organic_endpoint}/tasks/oldest/{curr_idx}"
-            headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
-            api_response = requests.get(url, headers=headers)
-            api_response_output = api_response.json()
+    #         url = f"{organic_endpoint}/tasks/oldest/{curr_idx}"
+    #         headers = {"Authorization": "Bearer %s"%db_bearer_token}
+    #         api_response = requests.get(url, headers=headers)
+    #         api_response_output = api_response.json()
             
-            organic_task_id = api_response_output["_id"]
-            del api_response_output["_id"]
+    #         organic_task_id = api_response_output["_id"]
+    #         del api_response_output["_id"]
 
-            did_organic_task = True
+    #         did_organic_task = True
 
-            # bt.logging.info(f"ORGANIC TRAFFIC {api_response.text}")
-        else:
-            api_response_output = []
-    except:
-        api_response_output = []
+    #         # bt.logging.info(f"ORGANIC TRAFFIC {api_response.text}")
+    #     else:
+    #         api_response_output = []
+    # except:
+    #     api_response_output = []
 
-    if len(api_response_output) > 0:
-        try:
-            test_problem_obj = GraphProblem(**api_response_output)
-        except Exception as e:
-            bt.logging.error(e)
+    # if len(api_response_output) > 0:
+    #     try:
+    #         test_problem_obj = GraphProblem(**api_response_output)
+    #     except Exception as e:
+    #         bt.logging.error(e)
             
-            prob_select = random.randint(1, 2)
+    #         prob_select = random.randint(1, 2)
     
-            if prob_select == 1:
-                problems, sizes = MetricTSPGenerator.generate_and_save_dataset(1)
-                test_problem_obj = problems[0]
-            else:
-                problems, sizes = GeneralTSPGenerator.generate_and_save_dataset(1)
-                test_problem_obj = problems[0]
+    #         if prob_select == 1:
+    #             problems, sizes = MetricTSPGenerator.generate_and_save_dataset(1)
+    #             test_problem_obj = problems[0]
+    #         else:
+    #             problems, sizes = GeneralTSPGenerator.generate_and_save_dataset(1)
+    #             test_problem_obj = problems[0]
                 
-            try:
-                url = f"{self.organic_endpoint}/tasks/{organic_task_id}"
-                headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
-                api_response = requests.delete(url, headers=headers)
+    #         try:
+    #             url = f"{organic_endpoint}/tasks/{organic_task_id}"
+    #             headers = {"Authorization": "Bearer db_bearer_token"}
+    #             api_response = requests.delete(url, headers=headers)
 
-                did_organic_task = False
-            except:
-                pass
-    else:
-        prob_select = random.randint(1, 2)
-        try:
-            if prob_select == 1:
-                problems, sizes = MetricTSPGenerator.generate_n_samples(1)
-                test_problem_obj = problems[0]
-            else:
-                problems, sizes = GeneralTSPGenerator.generate_n_samples(1)
-                test_problem_obj = problems[0]
-        except ValidationError as e:
-            bt.logging.debug(f"{'Metric TSP' if prob_select==1 else 'General TSP'}")
-            bt.logging.debug(f"GraphProblem Validation Error: {e.json()}")
-            bt.logging.debug(e.errors())
-            bt.logging.debug(e)
+    #             did_organic_task = False
+    #         except:
+    #             pass
+    # else:
+
+    prob_select = random.randint(1, 2)
+    
+    try:
+        if prob_select == 1:
+            problems, sizes = MetricTSPGenerator.generate_n_samples(1)
+            test_problem_obj = problems[0]
+        else:
+            problems, sizes = GeneralTSPGenerator.generate_n_samples(1)
+            test_problem_obj = problems[0]
+    except ValidationError as e:
+        bt.logging.debug(f"{'Metric TSP' if prob_select==1 else 'General TSP'}")
+        bt.logging.debug(f"GraphProblem Validation Error: {e.json()}")
+        bt.logging.debug(e.errors())
+        bt.logging.debug(e)
 
     try:
         graphsynapse_req = GraphSynapse(problem=test_problem_obj)
-        bt.logging.info(f"Graph Synapse Problem, n_nodes: {graphsynapse_req.problem.n_nodes}")
     except ValidationError as e:
         bt.logging.debug(f"GraphSynapse Validation Error: {e.json()}")
         bt.logging.debug(e.errors())
@@ -150,6 +152,7 @@ async def forward(self):
         try:
             if res.axon.status_code != None:
                 res.axon.process_time = res.dendrite.process_time
+                # bt.logging.info(f"Received responses axon: {res.axon} {res.solution}")
         except:
             pass
     bt.logging.info(f"NUMBER OF RESPONSES: {len(responses)}")
@@ -172,29 +175,33 @@ async def forward(self):
         wandb_miner_solution[uid] = responses[id].solution
         wandb_axon_elapsed[uid] = responses[id].axon.process_time
 
-    if len(responses) > 0 and did_organic_task == True:
-        try:
-            best_reward_idx = np.argmax(wandb_rewards)
+    # if len(responses) > 0 and did_organic_task == True:
+    #     try:
+    #         # url = f"{organic_endpoint}/pop_organic_task"
+    #         # headers = {"Authorization": "Bearer db_bearer_token"}
+    #         # api_response = requests.get(url, headers=headers)
 
-            data = {
-                "solution": wandb_miner_solution[best_reward_idx], 
-                "distance": wandb_miner_distance[best_reward_idx]
-            }
-            url = f"{self.organic_endpoint}/tasks/{organic_task_id}"
-            headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
-            api_response = requests.put(url, json=data, headers=headers)
+    #         best_reward_idx = np.argmax(wandb_rewards)
 
-            did_organic_task = False
-        except:
-            pass
+    #         data = {
+    #             "solution": wandb_miner_solution[best_reward_idx], 
+    #             "distance": wandb_miner_distance[best_reward_idx]
+    #         }
+    #         url = f"{organic_endpoint}/tasks/{organic_task_id}"
+    #         headers = {"Authorization": "Bearer db_bearer_token"}
+    #         api_response = requests.put(url, json=data, headers=headers)
 
-    # clear database of old request > 10mins, both solved and unsolved
-    try:
-        url = f"{self.organic_endpoint}/tasks/{organic_task_id}"
-        headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
-        api_response = requests.delete(url, headers=headers)
-    except:
-        pass
+    #         did_organic_task = False
+    #     except:
+    #         pass
+
+    # # clear database of old request > 10mins, both solved and unsolved
+    # try:
+    #     url = f"{organic_endpoint}/tasks/oldest"
+    #     headers = {"Authorization": "Bearer db_bearer_token"}
+    #     api_response = requests.delete(url, headers=headers)
+    # except:
+    #     pass
 
     configDict = {
                     "save_code": False,
@@ -282,8 +289,9 @@ async def forward(self):
         self.cleanup_wandb(wandb)
     except Exception as e:
         print(f"Error initializing W&B: {e}")
-
+    
     bt.logging.info(f"Scored responses: {rewards}")
+    
     
     if len(rewards) > 0:
         self.update_scores(rewards, miner_uids)
