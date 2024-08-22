@@ -97,7 +97,6 @@ class BaseNeuron(ABC):
         bt.logging.info(f"Wallet: {self.wallet}")
         bt.logging.info(f"Subtensor: {self.subtensor}")
         bt.logging.info(f"Metagraph: {self.metagraph}")
-        bt.logging.info(f"Metagraph attributes: {self.metagraph.__dir__}")
 
         # Check if the miner is registered on the Bittensor network before proceeding further.
         # self.check_registered()
