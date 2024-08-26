@@ -227,7 +227,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 bt.logging.info(f"step({self.step}) block({self.block})")
 
                 # Run multiple forwards concurrently.
-                if self.block - self.last_synthetic_req > 1 * 60 / 12:
+                if self.block - self.last_synthetic_req > 25: # synthetic request every 25 blocks ~ 5 min
                     self.last_synthetic_req = self.block
                     self.concurrencyIdx = 0
                     self.loop.run_until_complete(self.concurrent_forward())
