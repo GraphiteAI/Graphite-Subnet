@@ -30,6 +30,19 @@ from graphite.utils.config import add_miner_args
 
 from typing import Union
 
+import osmium
+import numpy as np
+
+class WayNodeHandler(osmium.SimpleHandler):
+    def __init__(self):
+        super(WayNodeHandler, self).__init__()
+        self.nodes = []  # Store node coordinates
+
+    def node(self, n):
+        # Store the node coordinates in the dictionary
+        self.nodes.append([n.id, n.location.lon, n.location.lat])  # Store as [longitude, latitude]
+
+
 class BaseMinerNeuron(BaseNeuron):
     """
     Base class for Bittensor miners.
@@ -56,7 +69,7 @@ class BaseMinerNeuron(BaseNeuron):
             )
         # The axon handles request processing, allowing validators to send this miner requests.
         self.axon = bt.axon(wallet=self.wallet, config=self.config() if callable(self.config) else self.config)
-
+        self.loaded_graphs = {}
         # Attach determiners which functions are called when servicing a request.
 
         bt.logging.info(f"Axon created: {self.axon}")
@@ -66,6 +79,20 @@ class BaseMinerNeuron(BaseNeuron):
         self.is_running: bool = False
         self.thread: Union[threading.Thread, None] = None
         self.lock = asyncio.Lock()
+
+        # Load in asia tsp files
+        try:
+            with np.load('dataset/AsiaMSB.npz') as f:
+                node_coords_np = f['data']
+            self.loaded_graphs["AsiaMSB"] = np.array(node_coords_np)
+        except:
+            handler = WayNodeHandler()
+            handler.apply_file('dataset/malaysia-singapore-brunei-latest.osm.pbf') # file is downloaded into repo before transformation is applied
+            np.savez_compressed('dataset/AsiaMSB.npz', data=np.array(handler.nodes))
+
+            with np.load('dataset/AsiaMSB.npz') as f:
+                node_coords_np = f['data']
+            self.loaded_graphs["AsiaMSB"] = np.array(node_coords_np)
 
     def run(self):
         """

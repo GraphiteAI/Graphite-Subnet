@@ -127,7 +127,10 @@ class GraphProblem(BaseModel):
     objective_function: str = Field('min', description="Objective Function")
     visit_all: bool = Field(True, description="Visit All Nodes")
     to_origin: bool = Field(True, description="Return to Origin")
-    n_nodes: conint(ge=2) = Field(10, description="Number of Nodes (must be >= 2)")
+    n_nodes: conint(ge=2000, le=5000) = Field(2000, description="Number of Nodes (must be between 2000 and 5000)")
+    selected_ids: List[int] = Field(default_factory=list, description="List of selected node positional indexes")
+    cost_function: Literal['Euclidean', 'Manhatten'] = Field('Euclidean', description="Cost function")
+    dataset_ref: Literal['AsiaMSB', 'World'] = Field('AsiaMSB', description="Dataset reference file")
     nodes: Union[List[List[Union[conint(ge=0), confloat(ge=0)]]],None] = Field(default_factory=list, description="Node Coordinates")  # If not none, nodes represent the coordinates of the cities
     edges: Union[List[List[Union[conint(ge=0), confloat(ge=0)]]],None] = Field(default_factory=list, description="Edge Weights")  # If not none, this represents a square matrix of edges where edges[source;row][destination;col] is the cost of a given edge
     directed: bool = Field(False, description="Directed Graph")  # boolean for whether the graph is directed or undirected / Symmetric or Asymmetric
@@ -136,7 +139,7 @@ class GraphProblem(BaseModel):
     repeating: bool = Field(False, description="Allow Repeating Nodes")  # boolean for whether the nodes in the problem can be revisited
 
     @model_validator(mode='after') # checks and generates missing data if not passed in by user
-    def initialize_nodes_and_edges(self):
+    def unique_select_ids(self):
         if self.directed == False: # we should generate a set of coordinates and corresponding distances for this Metric TSP
             if not self.nodes and not self.edges: # we do not want to allow setting of edges for metric TSP... only setting coordinates
                 self.nodes = self.generate_random_coordinates(self.n_nodes)
