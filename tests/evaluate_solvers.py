@@ -20,7 +20,7 @@
 from typing import List
 from graphite.solvers import *
 from graphite.dataset.dataset_generator import MetricTSPGenerator, GeneralTSPGenerator
-from graphite.protocol import GraphProblem, GraphSynapse
+from graphite.protocol import GraphV1Problem, GraphV1Synapse
 from graphite.utils.graph_utils import get_tour_distance
 import pandas as pd
 import tqdm
@@ -48,9 +48,9 @@ def can_show_plot():
 
     return True
 
-def compare_problems(solvers: List, problems: List[GraphProblem]):
+def compare_problems(solvers: List, problems: List[GraphV1Problem]):
     problem_types = set([problem.problem_type for problem in problems])
-    mock_synapses = [GraphSynapse(problem=problem) for problem in problems]
+    mock_synapses = [GraphV1Synapse(problem=problem) for problem in problems]
     results = {solver.__class__.__name__: [] for solver in solvers}
     run_times_dict = {solver.__class__.__name__: [] for solver in solvers}
     scores_dict = {solver.__class__.__name__: [] for solver in solvers}

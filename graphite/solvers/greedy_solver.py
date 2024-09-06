@@ -19,7 +19,7 @@
 
 from typing import List, Union
 from graphite.solvers.base_solver import BaseSolver
-from graphite.protocol import GraphProblem
+from graphite.protocol import GraphV1Problem
 from graphite.utils.graph_utils import timeout
 import numpy as np
 import time
@@ -29,7 +29,7 @@ import random
 import bittensor as bt
 
 class NearestNeighbourSolver(BaseSolver):
-    def __init__(self, problem_types:List[GraphProblem]=[GraphProblem(n_nodes=2), GraphProblem(n_nodes=2, directed=True, problem_type='General TSP')]):
+    def __init__(self, problem_types:List[GraphV1Problem]=[GraphV1Problem(n_nodes=2), GraphV1Problem(n_nodes=2, directed=True, problem_type='General TSP')]):
         super().__init__(problem_types=problem_types)
 
     async def solve(self, formatted_problem:List[List[Union[int, float]]], future_id:int)->List[int]:
@@ -65,13 +65,13 @@ class NearestNeighbourSolver(BaseSolver):
         route.append(route[0])
         return route
 
-    def problem_transformations(self, problem: GraphProblem):
+    def problem_transformations(self, problem: GraphV1Problem):
         return problem.edges
         
 if __name__=="__main__":
     # runs the solver on a test MetricTSP
     n_nodes = 100
-    test_problem = GraphProblem(n_nodes=n_nodes)
+    test_problem = GraphV1Problem(n_nodes=n_nodes)
     solver = NearestNeighbourSolver(problem_types=[test_problem.problem_type])
     start_time = time.time()
     route = asyncio.run(solver.solve_problem(test_problem))

@@ -22,10 +22,11 @@ import bittensor as bt
 from bittensor import axon, dendrite
 
 from graphite.validator.reward import get_rewards, ScoreResponse
+from graphite.utils.uids import get_available_uids
 
 import time
 
-from graphite.protocol import GraphProblem, GraphSynapse
+from graphite.protocol import GraphV1Problem, GraphV2Problem, GraphV1Synapse, GraphV2Synapse
 from graphite.dataset.dataset_generator import MetricTSPGenerator, GeneralTSPGenerator
         
 import numpy as np
@@ -78,51 +79,71 @@ async def forward(self):
     except:
         api_response_output = []
 
-    if len(api_response_output) > 0:
-        try:
-            test_problem_obj = GraphProblem(**api_response_output)
-        except Exception as e:
-            bt.logging.error(e)
-            
-            prob_select = random.randint(1, 2)
     
-            if prob_select == 1:
-                problems, sizes = MetricTSPGenerator.generate_and_save_dataset(1)
-                test_problem_obj = problems[0]
-            else:
-                problems, sizes = GeneralTSPGenerator.generate_and_save_dataset(1)
-                test_problem_obj = problems[0]
-                
+    start_block = 3765527 # current test block
+    end_block = 3765527 + 60 * 60 * 24 * 3 / 12 # block 3 days later
+    
+    if random.random() > (self.block - start_block)/(end_block - start_block):
+        if len(api_response_output) > 0:
             try:
-                url = f"{self.organic_endpoint}/tasks/{organic_task_id}"
-                headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
-                api_response = requests.delete(url, headers=headers)
+                test_problem_obj = GraphV1Problem(**api_response_output)
+            except Exception as e:
+                bt.logging.error(e)
+                
+                prob_select = random.randint(1, 2)
+        
+                if prob_select == 1:
+                    problems, sizes = MetricTSPGenerator.generate_and_save_dataset(1)
+                    test_problem_obj = problems[0]
+                else:
+                    problems, sizes = GeneralTSPGenerator.generate_and_save_dataset(1)
+                    test_problem_obj = problems[0]
+                    
+                try:
+                    url = f"{self.organic_endpoint}/tasks/{organic_task_id}"
+                    headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
+                    api_response = requests.delete(url, headers=headers)
 
-                did_organic_task = False
-            except:
-                pass
-    else:
-        prob_select = random.randint(1, 2)
+                    did_organic_task = False
+                except:
+                    pass
+        else:
+            prob_select = random.randint(1, 2)
+            try:
+                if prob_select == 1:
+                    problems, sizes = MetricTSPGenerator.generate_n_samples(1)
+                    test_problem_obj = problems[0]
+                else:
+                    problems, sizes = GeneralTSPGenerator.generate_n_samples(1)
+                    test_problem_obj = problems[0]
+            except ValidationError as e:
+                bt.logging.debug(f"{'Metric TSP' if prob_select==1 else 'General TSP'}")
+                bt.logging.debug(f"GraphV1Problem Validation Error: {e.json()}")
+                bt.logging.debug(e.errors())
+                bt.logging.debug(e)
+
         try:
-            if prob_select == 1:
-                problems, sizes = MetricTSPGenerator.generate_n_samples(1)
-                test_problem_obj = problems[0]
-            else:
-                problems, sizes = GeneralTSPGenerator.generate_n_samples(1)
-                test_problem_obj = problems[0]
+            graphsynapse_req = GraphV1Synapse(problem=test_problem_obj)
+            bt.logging.info(f"GraphV1Synapse Problem, n_nodes: {graphsynapse_req.problem.n_nodes}")
         except ValidationError as e:
-            bt.logging.debug(f"{'Metric TSP' if prob_select==1 else 'General TSP'}")
-            bt.logging.debug(f"GraphProblem Validation Error: {e.json()}")
+            bt.logging.debug(f"GraphV1Synapse Validation Error: {e.json()}")
             bt.logging.debug(e.errors())
             bt.logging.debug(e)
+    else:
+        # determine the number of nodes to select
+        n_nodes = random.randint(2000, 5000)
+        # randomly select n_nodes indexes from the selected graph
+        prob_select = random.randint(0, len(list(self.loaded_datasets.keys())-1))
+        selected_node_idxs = random.sample(range(len(self.loaded_datasets[list(self.loaded_datasets.keys())[prob_select]])), n_nodes)
+        GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Euclidean", dataset_ref="AsiaMSB")
 
-    try:
-        graphsynapse_req = GraphSynapse(problem=test_problem_obj)
-        bt.logging.info(f"Graph Synapse Problem, n_nodes: {graphsynapse_req.problem.n_nodes}")
-    except ValidationError as e:
-        bt.logging.debug(f"GraphSynapse Validation Error: {e.json()}")
-        bt.logging.debug(e.errors())
-        bt.logging.debug(e)
+        try:
+            graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
+            bt.logging.info(f"GraphV2Synapse Problem, n_nodes: {graphsynapse_req.problem.n_nodes}")
+        except ValidationError as e:
+            bt.logging.debug(f"GraphV2Synapse Validation Error: {e.json()}")
+            bt.logging.debug(e.errors())
+            bt.logging.debug(e)
 
     
     # available_uids = await self.get_available_uids()
@@ -133,7 +154,8 @@ async def forward(self):
     else:
         # select random 30 miners that are available (i.e. responded to the isAlive synapse)
         selected_uids = await self.get_k_uids()
-    
+    # selected_uids = await self.get_available_uids()
+
     miner_uids = list(selected_uids.keys())
     bt.logging.info(f"Selected UIDS: {miner_uids}")
 
@@ -149,6 +171,7 @@ async def forward(self):
         try:
             if res.axon.status_code != None:
                 res.axon.process_time = res.dendrite.process_time
+                # bt.logging.info(f"Received responses axon: {res.axon} {res.solution}")
         except:
             pass
     bt.logging.info(f"NUMBER OF RESPONSES: {len(responses)}")
@@ -163,35 +186,41 @@ async def forward(self):
 
     wandb_miner_distance = [np.inf for _ in range(self.metagraph.n.item())]
     wandb_miner_solution = [[] for _ in range(self.metagraph.n.item())]
+    wandb_axon_elapsed = [np.inf for _ in range(self.metagraph.n.item())]
     wandb_rewards = [0 for _ in range(self.metagraph.n.item())]
     for id, uid in enumerate(miner_uids):
         wandb_rewards[uid] = rewards[id]
         wandb_miner_distance[uid] = score_response_obj.score_response(responses[id]) if score_response_obj.score_response(responses[id])!=None else 0
         wandb_miner_solution[uid] = responses[id].solution
+        wandb_axon_elapsed[uid] = responses[id].axon.process_time
 
-    if len(responses) > 0 and did_organic_task == True:
-        try:
-            best_reward_idx = np.argmax(wandb_rewards)
+    # if len(responses) > 0 and did_organic_task == True:
+    #     try:
+    #         # url = f"{organic_endpoint}/pop_organic_task"
+    #         # headers = {"Authorization": "Bearer db_bearer_token"}
+    #         # api_response = requests.get(url, headers=headers)
 
-            data = {
-                "solution": wandb_miner_solution[best_reward_idx], 
-                "distance": wandb_miner_distance[best_reward_idx]
-            }
-            url = f"{self.organic_endpoint}/tasks/{organic_task_id}"
-            headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
-            api_response = requests.put(url, json=data, headers=headers)
+    #         best_reward_idx = np.argmax(wandb_rewards)
 
-            did_organic_task = False
-        except:
-            pass
+    #         data = {
+    #             "solution": wandb_miner_solution[best_reward_idx], 
+    #             "distance": wandb_miner_distance[best_reward_idx]
+    #         }
+    #         url = f"{organic_endpoint}/tasks/{organic_task_id}"
+    #         headers = {"Authorization": "Bearer db_bearer_token"}
+    #         api_response = requests.put(url, json=data, headers=headers)
 
-    # clear database of old request > 10mins, both solved and unsolved
-    try:
-        url = f"{self.organic_endpoint}/tasks/{organic_task_id}"
-        headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
-        api_response = requests.delete(url, headers=headers)
-    except:
-        pass
+    #         did_organic_task = False
+    #     except:
+    #         pass
+
+    # # clear database of old request > 10mins, both solved and unsolved
+    # try:
+    #     url = f"{organic_endpoint}/tasks/oldest"
+    #     headers = {"Authorization": "Bearer db_bearer_token"}
+    #     api_response = requests.delete(url, headers=headers)
+    # except:
+    #     pass
 
     configDict = {
                     "save_code": False,
@@ -244,6 +273,11 @@ async def forward(self):
         configDict["repeating"] = graphsynapse_req.problem.repeating
     except:
         pass
+
+    try:
+        configDict["time_elapsed"] = wandb_axon_elapsed
+    except:
+        pass
     
     try:
         if self.subtensor.network == "test":
@@ -274,8 +308,9 @@ async def forward(self):
         self.cleanup_wandb(wandb)
     except Exception as e:
         print(f"Error initializing W&B: {e}")
-
+    
     bt.logging.info(f"Scored responses: {rewards}")
+    
     
     if len(rewards) > 0:
         self.update_scores(rewards, miner_uids)

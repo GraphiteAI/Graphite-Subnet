@@ -83,7 +83,7 @@ def add_args(cls, parser):
         "--neuron.epoch_length",
         type=int,
         help="The default epoch length (how often we set weights, measured in 12 second blocks).",
-        default=100,
+        default=300,
     )
 
     parser.add_argument(
@@ -242,13 +242,6 @@ def add_validator_args(cls, parser):
         type=int,
         help="The name of the project where you are sending the new run.",
         default=2,
-    )
-
-    parser.add_argument(
-        "--organic_forward",
-        help="Boolean flag for running organic validator",
-        action='store_true',
-        default=False
     )
 
 

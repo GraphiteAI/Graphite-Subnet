@@ -22,11 +22,12 @@
 [![YouTube](https://img.shields.io/badge/YouTube-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/c/youryoutubechannel)
 [![X](https://img.shields.io/badge/X-000000?logo=x&logoColor=white)](https://twitter.com/yourtwitterhandle) -->
 
+Website: https://graphite-ai.net/
 <!-- ![LinkedIn](https://img.shields.io/badge/linkedin-%230077B5.svg?style=for-the-badge&logo=linkedin&logoColor=white)&nbsp;&nbsp;-->
 [![X](https://img.shields.io/badge/X-%23000000.svg?style=for-the-badge&logo=X&logoColor=white)](https://x.com/Graphite_AI)&nbsp;&nbsp;
 <!-- ![YouTube](https://img.shields.io/badge/YouTube-%23FF0000.svg?style=for-the-badge&logo=YouTube&logoColor=white)&nbsp;&nbsp; -->
 
-[![Discord](https://dcbadge.limes.pink/api/server/https://discord.gg/sN5NU32M)](https://discord.gg/sN5NU32M)
+[![Discord](https://dcbadge.limes.pink/api/server/https://discord.gg/sN5NU32M)](https://discord.gg/dZQrRtGv)
 
 
 <hr>
