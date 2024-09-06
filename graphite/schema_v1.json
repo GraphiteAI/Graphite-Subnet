@@ -1,0 +1,278 @@
+{
+  "$defs": {
+    "GraphV1Problem": {
+      "properties": {
+        "problem_type": {
+          "default": "Metric TSP",
+          "description": "Problem Type",
+          "enum": ["Metric TSP", "General TSP"],
+          "title": "Problem Type",
+          "type": "string"
+        },
+        "objective_function": {
+          "default": "min",
+          "description": "Objective Function",
+          "title": "Objective Function",
+          "type": "string"
+        },
+        "visit_all": {
+          "default": true,
+          "description": "Visit All Nodes",
+          "title": "Visit All",
+          "type": "boolean"
+        },
+        "to_origin": {
+          "default": true,
+          "description": "Return to Origin",
+          "title": "To Origin",
+          "type": "boolean"
+        },
+        "n_nodes": {
+          "default": 10,
+          "description": "Number of Nodes (must be >= 2)",
+          "minimum": 2,
+          "title": "N Nodes",
+          "type": "integer"
+        },
+        "nodes": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "anyOf": [
+                    { "minimum": 0, "type": "integer" },
+                    { "minimum": 0.0, "type": "number" }
+                  ]
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            { "type": "null" }
+          ],
+          "description": "Node Coordinates",
+          "title": "Nodes"
+        },
+        "edges": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "anyOf": [
+                    { "minimum": 0, "type": "integer" },
+                    { "minimum": 0.0, "type": "number" }
+                  ]
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            { "type": "null" }
+          ],
+          "description": "Edge Weights",
+          "title": "Edges"
+        },
+        "directed": {
+          "default": false,
+          "description": "Directed Graph",
+          "title": "Directed",
+          "type": "boolean"
+        },
+        "simple": {
+          "default": true,
+          "description": "Simple Graph",
+          "title": "Simple",
+          "type": "boolean"
+        },
+        "weighted": {
+          "default": false,
+          "description": "Weighted Graph",
+          "title": "Weighted",
+          "type": "boolean"
+        },
+        "repeating": {
+          "default": false,
+          "description": "Allow Repeating Nodes",
+          "title": "Repeating",
+          "type": "boolean"
+        }
+      },
+      "title": "GraphV1Problem",
+      "type": "object"
+    },
+    "TerminalInfo": {
+      "description": "TerminalInfo encapsulates detailed information about a network synapse (node) involved in a communication process.\n\nThis class serves as a metadata carrier,\nproviding essential details about the state and configuration of a terminal during network interactions. This is a crucial class in the Bittensor framework.\n\nThe TerminalInfo class contains information such as HTTP status codes and messages, processing times,\nIP addresses, ports, Bittensor version numbers, and unique identifiers. These details are vital for\nmaintaining network reliability, security, and efficient data flow within the Bittensor network.\n\nThis class includes Pydantic validators and root validators to enforce data integrity and format. It is\ndesigned to be used natively within Synapses, so that you will not need to call this directly, but rather\nis used as a helper class for Synapses.\n\nArgs:\n    status_code (int): HTTP status code indicating the result of a network request. Essential for identifying the outcome of network interactions.\n    status_message (str): Descriptive message associated with the status code, providing additional context about the request's result.\n    process_time (float): Time taken by the terminal to process the call, important for performance monitoring and optimization.\n    ip (str): IP address of the terminal, crucial for network routing and data transmission.\n    port (int): Network port used by the terminal, key for establishing network connections.\n    version (int): Bittensor version running on the terminal, ensuring compatibility between different nodes in the network.\n    nonce (int): Unique, monotonically increasing number for each terminal, aiding in identifying and ordering network interactions.\n    uuid (str): Unique identifier for the terminal, fundamental for network security and identification.\n    hotkey (str): Encoded hotkey string of the terminal wallet, important for transaction and identity verification in the network.\n    signature (str): Digital signature verifying the tuple of nonce, axon_hotkey, dendrite_hotkey, and uuid, critical for ensuring data authenticity and security.\n\nUsage::\n\n    # Creating a TerminalInfo instance\n    terminal_info = TerminalInfo(\n        status_code=200,\n        status_message=\"Success\",\n        process_time=0.1,\n        ip=\"198.123.23.1\",\n        port=9282,\n        version=111,\n        nonce=111111,\n        uuid=\"5ecbd69c-1cec-11ee-b0dc-e29ce36fec1a\",\n        hotkey=\"5EnjDGNqqWnuL2HCAdxeEtN2oqtXZw6BMBe936Kfy2PFz1J1\",\n        signature=\"0x0813029319030129u4120u10841824y0182u091u230912u\"\n    )\n\n    # Accessing TerminalInfo attributes\n    ip_address = terminal_info.ip\n    processing_duration = terminal_info.process_time\n\n    # TerminalInfo can be used to monitor and verify network interactions, ensuring proper communication and security within the Bittensor network.\n\nTerminalInfo plays a pivotal role in providing transparency and control over network operations, making it an indispensable tool for developers and users interacting with the Bittensor ecosystem.",
+      "properties": {
+        "status_code": {
+          "anyOf": [{ "type": "integer" }, { "type": "null" }],
+          "default": null,
+          "description": "The HTTP status code from: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status",
+          "examples": [200],
+          "title": "status_code"
+        },
+        "status_message": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "description": "The status_message associated with the status_code",
+          "examples": ["Success"],
+          "title": "status_message"
+        },
+        "process_time": {
+          "anyOf": [{ "type": "number" }, { "type": "null" }],
+          "default": null,
+          "description": "Process time on this terminal side of call",
+          "examples": [0.1],
+          "title": "process_time"
+        },
+        "ip": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "description": "The ip of the axon receiving the request.",
+          "examples": ["198.123.23.1"],
+          "title": "ip"
+        },
+        "port": {
+          "anyOf": [{ "type": "integer" }, { "type": "null" }],
+          "default": null,
+          "description": "The port of the terminal.",
+          "examples": ["9282"],
+          "title": "port"
+        },
+        "version": {
+          "anyOf": [{ "type": "integer" }, { "type": "null" }],
+          "default": null,
+          "description": "The bittensor version on the axon as str(int)",
+          "examples": [111],
+          "title": "version"
+        },
+        "nonce": {
+          "anyOf": [{ "type": "integer" }, { "type": "null" }],
+          "default": null,
+          "description": "A Unix timestamp that prevents replay attacks",
+          "examples": [111111],
+          "title": "nonce"
+        },
+        "uuid": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "description": "A unique identifier associated with the terminal",
+          "examples": ["5ecbd69c-1cec-11ee-b0dc-e29ce36fec1a"],
+          "title": "uuid"
+        },
+        "hotkey": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "description": "The ss58 encoded hotkey string of the terminal wallet.",
+          "examples": ["5EnjDGNqqWnuL2HCAdxeEtN2oqtXZw6BMBe936Kfy2PFz1J1"],
+          "title": "hotkey"
+        },
+        "signature": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "default": null,
+          "description": "A signature verifying the tuple (nonce, axon_hotkey, dendrite_hotkey, uuid)",
+          "examples": ["0x0813029319030129u4120u10841824y0182u091u230912u"],
+          "title": "signature"
+        }
+      },
+      "title": "TerminalInfo",
+      "type": "object"
+    }
+  },
+  "description": "Implement necessary serialization and deserialization checks",
+  "properties": {
+    "name": {
+      "anyOf": [{ "type": "string" }, { "type": "null" }],
+      "default": null,
+      "description": "Defines the http route name which is set on axon.attach( callable( request: RequestName ))",
+      "examples": ["Forward"],
+      "title": "name"
+    },
+    "timeout": {
+      "anyOf": [{ "type": "number" }, { "type": "null" }],
+      "default": 12.0,
+      "description": "Defines the total query length.",
+      "examples": [12.0],
+      "title": "timeout"
+    },
+    "total_size": {
+      "anyOf": [{ "type": "integer" }, { "type": "null" }],
+      "default": 0,
+      "description": "Total size of request body in bytes.",
+      "examples": [1000],
+      "title": "total_size"
+    },
+    "header_size": {
+      "anyOf": [{ "type": "integer" }, { "type": "null" }],
+      "default": 0,
+      "description": "Size of request header in bytes.",
+      "examples": [1000],
+      "title": "header_size"
+    },
+    "dendrite": {
+      "anyOf": [{ "$ref": "#/$defs/TerminalInfo" }, { "type": "null" }],
+      "default": {
+        "status_code": null,
+        "status_message": null,
+        "process_time": null,
+        "ip": null,
+        "port": null,
+        "version": null,
+        "nonce": null,
+        "uuid": null,
+        "hotkey": null,
+        "signature": null
+      },
+      "description": "Dendrite Terminal Information",
+      "examples": ["bittensor.TerminalInfo"],
+      "title": "dendrite"
+    },
+    "axon": {
+      "anyOf": [{ "$ref": "#/$defs/TerminalInfo" }, { "type": "null" }],
+      "default": {
+        "status_code": null,
+        "status_message": null,
+        "process_time": null,
+        "ip": null,
+        "port": null,
+        "version": null,
+        "nonce": null,
+        "uuid": null,
+        "hotkey": null,
+        "signature": null
+      },
+      "description": "Axon Terminal Information",
+      "examples": ["bittensor.TerminalInfo"],
+      "title": "axon"
+    },
+    "computed_body_hash": {
+      "anyOf": [{ "type": "string" }, { "type": "null" }],
+      "default": "",
+      "description": "The computed body hash of the request.",
+      "examples": ["0x0813029319030129u4120u10841824y0182u091u230912u"],
+      "title": "computed_body_hash"
+    },
+    "required_hash_fields": {
+      "anyOf": [
+        { "items": { "type": "string" }, "type": "array" },
+        { "type": "null" }
+      ],
+      "default": [],
+      "description": "The list of required fields to compute the body hash.",
+      "examples": ["roles", "messages"],
+      "title": "required_hash_fields"
+    },
+    "problem": { "$ref": "#/$defs/GraphV1Problem" },
+    "solution": {
+      "anyOf": [
+        { "items": { "type": "integer" }, "type": "array" },
+        { "type": "boolean" },
+        { "type": "null" }
+      ],
+      "default": null,
+      "title": "Solution"
+    }
+  },
+  "required": ["problem"],
+  "title": "GraphV1Synapse",
+  "type": "object"
+}

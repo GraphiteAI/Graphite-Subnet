@@ -32,9 +32,13 @@ is_alive_path = "graphite/is_alive.json"
 with open(is_alive_path, "r") as f:
     ISALIVE_SCHEMA = json.load(f)
 
-rel_path = "graphite/schema.json"
-with open(rel_path, "r") as f:
-    MODEL_SCHEMA = json.load(f)
+rel_v1_path = "graphite/schema_v1.json"
+with open(rel_v1_path, "r") as f:
+    MODEL_V1_SCHEMA = json.load(f)
+
+rel_v2_path = "graphite/schema_v2.json"
+with open(rel_v2_path, "r") as f:
+    MODEL_V2_SCHEMA = json.load(f)
 
 
 class IsAlive(bt.Synapse):
@@ -238,7 +242,7 @@ class GraphV2Synapse(bt.Synapse):
         # Getting the fields of the instance
         instance_fields = self.model_dump()
 
-        required = MODEL_SCHEMA.get("required", [])
+        required = MODEL_V2_SCHEMA.get("required", [])
         # Iterating over the fields of the instance
         for field, value in instance_fields.items():
             # If the object is not optional, serializing it, encoding it, and adding it to the headers
@@ -407,7 +411,7 @@ class GraphV1Synapse(bt.Synapse):
     '''
     Implement necessary serialization and deserialization checks
     '''
-    problem: Union[GraphV1Problem, GraphV2Problem]
+    problem: GraphV1Problem
     solution: Optional[Union[List[int], bool]] = None
 
     def to_headers(self) -> dict:
@@ -458,7 +462,7 @@ class GraphV1Synapse(bt.Synapse):
         # Getting the fields of the instance
         instance_fields = self.model_dump()
 
-        required = MODEL_SCHEMA.get("required", [])
+        required = MODEL_V1_SCHEMA.get("required", [])
         # Iterating over the fields of the instance
         for field, value in instance_fields.items():
             # If the object is not optional, serializing it, encoding it, and adding it to the headers
