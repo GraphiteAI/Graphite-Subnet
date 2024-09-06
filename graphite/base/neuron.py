@@ -71,7 +71,7 @@ class BaseNeuron(ABC):
         ### Temprorary instantiation
         self.loaded_datasets = {}
         with np.load('malaysia_singapore_brunei_node_coordinates_NP.npz') as f:
-            self.loaded_datasets["AsiaMSB"] = np.array(f['data'])
+            self.loaded_datasets["Asia_MSB"] = np.array(f['data'])
 
         # Set up logging with the provided configuration.
         bt.logging.set_config(config=self.config.logging)

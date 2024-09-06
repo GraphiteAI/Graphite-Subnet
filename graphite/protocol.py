@@ -131,7 +131,7 @@ class GraphV2Problem(BaseModel):
     n_nodes: conint(ge=2000, le=5000) = Field(20, description="Number of Nodes (must be between 2000 and 5000)")
     selected_ids: List[int] = Field(default_factory=list, description="List of selected node positional indexes")
     cost_function: Literal['Geom', 'Euclidean2D', 'Manhatten2D', 'Euclidean3D', 'Manhatten3D'] = Field('Geom', description="Cost function")
-    dataset_ref: Literal['AsiaMSB', 'World'] = Field('AsiaMSB', description="Dataset reference file")
+    dataset_ref: Literal['Asia_MSB', 'World'] = Field('Asia_MSB', description="Dataset reference file")
     nodes: Union[List[List[Union[conint(ge=0), confloat(ge=0)]]], Iterable, None] = Field(default_factory=list, description="Node Coordinates")  # If not none, nodes represent the coordinates of the cities
     edges: Union[List[List[Union[conint(ge=0), confloat(ge=0)]]], Iterable, None] = Field(default_factory=list, description="Edge Weights")  # If not none, this represents a square matrix of edges where edges[source;row][destination;col] is the cost of a given edge
     directed: bool = Field(False, description="Directed Graph")  # boolean for whether the graph is directed or undirected / Symmetric or Asymmetric
@@ -552,13 +552,13 @@ if __name__=="__main__":
     print('\n\n_____________________________')
     print(f"Testing creating graph problem large")
     loaded_datasets = {}
-    with np.load('dataset/AsiaMSB.npz') as f: # "dataset/AsiaMSB.npz"
+    with np.load('dataset/Asia_MSB.npz') as f: # "dataset/Asia_MSB.npz"
         node_coords_np = f['data']
-    loaded_datasets["AsiaMSB"] = np.array(node_coords_np)
+    loaded_datasets["Asia_MSB"] = np.array(node_coords_np)
     # determine the number of nodes to select
     n_nodes = random.randint(2000, 5000)
     # randomly select n_nodes indexes from the selected graph
     prob_select = random.randint(0, len(list(loaded_datasets.keys()))-1)
     selected_node_idxs = random.sample(range(len(loaded_datasets[list(loaded_datasets.keys())[prob_select]])), n_nodes)
-    large_metric_tsp = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Euclidean", dataset_ref="AsiaMSB")
+    large_metric_tsp = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Euclidean", dataset_ref="Asia_MSB")
     print(large_metric_tsp)

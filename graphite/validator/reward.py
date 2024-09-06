@@ -19,10 +19,10 @@
 
 import torch
 import numpy as np
-from typing import List
+from typing import List, Union
 from graphite.utils.constants import BENCHMARK_SOLUTIONS, COST_FUNCTIONS
 from graphite.utils.graph_utils import is_valid_solution
-from graphite.protocol import GraphV1Problem, GraphV1Synapse
+from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse
 from graphite.solvers import NearestNeighbourSolver, BeamSearchSolver, DPSolver, HPNSolver
 from graphite.solvers.greedy_solver_vali import NearestNeighbourSolverVali
 import bittensor as bt
@@ -53,7 +53,7 @@ def score_worse_than_reference(score, reference, objective_function):
 
 
 class ScoreResponse:
-    def __init__(self, mock_synapse: GraphV1Synapse):
+    def __init__(self, mock_synapse: Union[GraphV1Synapse, GraphV2Synapse]):
         self.synapse = mock_synapse
         self.problem = self.synapse.problem
         # internally, validators apply a 30s timeout as the benchmark solution
@@ -83,14 +83,14 @@ class ScoreResponse:
         self.benchmark_score = self.score_response(self.synapse)
         bt.logging.info(f"Validator score: {self.benchmark_score}")
 
-    def get_score(self, response:GraphV1Synapse):
+    def get_score(self, response: Union[GraphV1Synapse, GraphV2Synapse]):
         # all cost_functions should handle False as an indication that the problem was unsolvable and assign it a value of np.inf
         synapse_copy = self.synapse
         synapse_copy.solution = response.solution
         path_cost = self.cost_function(synapse_copy)
         return path_cost
 
-    def score_response(self, response:GraphV1Synapse):
+    def score_response(self, response: Union[GraphV1Synapse, GraphV2Synapse]):
         if (isinstance(response.solution, list) and all([isinstance(value, int) for value in response.solution])) and is_valid_solution(self.problem, response.solution):
             response_score = self.get_score(response)
             # check if the response beats greedy algorithm: return 0 if it performs poorer than greedy
@@ -138,7 +138,7 @@ def scaled_rewards(scores, benchmark: float, objective_function:str = 'min'):
 def get_rewards(
     self,
     score_handler: ScoreResponse,
-    responses: List[GraphV1Synapse],
+    responses: List[Union[GraphV1Synapse, GraphV2Synapse]],
 ) -> torch.FloatTensor:
     """
     Returns a tensor of rewards for the given query and responses.

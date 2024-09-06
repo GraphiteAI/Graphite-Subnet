@@ -82,8 +82,8 @@ if __name__=="__main__":
     ## Test case for GraphV2Problem
     from graphite.data.distance import euc_2d, geom, man_2d
     loaded_datasets = {}
-    with np.load('dataset/AsiaMSB.npz') as f:
-        loaded_datasets["AsiaMSB"] = np.array(f['data'])
+    with np.load('dataset/Asia_MSB.npz') as f:
+        loaded_datasets["Asia_MSB"] = np.array(f['data'])
     def recreate_edges(problem: GraphV2Problem):
         node_coords_np = loaded_datasets[problem.dataset_ref]
         node_coords = [node_coords_np[i][1:] for i in problem.selected_ids]
@@ -114,7 +114,7 @@ if __name__=="__main__":
     n_nodes = random.randint(2000, 5000)
     # randomly select n_nodes indexes from the selected graph
     selected_node_idxs = random.sample(range(26000000), n_nodes)
-    test_problem = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Euclidean2D", dataset_ref="AsiaMSB")
+    test_problem = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Euclidean2D", dataset_ref="Asia_MSB")
     print("Problem", test_problem)
     if isinstance(test_problem, GraphV2Problem):
             problem = recreate_edges(test_problem)

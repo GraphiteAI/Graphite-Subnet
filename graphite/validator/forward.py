@@ -134,8 +134,9 @@ async def forward(self):
         n_nodes = random.randint(2000, 5000)
         # randomly select n_nodes indexes from the selected graph
         prob_select = random.randint(0, len(list(self.loaded_datasets.keys())-1))
-        selected_node_idxs = random.sample(range(len(self.loaded_datasets[list(self.loaded_datasets.keys())[prob_select]])), n_nodes)
-        test_problem_obj = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref="AsiaMSB")
+        dataset_ref = list(self.loaded_datasets.keys())[prob_select]
+        selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref])), n_nodes)
+        test_problem_obj = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
 
         try:
             graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
