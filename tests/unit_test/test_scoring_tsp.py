@@ -4,7 +4,7 @@ This script tests the scoring function of the ScoreResponse class which is respo
 '''
 import unittest
 from pydantic import ValidationError
-from graphite.protocol import GraphSynapse, GraphProblem
+from graphite.protocol import GraphV1Synapse, GraphV1Problem
 from graphite.validator.reward import ScoreResponse
 from graphite.solvers import NearestNeighbourSolver
 from graphite.utils.graph_utils import is_valid_path
@@ -14,8 +14,8 @@ import asyncio
 
 class TestScoringFunction(unittest.TestCase):
     def setUp(self):
-        self.graph_problem = GraphProblem(n_nodes=10)
-        self.graph_synapse = GraphSynapse(problem=self.graph_problem)
+        self.graph_problem = GraphV1Problem(n_nodes=10)
+        self.graph_synapse = GraphV1Synapse(problem=self.graph_problem)
         self.score_handler = ScoreResponse(self.graph_synapse)
         self.solver = NearestNeighbourSolver()
     

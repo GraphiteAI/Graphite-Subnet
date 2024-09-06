@@ -33,7 +33,7 @@ def geom(lat_lon_1:Iterable[Union[int, float]], lat_lon_2:Iterable[Union[int, fl
     except ValueError as e:
         bt.logging.error(f"Invalid lat/lon values: {e}")
 
-def man_2D(head:Iterable[Union[int,float]], tail:Iterable[Union[int,float]]):
+def man_2d(head:Iterable[Union[int,float]], tail:Iterable[Union[int,float]]):
     '''
     Computes the 2d manhattan distance of head vs tail
     '''
@@ -42,7 +42,7 @@ def man_2D(head:Iterable[Union[int,float]], tail:Iterable[Union[int,float]]):
     except IndexError as e:
         bt.logging.error("Input node structure not suitable for Euclidean 2D: {e}")
 
-def man_3D(head:Iterable[Union[int,float]], tail:Iterable[Union[int,float]]):
+def man_3d(head:Iterable[Union[int,float]], tail:Iterable[Union[int,float]]):
     '''
     Computes the 3d manhattan distance of head vs tail
     '''

@@ -21,7 +21,7 @@
 from abc import ABC, abstractmethod
 from typing import List
 from graphite.solvers import NearestNeighbourSolver
-from graphite.protocol import GraphProblem
+from graphite.protocol import GraphV1Problem
 import os
 import random
 import json
@@ -41,7 +41,7 @@ def print_value_count(strings):
 class DatasetGenerator(ABC):
     @classmethod
     @abstractmethod
-    def generate_n_samples(cls, n:int, problem_model:GraphProblem, **kwargs)->List[GraphProblem]:
+    def generate_n_samples(cls, n:int, problem_model:GraphV1Problem, **kwargs)->List[GraphV1Problem]:
         '''
         Returns a list of dictionaries containing the parameters required to initialize each problem
         This can be used in-situ to generate a dataset without saving it
@@ -51,7 +51,7 @@ class DatasetGenerator(ABC):
     @classmethod
     def generate_and_save_dataset(cls, n_samples: int, file_name: str=None, save_dir: str=None):
         '''
-        generates n sample GraphProblems and saves it as a json file
+        generates n sample GraphV1Problems and saves it as a json file
         '''
         if save_dir is None:
             save_dir = cls.save_dir
@@ -109,8 +109,8 @@ class DatasetGenerator(ABC):
         return selected_integer, selected_category
     
     @classmethod
-    def serialize_dataset(cls, problems: List[GraphProblem], sizes:List[str]):
-        # the data should be json serializable given the coerced data types defined in the GraphProblem
+    def serialize_dataset(cls, problems: List[GraphV1Problem], sizes:List[str]):
+        # the data should be json serializable given the coerced data types defined in the GraphV1Problem
         meta_data = {
             'problem_type': 'Metric TSP',
             'n_samples': len(problems),
@@ -129,7 +129,7 @@ class DatasetGenerator(ABC):
         
         # rebuild the problems
         dataset = raw_data.copy()
-        dataset['problems'] = [GraphProblem(**json.loads(data)) for data in dataset['problems']]
+        dataset['problems'] = [GraphV1Problem(**json.loads(data)) for data in dataset['problems']]
         return dataset
 
 class MetricTSPGenerator(DatasetGenerator):
@@ -146,7 +146,7 @@ class MetricTSPGenerator(DatasetGenerator):
             # sample n_nodes
             n_nodes, category= cls._DatasetGenerator__weighted_sampling(cls.problem_weights)
             sizes.append(category)
-            problems.append(GraphProblem(n_nodes=n_nodes))
+            problems.append(GraphV1Problem(n_nodes=n_nodes))
         return problems, sizes
 
 class GeneralTSPGenerator(DatasetGenerator):
@@ -163,7 +163,7 @@ class GeneralTSPGenerator(DatasetGenerator):
             # sample n_nodes
             n_nodes, category= cls._DatasetGenerator__weighted_sampling(cls.problem_weights)
             sizes.append(category)
-            problems.append(GraphProblem(n_nodes=n_nodes, directed=True))
+            problems.append(GraphV1Problem(n_nodes=n_nodes, directed=True))
         return problems, sizes
 
 if __name__=="__main__":

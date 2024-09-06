@@ -26,7 +26,7 @@ from graphite.utils.uids import get_available_uids
 
 import time
 
-from graphite.protocol import GraphProblem, GraphSynapse
+from graphite.protocol import GraphV1Problem, GraphV2Problem, GraphV1Synapse, GraphV2Synapse
 from graphite.dataset.dataset_generator import MetricTSPGenerator, GeneralTSPGenerator
         
 import numpy as np
@@ -60,71 +60,90 @@ async def forward(self):
 
     did_organic_task = False
     organic_task_id = ""
-    # try:
-    #     if organic_endpoint is not None and organic_endpoint != "":
-
-    #         url = f"{organic_endpoint}/tasks/oldest/{curr_idx}"
-    #         headers = {"Authorization": "Bearer %s"%db_bearer_token}
-    #         api_response = requests.get(url, headers=headers)
-    #         api_response_output = api_response.json()
-            
-    #         organic_task_id = api_response_output["_id"]
-    #         del api_response_output["_id"]
-
-    #         did_organic_task = True
-
-    #         # bt.logging.info(f"ORGANIC TRAFFIC {api_response.text}")
-    #     else:
-    #         api_response_output = []
-    # except:
-    #     api_response_output = []
-
-    # if len(api_response_output) > 0:
-    #     try:
-    #         test_problem_obj = GraphProblem(**api_response_output)
-    #     except Exception as e:
-    #         bt.logging.error(e)
-            
-    #         prob_select = random.randint(1, 2)
-    
-    #         if prob_select == 1:
-    #             problems, sizes = MetricTSPGenerator.generate_and_save_dataset(1)
-    #             test_problem_obj = problems[0]
-    #         else:
-    #             problems, sizes = GeneralTSPGenerator.generate_and_save_dataset(1)
-    #             test_problem_obj = problems[0]
-                
-    #         try:
-    #             url = f"{organic_endpoint}/tasks/{organic_task_id}"
-    #             headers = {"Authorization": "Bearer db_bearer_token"}
-    #             api_response = requests.delete(url, headers=headers)
-
-    #             did_organic_task = False
-    #         except:
-    #             pass
-    # else:
-
-    prob_select = random.randint(1, 2)
-    
     try:
-        if prob_select == 1:
-            problems, sizes = MetricTSPGenerator.generate_n_samples(1)
-            test_problem_obj = problems[0]
+        if self.bearer_token_is_valid:
+
+            url = f"{self.organic_endpoint}/tasks/oldest/{curr_idx}"
+            headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
+            api_response = requests.get(url, headers=headers)
+            api_response_output = api_response.json()
+            
+            organic_task_id = api_response_output["_id"]
+            del api_response_output["_id"]
+
+            did_organic_task = True
+
+            # bt.logging.info(f"ORGANIC TRAFFIC {api_response.text}")
         else:
-            problems, sizes = GeneralTSPGenerator.generate_n_samples(1)
-            test_problem_obj = problems[0]
-    except ValidationError as e:
-        bt.logging.debug(f"{'Metric TSP' if prob_select==1 else 'General TSP'}")
-        bt.logging.debug(f"GraphProblem Validation Error: {e.json()}")
-        bt.logging.debug(e.errors())
-        bt.logging.debug(e)
+            api_response_output = []
+    except:
+        api_response_output = []
 
-    try:
-        graphsynapse_req = GraphSynapse(problem=test_problem_obj)
-    except ValidationError as e:
-        bt.logging.debug(f"GraphSynapse Validation Error: {e.json()}")
-        bt.logging.debug(e.errors())
-        bt.logging.debug(e)
+    
+    start_block = 3765527 # current test block
+    end_block = 3765527 + 60 * 60 * 24 * 3 / 12 # block 3 days later
+    
+    if random.random() > (self.block - start_block)/(end_block - start_block):
+        if len(api_response_output) > 0:
+            try:
+                test_problem_obj = GraphV1Problem(**api_response_output)
+            except Exception as e:
+                bt.logging.error(e)
+                
+                prob_select = random.randint(1, 2)
+        
+                if prob_select == 1:
+                    problems, sizes = MetricTSPGenerator.generate_and_save_dataset(1)
+                    test_problem_obj = problems[0]
+                else:
+                    problems, sizes = GeneralTSPGenerator.generate_and_save_dataset(1)
+                    test_problem_obj = problems[0]
+                    
+                try:
+                    url = f"{self.organic_endpoint}/tasks/{organic_task_id}"
+                    headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
+                    api_response = requests.delete(url, headers=headers)
+
+                    did_organic_task = False
+                except:
+                    pass
+        else:
+            prob_select = random.randint(1, 2)
+            try:
+                if prob_select == 1:
+                    problems, sizes = MetricTSPGenerator.generate_n_samples(1)
+                    test_problem_obj = problems[0]
+                else:
+                    problems, sizes = GeneralTSPGenerator.generate_n_samples(1)
+                    test_problem_obj = problems[0]
+            except ValidationError as e:
+                bt.logging.debug(f"{'Metric TSP' if prob_select==1 else 'General TSP'}")
+                bt.logging.debug(f"GraphV1Problem Validation Error: {e.json()}")
+                bt.logging.debug(e.errors())
+                bt.logging.debug(e)
+
+        try:
+            graphsynapse_req = GraphV1Synapse(problem=test_problem_obj)
+            bt.logging.info(f"GraphV1Synapse Problem, n_nodes: {graphsynapse_req.problem.n_nodes}")
+        except ValidationError as e:
+            bt.logging.debug(f"GraphV1Synapse Validation Error: {e.json()}")
+            bt.logging.debug(e.errors())
+            bt.logging.debug(e)
+    else:
+        # determine the number of nodes to select
+        n_nodes = random.randint(2000, 5000)
+        # randomly select n_nodes indexes from the selected graph
+        prob_select = random.randint(0, len(list(self.loaded_datasets.keys())-1))
+        selected_node_idxs = random.sample(range(len(self.loaded_datasets[list(self.loaded_datasets.keys())[prob_select]])), n_nodes)
+        GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Euclidean", dataset_ref="AsiaMSB")
+
+        try:
+            graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
+            bt.logging.info(f"GraphV2Synapse Problem, n_nodes: {graphsynapse_req.problem.n_nodes}")
+        except ValidationError as e:
+            bt.logging.debug(f"GraphV2Synapse Validation Error: {e.json()}")
+            bt.logging.debug(e.errors())
+            bt.logging.debug(e)
 
     
     # available_uids = await self.get_available_uids()
