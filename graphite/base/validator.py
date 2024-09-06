@@ -107,6 +107,33 @@ class BaseValidatorNeuron(BaseNeuron):
         available_uids = {uid: axon for uid, axon in enumerate(results) if axon is not None}
 
         return available_uids
+    
+    async def get_k_uids(self, k:int=30):
+        available_uids = await self.get_available_uids()
+        random_uids = random.sample(list(available_uids.keys()), min(k, len(available_uids)))
+        return {uid: available_uids[uid] for uid in random_uids}
+    
+    async def get_top_k_uids(self, k:int=30, alpha:float=0.7):
+        assert (alpha<=1) and (alpha>0.5), ValueError("For the get_top_k_uids method, alpha needs to be between 0.5 and 1")
+        # get available_uids
+        available_uids = await self.get_available_uids()
+        incentives = self.metagraph.I
+        available_uids_and_incentives = [(uid, incentives[uid]) for uid in available_uids.keys()]
+        sorted_axon_list = sorted(available_uids_and_incentives, key=lambda x: x[1], reverse=True)
+        # query a random sample of half of the top 10% of miners:
+        top_k_axons = sorted_axon_list[:min(len(sorted_axon_list),k)]
+        if len(sorted_axon_list) > k:
+            bottom_remainder = math.floor(k*(1-alpha))
+            if bottom_remainder > (len(sorted_axon_list)-k):
+                bottom_remainder = len(sorted_axon_list) - k
+            top_n = k - bottom_remainder
+            assert (top_n>0) and (bottom_remainder>=0), ValueError(f'Invalid call values: calling {top_n} top miners and {bottom_remainder} bottom miners')
+            other_axons = [x[0] for x in random.sample(sorted_axon_list[k:], bottom_remainder)]
+            random_top_axons = [x[0] for x in random.sample(top_k_axons, top_n)]
+            selected_uids = random_top_axons + other_axons
+            return {uid: available_uids[uid] for uid in selected_uids}
+        else:
+            return {uid: available_uids[uid] for uid, incentive in sorted_axon_list}
 
     async def check_alive(self, axon, uid):
         # check if axon is alive
