@@ -32,7 +32,6 @@ DEFAULT_SOLVER_TIMEOUT = 20
 
 class BaseSolver(ABC):
     def __init__(self, problem_types:List[Union[GraphV1Problem, GraphV2Problem]]):
-        print("problem types", problem_types)
         self.problem_types = [problem.problem_type for problem in problem_types] # defining what problems the solver is equipped to solve
         self.future_tracker = {}
     
