@@ -83,7 +83,7 @@ async def forward(self):
     start_block = 3765527 # current test block
     end_block = start_block + 60 * 60 * 24 * 3 / 12 # block 3 days later
     
-    if random.random() > (self.block - start_block)/(end_block - start_block):
+    if random.random() > (self.block - start_block)/(end_block - start_block): # linear shift in distribution
         if len(api_response_output) > 0:
             try:
                 test_problem_obj = GraphV1Problem(**api_response_output)
