@@ -28,7 +28,7 @@ import json
 from collections import Counter
 import asyncio
 import numpy as np
-from graphite.data.distance import euc_2d, geom, man_2d
+from graphite.data.distance import geom_edges, man_2d_edges, euc_2d_edges
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -138,32 +138,15 @@ class MetricTSPGenerator(DatasetGenerator):
     
     def recreate_edges(problem: GraphV2Problem, loaded_datasets):
         node_coords_np = loaded_datasets[problem.dataset_ref]
-        node_coords = [node_coords_np[i][1:] for i in problem.selected_ids]
-        num_nodes = len(node_coords)
-        edge_matrix = np.zeros((num_nodes, num_nodes))
+        node_coords = np.array([node_coords_np[i][1:] for i in problem.selected_ids])
         if problem.cost_function == "Geom":
-            for i in range(num_nodes):
-                for j in range(i, num_nodes):
-                    if i != j:
-                        distance = geom(node_coords[i], node_coords[j])
-                        edge_matrix[i][j] = distance
-                        edge_matrix[j][i] = distance  # Since it's symmetric
-        if problem.cost_function == "Euclidean2D":
-            for i in range(num_nodes):
-                for j in range(i, num_nodes):
-                    if i != j:
-                        distance = euc_2d(node_coords[i], node_coords[j])
-                        edge_matrix[i][j] = distance
-                        edge_matrix[j][i] = distance  # Since it's symmetric
-        if problem.cost_function == "Manhatten2D":
-            for i in range(num_nodes):
-                for j in range(i, num_nodes):
-                    if i != j:
-                        distance = man_2d(node_coords[i], node_coords[j])
-                        edge_matrix[i][j] = distance
-                        edge_matrix[j][i] = distance  # Since it's symmetric
-
-        problem.edges = edge_matrix.tolist()
+            problem.edges = geom_edges(node_coords).tolist()
+        elif problem.cost_function == "Euclidean2D":
+            problem.edges = euc_2d_edges(node_coords).tolist()
+        elif problem.cost_function == "Manhatten2D":
+            problem.edges = man_2d_edges(node_coords).tolist()
+        else:
+            return "Only Geom, Euclidean2D, and Manhatten2D supported for now."
 
     @classmethod
     def generate_n_samples(cls, n: int, loaded_datasets):
@@ -175,10 +158,8 @@ class MetricTSPGenerator(DatasetGenerator):
             prob_select = random.randint(0, len(list(loaded_datasets.keys()))-1)
             dataset_ref = list(loaded_datasets.keys())[prob_select]
             selected_node_idxs = random.sample(range(len(loaded_datasets[dataset_ref])), n_nodes)
-            test_problem = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Euclidean2D", dataset_ref=dataset_ref)
-            print(loaded_datasets.keys())
+            test_problem = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
             cls.recreate_edges(test_problem, loaded_datasets)
-            print("done")
             problems.append(test_problem)
         return problems
 

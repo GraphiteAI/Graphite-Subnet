@@ -80,44 +80,35 @@ if __name__=="__main__":
 
 
     ## Test case for GraphV2Problem
-    from graphite.data.distance import euc_2d, geom, man_2d
+    from graphite.data.distance import geom_edges, man_2d_edges, euc_2d_edges
     loaded_datasets = {}
     with np.load('dataset/Asia_MSB.npz') as f:
         loaded_datasets["Asia_MSB"] = np.array(f['data'])
     def recreate_edges(problem: GraphV2Problem):
         node_coords_np = loaded_datasets[problem.dataset_ref]
-        node_coords = [node_coords_np[i][1:] for i in problem.selected_ids]
-        num_nodes = len(node_coords)
-        edge_matrix = np.zeros((num_nodes, num_nodes))
+        node_coords = np.array([node_coords_np[i][1:] for i in problem.selected_ids])
         if problem.cost_function == "Geom":
-            for i in range(num_nodes):
-                for j in range(i, num_nodes):
-                    if i != j:
-                        distance = geom(node_coords[i], node_coords[j])
-                        edge_matrix[i][j] = distance
-                        edge_matrix[j][i] = distance  # Since it's symmetric
-        if problem.cost_function == "Euclidean2D":
-            for i in range(num_nodes):
-                for j in range(i, num_nodes):
-                    if i != j:
-                        distance = euc_2d(node_coords[i], node_coords[j])
-                        edge_matrix[i][j] = distance
-                        edge_matrix[j][i] = distance  # Since it's symmetric
-        if problem.cost_function == "Manhatten2D":
-            for i in range(num_nodes):
-                for j in range(i, num_nodes):
-                    if i != j:
-                        distance = man_2d(node_coords[i], node_coords[j])
-                        edge_matrix[i][j] = distance
-                        edge_matrix[j][i] = distance  # Since it's symmetric
-        problem.edges = edge_matrix
+            return geom_edges(node_coords)
+        elif problem.cost_function == "Euclidean2D":
+            return euc_2d_edges(node_coords)
+        elif problem.cost_function == "Manhatten2D":
+            return man_2d_edges(node_coords)
+        else:
+            return "Only Geom, Euclidean2D, and Manhatten2D supported for now."
+      
     n_nodes = random.randint(2000, 5000)
     # randomly select n_nodes indexes from the selected graph
     selected_node_idxs = random.sample(range(26000000), n_nodes)
-    test_problem = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Euclidean2D", dataset_ref="Asia_MSB")
-    print("Problem", test_problem)
+    test_problem = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref="Asia_MSB")
     if isinstance(test_problem, GraphV2Problem):
-            problem = recreate_edges(test_problem)
+        test_problem.edges = recreate_edges(test_problem)
+    print("Problem", test_problem)
+    solver = NearestNeighbourSolver(problem_types=[test_problem])
+    start_time = time.time()
+    route = asyncio.run(solver.solve_problem(test_problem))
+    print(f"{solver.__class__.__name__} Solution: {route}")
+    print(f"{solver.__class__.__name__} Time Taken for {n_nodes} Nodes: {time.time()-start_time}")
+
     solver = NearestNeighbourSolver(problem_types=[test_problem])
     start_time = time.time()
     route = asyncio.run(solver.solve_problem(test_problem))

@@ -160,12 +160,17 @@ async def forward(self):
     miner_uids = list(selected_uids.keys())
     bt.logging.info(f"Selected UIDS: {miner_uids}")
 
+    reconstruct_edge_start_time = time.time()
+    if isinstance(test_problem_obj, GraphV2Problem):
+        test_problem_obj.edges = self.recreate_edges(test_problem_obj)
+    reconstruct_edge_time = time.time() - reconstruct_edge_start_time
+
     # The dendrite client queries the network.
     responses = await self.dendrite(
         axons=[self.metagraph.axons[uid] for uid in miner_uids], #miner_uids
         synapse=graphsynapse_req,
         deserialize=True,
-        timeout = 30, # can scale with problem types in the future
+        timeout = 30 + reconstruct_edge_time, # 30s + time to reconstruct, can scale with problem types in the future
     )
 
     for res in responses:
@@ -177,7 +182,8 @@ async def forward(self):
             pass
     bt.logging.info(f"NUMBER OF RESPONSES: {len(responses)}")
 
-    score_response_obj = ScoreResponse(graphsynapse_req)
+    graphsynapse_req_updated = GraphV2Synapse(problem=test_problem_obj) # reconstruct with edges
+    score_response_obj = ScoreResponse(graphsynapse_req_updated)
 
     score_response_obj.current_num_concurrent_forwards = self.current_num_concurrent_forwards
     await score_response_obj.get_benchmark()

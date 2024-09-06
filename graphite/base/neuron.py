@@ -31,6 +31,8 @@ from graphite import __spec_version__ as spec_version
 from graphite.mock import MockSubtensor, MockMetagraph
 from graphite.data.dataset_utils import load_default_dataset
 
+from graphite.protocol import GraphV2Problem
+from graphite.data.distance import geom_edges, man_2d_edges, euc_2d_edges
 import numpy as np
 
 class BaseNeuron(ABC):
@@ -68,11 +70,6 @@ class BaseNeuron(ABC):
         self.config = self.config()
         self.config.merge(base_config)
         self.check_config(self.config)
-
-        ### Temprorary instantiation
-        self.loaded_datasets = {}
-        with np.load('malaysia_singapore_brunei_node_coordinates_NP.npz') as f:
-            self.loaded_datasets["Asia_MSB"] = np.array(f['data'])
 
         # Set up logging with the provided configuration.
         bt.logging.set_config(config=self.config.logging)
@@ -143,6 +140,18 @@ class BaseNeuron(ABC):
 
         # Always save state.
         self.save_state()
+
+    def recreate_edges(self, problem: GraphV2Problem):
+        node_coords_np = self.loaded_datasets[problem.dataset_ref]
+        node_coords = np.array([node_coords_np[i][1:] for i in problem.selected_ids])
+        if problem.cost_function == "Geom":
+            return geom_edges(node_coords)
+        elif problem.cost_function == "Euclidean2D":
+            return euc_2d_edges(node_coords)
+        elif problem.cost_function == "Manhatten2D":
+            return man_2d_edges(node_coords)
+        else:
+            return "Only Geom, Euclidean2D, and Manhatten2D supported for now."
 
     def check_registered(self):
         # --- Check for registration.

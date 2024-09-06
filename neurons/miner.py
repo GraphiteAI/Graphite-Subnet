@@ -31,8 +31,6 @@ from graphite.protocol import IsAlive
 from graphite.solvers import NearestNeighbourSolver, DPSolver
 from graphite.protocol import GraphV1Problem, GraphV2Problem, GraphV1Synapse, GraphV2Synapse
 
-from graphite.data.distance import euc_2d, geom, man_2d
-
 class Miner(BaseMinerNeuron):
     """
     Your miner neuron class. You should use this class to define your miner's behavior. In particular, you should replace the forward function with your own logic. You may also want to override the blacklist and priority functions according to your needs.
@@ -68,35 +66,6 @@ class Miner(BaseMinerNeuron):
         # TODO: implement proper blacklist logic for is_alive
         return False, "NaN"
 
-    def recreate_edges(self, problem: GraphV2Problem):
-        node_coords_np = self.loaded_datasets[problem.dataset_ref]
-        node_coords = [node_coords_np[i][1:] for i in problem.selected_ids]
-        num_nodes = len(node_coords)
-        edge_matrix = np.zeros((num_nodes, num_nodes))
-        if problem.cost_function == "Geom":
-            for i in range(num_nodes):
-                for j in range(i, num_nodes):
-                    if i != j:
-                        distance = geom(node_coords[i], node_coords[j])
-                        edge_matrix[i][j] = distance
-                        edge_matrix[j][i] = distance  # Since it's symmetric
-        if problem.cost_function == "Euclidean2D":
-            for i in range(num_nodes):
-                for j in range(i, num_nodes):
-                    if i != j:
-                        distance = euc_2d(node_coords[i], node_coords[j])
-                        edge_matrix[i][j] = distance
-                        edge_matrix[j][i] = distance  # Since it's symmetric
-        if problem.cost_function == "Manhatten2D":
-            for i in range(num_nodes):
-                for j in range(i, num_nodes):
-                    if i != j:
-                        distance = man_2d(node_coords[i], node_coords[j])
-                        edge_matrix[i][j] = distance
-                        edge_matrix[j][i] = distance  # Since it's symmetric
-
-        problem.edges = edge_matrix
-
     async def forward(
         self, synapse: Union[GraphV1Synapse, GraphV2Synapse]
     ) ->  Union[GraphV1Synapse, GraphV2Synapse]:
@@ -119,9 +88,11 @@ class Miner(BaseMinerNeuron):
             f"Miner received input to solve {synapse.problem.n_nodes}"
         )
         
-        if isinstance(problem, GraphV2Problem):
-            problem = self.recreate_edges(problem)
+        if isinstance(synapse.problem, GraphV2Problem):
+            synapse.problem.edges = self.recreate_edges(synapse.problem)
         
+        bt.logging.info(f"synapse dendrite timeout {synapse.dendrite.timeout}")
+
         # Conditional assignment of problems to each solver
         if synapse.problem.n_nodes < 15:
             # Solves the problem to optimality but is very computationally intensive
