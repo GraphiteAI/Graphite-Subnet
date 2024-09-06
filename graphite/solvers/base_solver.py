@@ -20,7 +20,6 @@
 from abc import ABC, abstractmethod
 from typing import List
 from graphite.utils.graph_utils import valid_problem, timeout
-from graphite.data.distance import euc_2d, geom, man_2d
 from graphite.protocol import GraphV1Problem, GraphV2Problem
 import bittensor as bt
 import asyncio
@@ -32,7 +31,8 @@ import numpy as np
 DEFAULT_SOLVER_TIMEOUT = 20
 
 class BaseSolver(ABC):
-    def __init__(self, problem_types:List[GraphV1Problem]):
+    def __init__(self, problem_types:List[Union[GraphV1Problem, GraphV2Problem]]):
+        print("problem types", problem_types)
         self.problem_types = [problem.problem_type for problem in problem_types] # defining what problems the solver is equipped to solve
         self.future_tracker = {}
     
@@ -49,7 +49,7 @@ class BaseSolver(ABC):
         ...
     
     @abstractmethod
-    def problem_transformations(self, problem: GraphV1Problem):
+    def problem_transformations(self, problem: Union[GraphV1Problem, GraphV2Problem]):
         '''
         This abstract class applies any necessary transformation to the problem to convert it to the form required for the solve method
         '''
@@ -61,9 +61,6 @@ class BaseSolver(ABC):
         Note that this does not guarantee the problem has a solution. For example: the TSP problem might be a partially connected graph with no hamiltonian cycle
         '''
         return valid_problem(problem) and problem.problem_type in self.problem_types
-    
-    def recreate_edges(self, selected_ids: List[int]):
-        pass
 
     async def solve_problem(self, problem: Union[GraphV1Problem, GraphV2Problem], timeout:int=DEFAULT_SOLVER_TIMEOUT):
         '''
@@ -74,34 +71,6 @@ class BaseSolver(ABC):
         Checks for the integrity of the data (that the problem is legitimate) are handled outside the forward function
         '''
         if self.is_valid_problem(problem):
-            if isinstance(problem, GraphV2Problem):
-                node_coords_np = self.loaded_datasets[problem.dataset_ref]
-                node_coords = [node_coords_np[i][1:] for i in problem.selected_ids]
-                num_nodes = len(node_coords)
-                edge_matrix = np.zeros((num_nodes, num_nodes))
-                if problem.cost_function == "Geom":
-                    for i in range(num_nodes):
-                        for j in range(i, num_nodes):
-                            if i != j:
-                                distance = geom(node_coords[i], node_coords[j])
-                                edge_matrix[i][j] = distance
-                                edge_matrix[j][i] = distance  # Since it's symmetric
-                if problem.cost_function == "Euclidean2D":
-                    for i in range(num_nodes):
-                        for j in range(i, num_nodes):
-                            if i != j:
-                                distance = euc_2d(node_coords[i], node_coords[j])
-                                edge_matrix[i][j] = distance
-                                edge_matrix[j][i] = distance  # Since it's symmetric
-                if problem.cost_function == "Manhatten2D":
-                    for i in range(num_nodes):
-                        for j in range(i, num_nodes):
-                            if i != j:
-                                distance = man_2d(node_coords[i], node_coords[j])
-                                edge_matrix[i][j] = distance
-                                edge_matrix[j][i] = distance  # Since it's symmetric
-
-                problem.edges = edge_matrix
 
             future_id = id(problem)
             self.future_tracker[future_id] = False

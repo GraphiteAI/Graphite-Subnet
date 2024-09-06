@@ -17,9 +17,9 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-from typing import Union, List
+from typing import List, Union
 from graphite.solvers.base_solver import BaseSolver
-from graphite.protocol import GraphV1Problem
+from graphite.protocol import GraphV1Problem, GraphV2Problem
 from graphite.utils.graph_utils import timeout
 import numpy as np
 import asyncio
@@ -27,7 +27,7 @@ import time
 import concurrent.futures
 
 class DPSolver(BaseSolver):
-    def __init__(self, problem_types:List[GraphV1Problem]=[GraphV1Problem(n_nodes=2), GraphV1Problem(n_nodes=2, directed=True, problem_type='General TSP')]):
+    def __init__(self, problem_types:List[Union[GraphV1Problem, GraphV2Problem]]=[GraphV1Problem(n_nodes=2), GraphV1Problem(n_nodes=2, directed=True, problem_type='General TSP')]):
         super().__init__(problem_types=problem_types)
 
     async def solve(self, formatted_problem:List[List[Union[int, float]]], future_id:int)->List[int]:
@@ -64,7 +64,7 @@ class DPSolver(BaseSolver):
         min_path.append(0)  # Add the origin city at the end
         return min_path
  
-    def problem_transformations(self, problem: GraphV1Problem)->List[List[Union[int,float]]]:
+    def problem_transformations(self, problem: Union[GraphV1Problem, GraphV2Problem])->List[List[Union[int,float]]]:
         return problem.edges
     
     def is_solvable(self, distance_matrix):

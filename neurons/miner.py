@@ -18,7 +18,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 import time
-from typing import Tuple
+from typing import Tuple, Union
 import bittensor as bt
 
 # Bittensor Miner Template:
@@ -29,8 +29,9 @@ from graphite.base.miner import BaseMinerNeuron
 from graphite.protocol import IsAlive
 
 from graphite.solvers import NearestNeighbourSolver, DPSolver
-from graphite.protocol import GraphV1Problem, GraphV1Synapse
+from graphite.protocol import GraphV1Problem, GraphV2Problem, GraphV1Synapse, GraphV2Synapse
 
+from graphite.data.distance import euc_2d, geom, man_2d
 
 class Miner(BaseMinerNeuron):
     """
@@ -67,9 +68,38 @@ class Miner(BaseMinerNeuron):
         # TODO: implement proper blacklist logic for is_alive
         return False, "NaN"
 
+    def recreate_edges(self, problem: GraphV2Problem):
+        node_coords_np = self.loaded_datasets[problem.dataset_ref]
+        node_coords = [node_coords_np[i][1:] for i in problem.selected_ids]
+        num_nodes = len(node_coords)
+        edge_matrix = np.zeros((num_nodes, num_nodes))
+        if problem.cost_function == "Geom":
+            for i in range(num_nodes):
+                for j in range(i, num_nodes):
+                    if i != j:
+                        distance = geom(node_coords[i], node_coords[j])
+                        edge_matrix[i][j] = distance
+                        edge_matrix[j][i] = distance  # Since it's symmetric
+        if problem.cost_function == "Euclidean2D":
+            for i in range(num_nodes):
+                for j in range(i, num_nodes):
+                    if i != j:
+                        distance = euc_2d(node_coords[i], node_coords[j])
+                        edge_matrix[i][j] = distance
+                        edge_matrix[j][i] = distance  # Since it's symmetric
+        if problem.cost_function == "Manhatten2D":
+            for i in range(num_nodes):
+                for j in range(i, num_nodes):
+                    if i != j:
+                        distance = man_2d(node_coords[i], node_coords[j])
+                        edge_matrix[i][j] = distance
+                        edge_matrix[j][i] = distance  # Since it's symmetric
+
+        problem.edges = edge_matrix
+
     async def forward(
-        self, synapse: GraphV1Synapse
-    ) ->  GraphV1Synapse:
+        self, synapse: Union[GraphV1Synapse, GraphV2Synapse]
+    ) ->  Union[GraphV1Synapse, GraphV2Synapse]:
         """
         Processes the incoming 'Dummy' synapse by performing a predefined operation on the input data.
         This method should be replaced with actual logic relevant to the miner's purpose.
@@ -88,6 +118,10 @@ class Miner(BaseMinerNeuron):
         bt.logging.info(
             f"Miner received input to solve {synapse.problem.n_nodes}"
         )
+        
+        if isinstance(problem, GraphV2Problem):
+            problem = self.recreate_edges(problem)
+        
         # Conditional assignment of problems to each solver
         if synapse.problem.n_nodes < 15:
             # Solves the problem to optimality but is very computationally intensive
@@ -102,8 +136,9 @@ class Miner(BaseMinerNeuron):
         )
         return synapse
 
+    
     async def blacklist(
-        self, synapse: GraphV1Synapse
+        self, synapse: Union[GraphV1Synapse, GraphV2Synapse]
     ) -> Tuple[bool, str]:
         """
         Determines whether an incoming request should be blacklisted and thus ignored. Your implementation should
@@ -164,7 +199,7 @@ class Miner(BaseMinerNeuron):
         )
         return False, "Hotkey recognized!"
 
-    async def priority(self, synapse: GraphV1Synapse) -> float:
+    async def priority(self, synapse: Union[GraphV1Synapse, GraphV2Synapse]) -> float:
         """
         The priority function determines the order in which requests are handled. More valuable or higher-priority
         requests are processed before others. You should design your own priority mechanism with care.

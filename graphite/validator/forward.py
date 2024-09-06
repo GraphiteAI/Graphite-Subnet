@@ -81,7 +81,7 @@ async def forward(self):
 
     
     start_block = 3765527 # current test block
-    end_block = 3765527 + 60 * 60 * 24 * 3 / 12 # block 3 days later
+    end_block = start_block + 60 * 60 * 24 * 3 / 12 # block 3 days later
     
     if random.random() > (self.block - start_block)/(end_block - start_block):
         if len(api_response_output) > 0:
@@ -135,7 +135,7 @@ async def forward(self):
         # randomly select n_nodes indexes from the selected graph
         prob_select = random.randint(0, len(list(self.loaded_datasets.keys())-1))
         selected_node_idxs = random.sample(range(len(self.loaded_datasets[list(self.loaded_datasets.keys())[prob_select]])), n_nodes)
-        GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Euclidean", dataset_ref="AsiaMSB")
+        test_problem_obj = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref="AsiaMSB")
 
         try:
             graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
@@ -274,11 +274,27 @@ async def forward(self):
     except:
         pass
 
+
+    try:
+        configDict["selected_ids"] = graphsynapse_req.problem.selected_ids
+    except:
+        pass
+    try:
+        configDict["cost_function"] = graphsynapse_req.problem.cost_function
+    except:
+        pass
+    try:
+        configDict["dataset_ref"] = graphsynapse_req.problem.dataset_ref
+    except:
+        pass
+
+
     try:
         configDict["time_elapsed"] = wandb_axon_elapsed
     except:
         pass
     
+
     try:
         if self.subtensor.network == "test":
             wandb.init(

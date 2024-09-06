@@ -18,7 +18,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 from pydantic import BaseModel, Field, model_validator, conint, confloat, ValidationError, field_validator
-from typing import List, Union, Optional, Literal
+from typing import List, Union, Optional, Literal, Iterable
 import numpy as np
 import bittensor as bt
 import pprint
@@ -132,27 +132,29 @@ class GraphV2Problem(BaseModel):
     selected_ids: List[int] = Field(default_factory=list, description="List of selected node positional indexes")
     cost_function: Literal['Geom', 'Euclidean2D', 'Manhatten2D', 'Euclidean3D', 'Manhatten3D'] = Field('Geom', description="Cost function")
     dataset_ref: Literal['AsiaMSB', 'World'] = Field('AsiaMSB', description="Dataset reference file")
-    nodes: Union[List[List[Union[conint(ge=0), confloat(ge=0)]]],np.ndarray,None] = Field(default_factory=list, description="Node Coordinates")  # If not none, nodes represent the coordinates of the cities
-    edges: Union[List[List[Union[conint(ge=0), confloat(ge=0)]]],np.ndarray,None] = Field(default_factory=list, description="Edge Weights")  # If not none, this represents a square matrix of edges where edges[source;row][destination;col] is the cost of a given edge
+    nodes: Union[List[List[Union[conint(ge=0), confloat(ge=0)]]], Iterable, None] = Field(default_factory=list, description="Node Coordinates")  # If not none, nodes represent the coordinates of the cities
+    edges: Union[List[List[Union[conint(ge=0), confloat(ge=0)]]], Iterable, None] = Field(default_factory=list, description="Edge Weights")  # If not none, this represents a square matrix of edges where edges[source;row][destination;col] is the cost of a given edge
     directed: bool = Field(False, description="Directed Graph")  # boolean for whether the graph is directed or undirected / Symmetric or Asymmetric
     simple: bool = Field(True, description="Simple Graph")  # boolean for whether the graph contains any degenerate loop
     weighted: bool = Field(False, description="Weighted Graph")  # boolean for whether the value in the edges matrix represents cost
     repeating: bool = Field(False, description="Allow Repeating Nodes")  # boolean for whether the nodes in the problem can be revisited
+    checksum: Union[str, None] = Field(None, description="Checksum")
 
-    @model_validator(mode='after')
-    def unique_select_ids(self):
-        # ensure all selected ids are unique
-        self.selected_ids = list(set(self.selected_ids))
+    ### Expensive check only needed for organic requests
+    # @model_validator(mode='after')
+    # def unique_select_ids(self):
+    #     # ensure all selected ids are unique
+    #     self.selected_ids = list(set(self.selected_ids))
 
-        # ensure the selected_ids are < len(file)
-        with np.load(f"dataset/{self.dataset_ref}.npz") as f:
-            node_coords_np = np.array(f['data'])
-            largest_possible_id = len(node_coords_np) - 1
+    #     # ensure the selected_ids are < len(file)
+    #     with np.load(f"dataset/{self.dataset_ref}.npz") as f:
+    #         node_coords_np = np.array(f['data'])
+    #         largest_possible_id = len(node_coords_np) - 1
 
-        self.selected_ids = [id for id in self.selected_ids if id <= largest_possible_id]
-        self.n_nodes = len(self.selected_ids)
+    #     self.selected_ids = [id for id in self.selected_ids if id <= largest_possible_id]
+    #     self.n_nodes = len(self.selected_ids)
 
-        return self
+    #     return self
 
     @model_validator(mode='after')
     def force_obj_function(self):
@@ -405,7 +407,7 @@ class GraphV1Synapse(bt.Synapse):
     '''
     Implement necessary serialization and deserialization checks
     '''
-    problem: GraphV1Problem
+    problem: Union[GraphV1Problem, GraphV2Problem]
     solution: Optional[Union[List[int], bool]] = None
 
     def to_headers(self) -> dict:

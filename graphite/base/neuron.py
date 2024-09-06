@@ -30,6 +30,7 @@ from graphite.utils.misc import ttl_get_block
 from graphite import __spec_version__ as spec_version
 from graphite.mock import MockSubtensor, MockMetagraph
 
+import numpy as np
 
 class BaseNeuron(ABC):
     """
@@ -66,6 +67,11 @@ class BaseNeuron(ABC):
         self.config = self.config()
         self.config.merge(base_config)
         self.check_config(self.config)
+
+        ### Temprorary instantiation
+        self.loaded_datasets = {}
+        with np.load('malaysia_singapore_brunei_node_coordinates_NP.npz') as f:
+            self.loaded_datasets["AsiaMSB"] = np.array(f['data'])
 
         # Set up logging with the provided configuration.
         bt.logging.set_config(config=self.config.logging)

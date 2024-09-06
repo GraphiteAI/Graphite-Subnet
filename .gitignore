@@ -162,3 +162,4 @@ cython_debug/
 #.idea/
 malaysia_singapore_brunei_node_coordinates_NP.npz
 malaysia-singapore-brunei-latest.osm.pbf
+dataset/AsiaMSB.npz

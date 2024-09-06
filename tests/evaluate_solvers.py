@@ -29,6 +29,7 @@ import asyncio
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import matplotlib
 
 ROOT_DIR = "tests"
 SAVE_DIR = "evaluation_results"
@@ -48,7 +49,7 @@ def can_show_plot():
 
     return True
 
-def compare_problems(solvers: List, problems: List[GraphV1Problem]):
+def compare_problems(solvers: List, problems: List[Union[GraphV1Problem, GraphV2Problem]]):
     problem_types = set([problem.problem_type for problem in problems])
     mock_synapses = [GraphV1Synapse(problem=problem) for problem in problems]
     results = {solver.__class__.__name__: [] for solver in solvers}
