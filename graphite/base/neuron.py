@@ -29,6 +29,7 @@ from graphite.utils.config import check_config, add_args, config
 from graphite.utils.misc import ttl_get_block
 from graphite import __spec_version__ as spec_version
 from graphite.mock import MockSubtensor, MockMetagraph
+from graphite.data.dataset_utils import load_default_dataset
 
 import numpy as np
 
@@ -78,6 +79,9 @@ class BaseNeuron(ABC):
 
         # If a gpu is required, set the device to cuda:N (e.g. cuda:0)
         self.device = self.config.neuron.device
+
+        # Begin downloading and transforming dataset
+        load_default_dataset(self)
 
         # Log the configuration for reference.
         bt.logging.info(self.config)
