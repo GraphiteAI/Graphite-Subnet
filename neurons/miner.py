@@ -47,7 +47,11 @@ class Miner(BaseMinerNeuron):
             forward_fn=self.is_alive,
             blacklist_fn=self.blacklist_is_alive,
         ).attach(
-            forward_fn=self.forward,
+            forward_fn=self.forwardV1,
+            blacklist_fn=self.blacklist,
+            priority_fn=self.priority,
+        ).attach(
+            forward_fn=self.forwardV2,
             blacklist_fn=self.blacklist,
             priority_fn=self.priority,
         )
@@ -69,6 +73,89 @@ class Miner(BaseMinerNeuron):
     async def forward(
         self, synapse: Union[GraphV1Synapse, GraphV2Synapse]
     ) ->  Union[GraphV1Synapse, GraphV2Synapse]:
+        """
+        Processes the incoming 'Dummy' synapse by performing a predefined operation on the input data.
+        This method should be replaced with actual logic relevant to the miner's purpose.
+
+        Args:
+            synapse (template.protocol.Dummy): The synapse object containing the 'dummy_input' data.
+
+        Returns:
+            template.protocol.Dummy: The synapse object with the 'dummy_output' field set to twice the 'dummy_input' value.
+
+        The 'forward' function is a placeholder and should be overridden with logic that is appropriate for
+        the miner's intended operation. This method demonstrates a basic transformation of input data.
+        """
+        bt.logging.info(f"received synapse with problem: {synapse.problem.get_info(verbosity=2)}")
+        
+        bt.logging.info(
+            f"Miner received input to solve {synapse.problem.n_nodes}"
+        )
+        
+        if isinstance(synapse.problem, GraphV2Problem):
+            synapse.problem.edges = self.recreate_edges(synapse.problem)
+        
+        bt.logging.info(f"synapse dendrite timeout {synapse.dendrite.timeout}")
+
+        # Conditional assignment of problems to each solver
+        if synapse.problem.n_nodes < 15:
+            # Solves the problem to optimality but is very computationally intensive
+            route = await self.solvers['small'].solve_problem(synapse.problem)
+        else:
+            # Simple heuristic that does not guarantee optimality. 
+            route = await self.solvers['large'].solve_problem(synapse.problem)
+        synapse.solution = route
+        
+        bt.logging.info(
+            f"Miner returned value {synapse.solution} {len(synapse.solution) if isinstance(synapse.solution, list) else synapse.solution}"
+        )
+        return synapse
+
+    async def forwardV1(
+        self, synapse: GraphV1Synapse
+    ) ->  GraphV1Synapse:
+        """
+        Processes the incoming 'Dummy' synapse by performing a predefined operation on the input data.
+        This method should be replaced with actual logic relevant to the miner's purpose.
+
+        Args:
+            synapse (template.protocol.Dummy): The synapse object containing the 'dummy_input' data.
+
+        Returns:
+            template.protocol.Dummy: The synapse object with the 'dummy_output' field set to twice the 'dummy_input' value.
+
+        The 'forward' function is a placeholder and should be overridden with logic that is appropriate for
+        the miner's intended operation. This method demonstrates a basic transformation of input data.
+        """
+        bt.logging.info(f"received synapse with problem: {synapse.problem.get_info(verbosity=2)}")
+        
+        bt.logging.info(
+            f"Miner received input to solve {synapse.problem.n_nodes}"
+        )
+        
+        if isinstance(synapse.problem, GraphV2Problem):
+            synapse.problem.edges = self.recreate_edges(synapse.problem)
+        
+        bt.logging.info(f"synapse dendrite timeout {synapse.dendrite.timeout}")
+
+        # Conditional assignment of problems to each solver
+        if synapse.problem.n_nodes < 15:
+            # Solves the problem to optimality but is very computationally intensive
+            route = await self.solvers['small'].solve_problem(synapse.problem)
+        else:
+            # Simple heuristic that does not guarantee optimality. 
+            route = await self.solvers['large'].solve_problem(synapse.problem)
+        synapse.solution = route
+        
+        bt.logging.info(
+            f"Miner returned value {synapse.solution} {len(synapse.solution) if isinstance(synapse.solution, list) else synapse.solution}"
+        )
+        return synapse
+
+    
+    async def forwardV2(
+        self, synapse: GraphV2Synapse
+    ) ->  GraphV2Synapse:
         """
         Processes the incoming 'Dummy' synapse by performing a predefined operation on the input data.
         This method should be replaced with actual logic relevant to the miner's purpose.
