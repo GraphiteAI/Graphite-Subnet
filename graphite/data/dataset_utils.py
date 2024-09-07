@@ -12,12 +12,11 @@ from pympler import asizeof
 import io
 import gzip
 import osmium
-from tqdm import tqdm
 from pathlib import Path
 import numpy as np
 import hashlib
 import bittensor as bt
-import timeit
+from huggingface_hub import hf_hub_download
 
 import time
 from graphite.data.constants import ASIA_MSB_DETAILS, WORLD_TSP_DETAILS
@@ -93,66 +92,66 @@ def check_and_get_msb():
         bt.logging.info(f"{ASIA_MSB_DETAILS['ref_id']} already downloaded")
         return
     else:
-        # Obtain byte content through get request to endpoint
-        bt.logging.info(f"Downloading {ASIA_MSB_DETAILS['endpoint']}.")
-        start_time = time.time()
-        response = requests.get(ASIA_MSB_DETAILS['endpoint'])
         try:
-            # check for response status
-            response.raise_for_status()
-
-            # create a tempfile to write the content to then read and process
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.osm.pbf') as temp_file:
-                temp_file_name = temp_file.name
-                
-                # Write byte content to the temporary file
-                temp_file.write(response.content)
-
-            download_time = time.time() - start_time
-            bt.logging.info(f"\nDownload completed in {download_time:.2f} seconds. Constructing coordinates from pbf file. This will take a few minutes...")
-
-            # Define and Instantiate the osmium handler for extracting coordinate information
-            # Define the dtype for the structured array
-            dtype = np.dtype([('index', np.int64), ('lat', np.float32), ('lon', np.float32)])
-
-            # Define and Instantiate the osmium handler for extracting coordinate information
-            # Define and Instantiate the osmium handler for extracting coordinate information
-            class WayNodeHandler(osmium.SimpleHandler):
-                def __init__(self):
-                    super(WayNodeHandler, self).__init__()
-                    self.nodes = np.empty((28000000,3), dtype=np.float32) # we know the exact number of expected nodes
-                    self.index = 0
-                
-                def node(self, n):
-                    # Create a new record with the node's data
-                    self.nodes[self.index,0] = n.id
-                    self.nodes[self.index,1] = n.location.lat
-                    self.nodes[self.index,2] = n.location.lon
-                    self.index += 1
-
-            handler = WayNodeHandler()
-            handler.apply_file(temp_file_name)
-            print(handler.index)
-
-            print(f"{asizeof.asizeof(handler)} bytes")
-            print(f"{asizeof.asizeof(handler.nodes[0])} bytes for a single node")
-
-            array_bytes = np.array(handler.nodes).tobytes()
-            hash_algo='md5'
-            hash_func=getattr(hashlib, hash_algo)()
-            hash_func.update(array_bytes)
-            bt.logging.info(f"Coordinates extracted with corresponding MD5 hash: {hash_func.hexdigest()} with {handler.index} nodes")
-
             create_directory_if_not_exists(DATASET_DIR)
-            np.savez_compressed( DATASET_DIR / (ASIA_MSB_DETAILS['ref_id']+'.npz'), data=np.array(handler.nodes[:handler.index]))
-            bt.logging.info(f"{DATASET_DIR / ASIA_MSB_DETAILS['ref_id']} coordinates saved")
+            bt.logging.info(f"Downloading {ASIA_MSB_DETAILS['ref_id']} data from huggingface")
+            hf_hub_download(repo_id="Graphite-AI/coordinate_data", filename="Asia_MSB.npz", repo_type="dataset", local_dir=DATASET_DIR)
+        except:
+            # Obtain byte content through get request to endpoint
+            bt.logging.info(f"Downloading {ASIA_MSB_DETAILS['endpoint']} data from source")
+            start_time = time.time()
+            response = requests.get(ASIA_MSB_DETAILS['endpoint'])
+            try:
+                # check for response status
+                response.raise_for_status()
 
-            # Clean up: Remove the temporary file
-            if os.path.exists(temp_file_name):
-                os.remove(temp_file_name)
+                # create a tempfile to write the content to then read and process
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.osm.pbf') as temp_file:
+                    temp_file_name = temp_file.name
+                    
+                    # Write byte content to the temporary file
+                    temp_file.write(response.content)
 
-        except HTTPError as e:
-            bt.logging.error(f"Error fetching data from endpoint: {e}")
+                download_time = time.time() - start_time
+                bt.logging.info(f"\nDownload completed in {download_time:.2f} seconds. Constructing coordinates from pbf file. This will take a few minutes...")
+
+                # Define and Instantiate the osmium handler for extracting coordinate information
+                class WayNodeHandler(osmium.SimpleHandler):
+                    def __init__(self):
+                        super(WayNodeHandler, self).__init__()
+                        self.nodes = np.empty((28000000,3), dtype=np.float32) # we know the exact number of expected nodes
+                        self.index = 0
+                    
+                    def node(self, n):
+                        # Create a new record with the node's data
+                        self.nodes[self.index,0] = n.id
+                        self.nodes[self.index,1] = n.location.lat
+                        self.nodes[self.index,2] = n.location.lon
+                        self.index += 1
+
+                handler = WayNodeHandler()
+                handler.apply_file(temp_file_name)
+                print(handler.index)
+
+                print(f"{asizeof.asizeof(handler)} bytes")
+                print(f"{asizeof.asizeof(handler.nodes[0])} bytes for a single node")
+
+                array_bytes = np.array(handler.nodes).tobytes()
+                hash_algo='md5'
+                hash_func=getattr(hashlib, hash_algo)()
+                hash_func.update(array_bytes)
+                bt.logging.info(f"Coordinates extracted with corresponding MD5 hash: {hash_func.hexdigest()} with {handler.index} nodes")
+
+                create_directory_if_not_exists(DATASET_DIR)
+                np.savez_compressed( DATASET_DIR / (ASIA_MSB_DETAILS['ref_id']+'.npz'), data=np.array(handler.nodes[:handler.index]))
+                bt.logging.info(f"{DATASET_DIR / ASIA_MSB_DETAILS['ref_id']} coordinates saved")
+
+                # Clean up: Remove the temporary file
+                if os.path.exists(temp_file_name):
+                    os.remove(temp_file_name)
+
+            except HTTPError as e:
+                bt.logging.error(f"Error fetching data from endpoint: {e}")
 
 def check_and_get_wtsp():
     fp = get_file_path(WORLD_TSP_DETAILS['ref_id'])
@@ -161,57 +160,62 @@ def check_and_get_wtsp():
         bt.logging.info(f"{WORLD_TSP_DETAILS['ref_id']} already downloaded")
         return
     else:
-        bt.logging.info(f"Downloading {WORLD_TSP_DETAILS['ref_id']}")
-        # Obtain byte content through get request to endpoint
-        start_time = time.time()
-        response = requests.get(WORLD_TSP_DETAILS['endpoint'])
         try:
-            # check for response status
-            response.raise_for_status()
-
-            download_time = time.time() - start_time
-            bt.logging.info(f"\nDownload completed in {download_time:.2f} seconds. Constructing coordinates from tsp file.")
-
-            # Decompress the response content if it is gzipped
-            with io.BytesIO(response.content) as compressed_file:
-                with gzip.GzipFile(fileobj=compressed_file) as decompressed_file:
-                    # Read the decompressed lines and decode each from bytes to string
-                    lines = [line.decode('utf-8').replace("\n", "") for line in decompressed_file.readlines()]
-                    print(f"{asizeof.asizeof(compressed_file)} bytes - Compressed")
-                    print(f"{asizeof.asizeof(decompressed_file)} bytes - Decompressed")
-            coordinates = []
-            line_iter = iter(lines)
-            item = next(line_iter)
-            assert item == "NAME : world"
-            is_coordinate = False
-            try:
-                while item != "EOF":
-                    if item == "NODE_COORD_SECTION":
-                        is_coordinate = True
-                        item = next(line_iter)
-                        continue
-                    if is_coordinate:
-                        try:
-                            idx, lat, lon = item.split(" ")
-                            coordinates.append([int(idx), float(lat), float(lon)])
-                        except ValueError:
-                            bt.logging.error(f"Error unpacking tsp file, trying to map (index, lat, lon) from {item}")
-                    item = next(line_iter)
-            except StopIteration:
-                bt.logging.warning(f"No EOF signal found while unpacking {WORLD_TSP_DETAILS['ref_id']} tsp file")
-
-            array_bytes = np.array(coordinates).tobytes()
-            hash_algo='md5'
-            hash_func=getattr(hashlib, hash_algo)()
-            hash_func.update(array_bytes)
-            bt.logging.info(f"Coordinates extracted with corresponding MD5 hash: {hash_func.hexdigest()}")
-
             create_directory_if_not_exists(DATASET_DIR)
-            np.savez_compressed(DATASET_DIR / (WORLD_TSP_DETAILS['ref_id']+'.npz'), data=np.array(coordinates))
-            bt.logging.info(f"{DATASET_DIR / WORLD_TSP_DETAILS['ref_id']} coordinates saved")
+            bt.logging.info(f"Downloading {WORLD_TSP_DETAILS['ref_id']} data from huggingface")
+            hf_hub_download(repo_id="Graphite-AI/coordinate_data", filename="World_TSP.npz", repo_type="dataset", local_dir=DATASET_DIR)
+        except:
+            bt.logging.info(f"Downloading {WORLD_TSP_DETAILS['ref_id']} data from source")
+            # Obtain byte content through get request to endpoint
+            start_time = time.time()
+            response = requests.get(WORLD_TSP_DETAILS['endpoint'])
+            try:
+                # check for response status
+                response.raise_for_status()
 
-        except HTTPError as e:
-            bt.logging.error(f"Error fetching data from endpoint: {e}")
+                download_time = time.time() - start_time
+                bt.logging.info(f"\nDownload completed in {download_time:.2f} seconds. Constructing coordinates from tsp file.")
+
+                # Decompress the response content if it is gzipped
+                with io.BytesIO(response.content) as compressed_file:
+                    with gzip.GzipFile(fileobj=compressed_file) as decompressed_file:
+                        # Read the decompressed lines and decode each from bytes to string
+                        lines = [line.decode('utf-8').replace("\n", "") for line in decompressed_file.readlines()]
+                        print(f"{asizeof.asizeof(compressed_file)} bytes - Compressed")
+                        print(f"{asizeof.asizeof(decompressed_file)} bytes - Decompressed")
+                coordinates = []
+                line_iter = iter(lines)
+                item = next(line_iter)
+                assert item == "NAME : world"
+                is_coordinate = False
+                try:
+                    while item != "EOF":
+                        if item == "NODE_COORD_SECTION":
+                            is_coordinate = True
+                            item = next(line_iter)
+                            continue
+                        if is_coordinate:
+                            try:
+                                idx, lat, lon = item.split(" ")
+                                coordinates.append([int(idx), float(lat), float(lon)])
+                            except ValueError:
+                                bt.logging.error(f"Error unpacking tsp file, trying to map (index, lat, lon) from {item}")
+                        item = next(line_iter)
+                except StopIteration:
+                    bt.logging.warning(f"No EOF signal found while unpacking {WORLD_TSP_DETAILS['ref_id']} tsp file")
+
+                array_bytes = np.array(coordinates).tobytes()
+                hash_algo='md5'
+                hash_func=getattr(hashlib, hash_algo)()
+                hash_func.update(array_bytes)
+                bt.logging.info(f"Coordinates extracted with corresponding MD5 hash: {hash_func.hexdigest()}")
+
+                create_directory_if_not_exists(DATASET_DIR)
+                np.savez_compressed(DATASET_DIR / (WORLD_TSP_DETAILS['ref_id']+'.npz'), data=np.array(coordinates))
+                bt.logging.info(f"{DATASET_DIR / WORLD_TSP_DETAILS['ref_id']} coordinates saved")
+
+            except HTTPError as e:
+                bt.logging.error(f"Error fetching data from endpoint: {e}")
 
 def download_default_datasets():
     check_and_get_msb()
