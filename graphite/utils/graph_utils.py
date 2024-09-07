@@ -20,7 +20,7 @@
 import math
 from typing import List, Union
 import numpy as np
-from graphite.protocol import GraphV1Problem, GraphV1Synapse
+from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse
 from functools import wraps, partial
 import bittensor as bt
 import asyncio
@@ -33,7 +33,7 @@ def is_valid_path(path:List[int])->bool:
     # a valid path should have at least 3 return values and return to the source
     return (len(path)>=3) and (path[0]==path[-1])
 
-def get_tour_distance(synapse:GraphV1Synapse)->float:
+def get_tour_distance(synapse:Union[GraphV1Synapse, GraphV2Synapse])->float:
     '''
     Returns the total tour distance for the TSP or graph-traversal problem as a float.
 
@@ -140,7 +140,7 @@ def check_nodes(solution:List[int], n_cities:int):
 def start_and_end(solution:List[int]):
     return solution[0] == solution[-1]
 
-def is_valid_solution(problem:GraphV1Problem, solution:List[int]):
+def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem], solution:List[int]):
     if solution == None:
         return False
     if isinstance(solution, bool):
@@ -156,7 +156,7 @@ def is_valid_solution(problem:GraphV1Problem, solution:List[int]):
         else:
             return True
 
-def valid_problem(problem:GraphV1Problem)->bool:
+def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem])->bool:
     if problem.problem_type == 'Metric TSP':
         if (problem.directed==False) and (problem.visit_all==True) and (problem.to_origin==True) and (problem.objective_function=='min'):
             return True
