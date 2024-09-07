@@ -82,6 +82,7 @@ async def forward(self):
     start_block = 1000000 # current test block
     end_block = start_block + 60 * 60 * 24 * 3 / 12 # block 3 days later
     
+    bt.logging.info(f"S: {start_block}, E: {end_block}, C: {self.block} @ {(self.block - start_block)/(end_block - start_block)}")
     if random.random() > (self.block - start_block)/(end_block - start_block): # linear shift in distribution
         if len(api_response_output) > 0:
             try:
@@ -167,6 +168,7 @@ async def forward(self):
         test_problem_obj.edges = self.recreate_edges(test_problem_obj)
     reconstruct_edge_time = time.time() - reconstruct_edge_start_time
 
+    bt.logging.info(f"synapse type {type(graphsynapse_req)}")
     # The dendrite client queries the network.
     responses = await self.dendrite(
         axons=[self.metagraph.axons[uid] for uid in miner_uids], #miner_uids

@@ -152,7 +152,6 @@ class Miner(BaseMinerNeuron):
         )
         return synapse
 
-    
     async def forwardV2(
         self, synapse: GraphV2Synapse
     ) ->  GraphV2Synapse:
@@ -193,7 +192,6 @@ class Miner(BaseMinerNeuron):
             f"Miner returned value {synapse.solution} {len(synapse.solution) if isinstance(synapse.solution, list) else synapse.solution}"
         )
         return synapse
-
     
     async def blacklist(
         self, synapse: Union[GraphV1Synapse, GraphV2Synapse]
