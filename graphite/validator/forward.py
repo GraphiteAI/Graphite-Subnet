@@ -79,8 +79,7 @@ async def forward(self):
     except:
         api_response_output = []
 
-    
-    start_block = 3765527 # current test block
+    start_block = 1000000 # current test block
     end_block = start_block + 60 * 60 * 24 * 3 / 12 # block 3 days later
     
     if random.random() > (self.block - start_block)/(end_block - start_block): # linear shift in distribution
@@ -135,7 +134,10 @@ async def forward(self):
         # randomly select n_nodes indexes from the selected graph
         prob_select = random.randint(0, len(list(self.loaded_datasets.keys()))-1)
         dataset_ref = list(self.loaded_datasets.keys())[prob_select]
-        selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref])), n_nodes)
+        bt.logging.info(f"n_nodes V2 {n_nodes}")
+        bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
+        bt.logging.info(f"dataset length {len(self.loaded_datasets[dataset_ref]['data'])} from {self.loaded_datasets[dataset_ref]['data'].shape} " )
+        selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
         test_problem_obj = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
 
         try:
@@ -182,8 +184,11 @@ async def forward(self):
             pass
     bt.logging.info(f"NUMBER OF RESPONSES: {len(responses)}")
 
-    graphsynapse_req_updated = GraphV2Synapse(problem=test_problem_obj) # reconstruct with edges
-    score_response_obj = ScoreResponse(graphsynapse_req_updated)
+    if isinstance(test_problem_obj, GraphV2Problem):
+        graphsynapse_req_updated = GraphV2Synapse(problem=test_problem_obj) # reconstruct with edges
+        score_response_obj = ScoreResponse(graphsynapse_req_updated)
+    elif isinstance(test_problem_obj, GraphV1Problem):
+        score_response_obj = ScoreResponse(graphsynapse_req)
 
     score_response_obj.current_num_concurrent_forwards = self.current_num_concurrent_forwards
     await score_response_obj.get_benchmark()
