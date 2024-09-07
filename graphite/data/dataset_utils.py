@@ -8,6 +8,7 @@ import tempfile
 import requests
 from requests import HTTPError
 import os
+from pympler import asizeof
 import io
 import gzip
 import osmium
@@ -103,16 +104,28 @@ def check_and_get_msb():
             bt.logging.info(f"\nDownload completed in {download_time:.2f} seconds. Constructing coordinates from pbf file. This will take a few minutes...")
 
             # Define and Instantiate the osmium handler for extracting coordinate information
+            # Define the dtype for the structured array
+            dtype = np.dtype([('index', np.int64), ('lat', np.float32), ('lon', np.float32)])
+
+            # Define and Instantiate the osmium handler for extracting coordinate information
             class WayNodeHandler(osmium.SimpleHandler):
                 def __init__(self):
                     super(WayNodeHandler, self).__init__()
-                    self.nodes = []
+                    self.nodes = np.empty(28000000, dtype=dtype) # we know the exact number of expected nodes
+                    self.index = 0
                 
                 def node(self, n):
-                    self.nodes.append([n.id, n.location.lon, n.location.lat])
+                    # Create a new record with the node's data
+                    new_record = np.array([(n.id, n.location.lat, n.location.lon)], dtype=dtype)
+                    self.nodes[self.index] = new_record
+                    self.index += 1
 
             handler = WayNodeHandler()
             handler.apply_file(temp_file_name)
+            print(handler.index)
+
+            print(f"{asizeof.asizeof(handler)} bytes")
+            print(f"{asizeof.asizeof(handler.nodes[0])} bytes for a single node")
 
             array_bytes = np.array(handler.nodes).tobytes()
             hash_algo='md5'
@@ -153,7 +166,8 @@ def check_and_get_wtsp():
                 with gzip.GzipFile(fileobj=compressed_file) as decompressed_file:
                     # Read the decompressed lines and decode each from bytes to string
                     lines = [line.decode('utf-8').replace("\n", "") for line in decompressed_file.readlines()]
-
+                    print(f"{asizeof.asizeof(compressed_file)} bytes - Compressed")
+                    print(f"{asizeof.asizeof(decompressed_file)} bytes - Decompressed")
             coordinates = []
             line_iter = iter(lines)
             item = next(line_iter)
