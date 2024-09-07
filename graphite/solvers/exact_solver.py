@@ -30,7 +30,7 @@ class DPSolver(BaseSolver):
     def __init__(self, problem_types:List[Union[GraphV1Problem, GraphV2Problem]]=[GraphV1Problem(n_nodes=2), GraphV1Problem(n_nodes=2, directed=True, problem_type='General TSP')]):
         super().__init__(problem_types=problem_types)
 
-    async def solve(self, formatted_problem:List[List[Union[int, float]]], future_id:int)->List[int]:
+    async def solve(self, formatted_problem, future_id:int)->List[int]:
         distance_matrix = formatted_problem
         if not self.is_solvable(distance_matrix):
             return False
