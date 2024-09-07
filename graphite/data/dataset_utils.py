@@ -24,6 +24,14 @@ from graphite.data.constants import ASIA_MSB_DETAILS, WORLD_TSP_DETAILS
 
 DATASET_DIR = Path(__file__).resolve().parent.parent.parent.joinpath("dataset")
 
+# checks if directory exists and creates it if it doesn't
+def create_directory_if_not_exists(directory_path: str) -> None:
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path, exist_ok=True)
+        print(f"Directory created: {directory_path}")
+    else:
+        print(f"Directory already exists: {directory_path}")
+
 #_________________________________________#
 ###### Helper functions for training ######
 #_________________________________________#
@@ -108,16 +116,18 @@ def check_and_get_msb():
             dtype = np.dtype([('index', np.int64), ('lat', np.float32), ('lon', np.float32)])
 
             # Define and Instantiate the osmium handler for extracting coordinate information
+            # Define and Instantiate the osmium handler for extracting coordinate information
             class WayNodeHandler(osmium.SimpleHandler):
                 def __init__(self):
                     super(WayNodeHandler, self).__init__()
-                    self.nodes = np.empty(28000000, dtype=dtype) # we know the exact number of expected nodes
+                    self.nodes = np.empty((28000000,3), dtype=np.float32) # we know the exact number of expected nodes
                     self.index = 0
                 
                 def node(self, n):
                     # Create a new record with the node's data
-                    new_record = np.array([(n.id, n.location.lat, n.location.lon)], dtype=dtype)
-                    self.nodes[self.index] = new_record
+                    self.nodes[self.index,0] = n.id
+                    self.nodes[self.index,1] = n.location.lat
+                    self.nodes[self.index,2] = n.location.lon
                     self.index += 1
 
             handler = WayNodeHandler()
@@ -131,9 +141,10 @@ def check_and_get_msb():
             hash_algo='md5'
             hash_func=getattr(hashlib, hash_algo)()
             hash_func.update(array_bytes)
-            bt.logging.info(f"Coordinates extracted with corresponding MD5 hash: {hash_func.hexdigest()}")
+            bt.logging.info(f"Coordinates extracted with corresponding MD5 hash: {hash_func.hexdigest()} with {handler.index} nodes")
 
-            np.savez_compressed( DATASET_DIR / (ASIA_MSB_DETAILS['ref_id']+'.npz'), data=np.array(handler.nodes))
+            create_directory_if_not_exists(DATASET_DIR)
+            np.savez_compressed( DATASET_DIR / (ASIA_MSB_DETAILS['ref_id']+'.npz'), data=np.array(handler.nodes[:handler.index]))
             bt.logging.info(f"{DATASET_DIR / ASIA_MSB_DETAILS['ref_id']} coordinates saved")
 
             # Clean up: Remove the temporary file
@@ -194,19 +205,25 @@ def check_and_get_wtsp():
             hash_func=getattr(hashlib, hash_algo)()
             hash_func.update(array_bytes)
             bt.logging.info(f"Coordinates extracted with corresponding MD5 hash: {hash_func.hexdigest()}")
+
+            create_directory_if_not_exists(DATASET_DIR)
             np.savez_compressed(DATASET_DIR / (WORLD_TSP_DETAILS['ref_id']+'.npz'), data=np.array(coordinates))
             bt.logging.info(f"{DATASET_DIR / WORLD_TSP_DETAILS['ref_id']} coordinates saved")
 
         except HTTPError as e:
             bt.logging.error(f"Error fetching data from endpoint: {e}")
 
+def download_default_datasets():
+    check_and_get_msb()
+    check_and_get_wtsp()
+
 def load_default_dataset(neuron):
     '''
     Loads the default dataset into neuron as a dict of {"dataset_name":{"coordinates":np.array, "checksum":str}}
     '''
+    create_directory_if_not_exists(DATASET_DIR)
     # check and process default datasets
-    check_and_get_msb()
-    check_and_get_wtsp()
+    download_default_datasets()
 
     # set the neuron dataset attribute
     neuron.loaded_datasets = {
