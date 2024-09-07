@@ -182,8 +182,11 @@ async def forward(self):
             pass
     bt.logging.info(f"NUMBER OF RESPONSES: {len(responses)}")
 
-    graphsynapse_req_updated = GraphV2Synapse(problem=test_problem_obj) # reconstruct with edges
-    score_response_obj = ScoreResponse(graphsynapse_req_updated)
+    if isinstance(test_problem_obj, GraphV2Problem):
+        graphsynapse_req_updated = GraphV2Synapse(problem=test_problem_obj) # reconstruct with edges
+        score_response_obj = ScoreResponse(graphsynapse_req_updated)
+    elif isinstance(test_problem_obj, GraphV1Problem):
+        score_response_obj = ScoreResponse(graphsynapse_req)
 
     score_response_obj.current_num_concurrent_forwards = self.current_num_concurrent_forwards
     await score_response_obj.get_benchmark()
