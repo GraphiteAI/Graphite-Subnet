@@ -173,7 +173,7 @@ class Miner(BaseMinerNeuron):
         bt.logging.info(
             f"Miner received input to solve {synapse.problem.n_nodes}"
         )
-        
+
         if isinstance(synapse.problem, GraphV2Problem):
             synapse.problem.edges = self.recreate_edges(synapse.problem)
         
@@ -187,6 +187,7 @@ class Miner(BaseMinerNeuron):
             # Simple heuristic that does not guarantee optimality. 
             route = await self.solvers['large'].solve_problem(synapse.problem)
         synapse.solution = route
+        synapse.problem.edges = None
         
         bt.logging.info(
             f"Miner returned value {synapse.solution} {len(synapse.solution) if isinstance(synapse.solution, list) else synapse.solution}"

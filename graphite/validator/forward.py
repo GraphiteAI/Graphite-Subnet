@@ -165,7 +165,7 @@ async def forward(self):
 
     reconstruct_edge_start_time = time.time()
     if isinstance(test_problem_obj, GraphV2Problem):
-        test_problem_obj.edges = self.recreate_edges(test_problem_obj)
+        edges = self.recreate_edges(test_problem_obj)
     reconstruct_edge_time = time.time() - reconstruct_edge_start_time
 
     bt.logging.info(f"synapse type {type(graphsynapse_req)}")
@@ -176,6 +176,8 @@ async def forward(self):
         deserialize=True,
         timeout = 30 + reconstruct_edge_time, # 30s + time to reconstruct, can scale with problem types in the future
     )
+    if isinstance(test_problem_obj, GraphV2Problem):
+        test_problem_obj.edges = edges
 
     for res in responses:
         try:
