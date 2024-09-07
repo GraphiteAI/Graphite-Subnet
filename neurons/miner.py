@@ -95,7 +95,7 @@ class Miner(BaseMinerNeuron):
         if isinstance(synapse.problem, GraphV2Problem):
             synapse.problem.edges = self.recreate_edges(synapse.problem)
         
-        bt.logging.info(f"synapse dendrite timeout {synapse.dendrite.timeout}")
+        bt.logging.info(f"synapse dendrite timeout {synapse.timeout}")
 
         # Conditional assignment of problems to each solver
         if synapse.problem.n_nodes < 15:
@@ -136,7 +136,7 @@ class Miner(BaseMinerNeuron):
         if isinstance(synapse.problem, GraphV2Problem):
             synapse.problem.edges = self.recreate_edges(synapse.problem)
         
-        bt.logging.info(f"synapse dendrite timeout {synapse.dendrite.timeout}")
+        bt.logging.info(f"synapse dendrite timeout {synapse.timeout}")
 
         # Conditional assignment of problems to each solver
         if synapse.problem.n_nodes < 15:
@@ -177,7 +177,7 @@ class Miner(BaseMinerNeuron):
         if isinstance(synapse.problem, GraphV2Problem):
             synapse.problem.edges = self.recreate_edges(synapse.problem)
         
-        bt.logging.info(f"synapse dendrite timeout {synapse.dendrite.timeout}")
+        bt.logging.info(f"synapse dendrite timeout {synapse.timeout}")
 
         # Conditional assignment of problems to each solver
         if synapse.problem.n_nodes < 15:
