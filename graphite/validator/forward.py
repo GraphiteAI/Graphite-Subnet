@@ -79,8 +79,7 @@ async def forward(self):
     except:
         api_response_output = []
 
-    
-    start_block = 3765527 # current test block
+    start_block = 1000000 # current test block
     end_block = start_block + 60 * 60 * 24 * 3 / 12 # block 3 days later
     
     if random.random() > (self.block - start_block)/(end_block - start_block): # linear shift in distribution
