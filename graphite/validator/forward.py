@@ -136,8 +136,8 @@ async def forward(self):
         dataset_ref = list(self.loaded_datasets.keys())[prob_select]
         bt.logging.info(f"n_nodes V2 {n_nodes}")
         bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
-        bt.logging.info(f"dataset length {len(self.loaded_datasets[dataset_ref])} from {self.loaded_datasets[dataset_ref].shape} " )
-        selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref])), n_nodes)
+        bt.logging.info(f"dataset length {len(self.loaded_datasets[dataset_ref]["data"])} from {self.loaded_datasets[dataset_ref]["data"].shape} " )
+        selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]["data"])), n_nodes)
         test_problem_obj = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
 
         try:
