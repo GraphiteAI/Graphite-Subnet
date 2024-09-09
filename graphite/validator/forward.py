@@ -270,7 +270,7 @@ async def forward(self):
     except:
         pass
     try:
-        configDict["edges"] = graphsynapse_req.problem.edges
+        configDict["edges"] = []
     except:
         pass
     try:
