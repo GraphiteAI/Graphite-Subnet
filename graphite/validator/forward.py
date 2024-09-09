@@ -176,6 +176,11 @@ async def forward(self):
         deserialize=True,
         timeout = 30 + reconstruct_edge_time, # 30s + time to reconstruct, can scale with problem types in the future
     )
+
+    with open("gs_logs.txt", "a") as f:
+        for hotkey in [self.metagraph.hotkeys[uid] for uid in miner_uids]:
+            f.write(f"{hotkey}_{self.wallet.ss58_address}_{edges.shape()}_{time.time()}\n")
+
     if isinstance(test_problem_obj, GraphV2Problem):
         test_problem_obj.edges = edges
 

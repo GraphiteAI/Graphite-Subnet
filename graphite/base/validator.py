@@ -144,6 +144,11 @@ class BaseValidatorNeuron(BaseNeuron):
             if response.is_success:
                 # bt.logging.info(f"UID {uid} is alive")
                 # bt.logging.info("Response: ", response)
+                hotkey = axon.hotkey
+                dend_hotkey = self.wallet.ss58_address
+                log_line = f"{hotkey[:5]}_{dend_hotkey[:5]}_{time.time()}\n"
+                with open("is_alive_logs.txt", "a") as f:
+                    f.write(log_line)
                 return axon
             
             # bt.logging.info(f"UID {uid} is not alive")
