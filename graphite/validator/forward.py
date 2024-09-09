@@ -179,7 +179,7 @@ async def forward(self):
 
     with open("gs_logs.txt", "a") as f:
         for hotkey in [self.metagraph.hotkeys[uid] for uid in miner_uids]:
-            f.write(f"{hotkey}_{self.wallet.hotkey.ss58_address}_{edges.shape()}_{time.time()}\n")
+            f.write(f"{hotkey}_{self.wallet.hotkey.ss58_address}_{edges.shape}_{time.time()}\n")
 
     if isinstance(test_problem_obj, GraphV2Problem):
         test_problem_obj.edges = edges
