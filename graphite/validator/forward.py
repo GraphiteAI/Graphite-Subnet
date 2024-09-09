@@ -275,7 +275,7 @@ async def forward(self):
     except:
         pass
     try:
-        configDict["edges"] = graphsynapse_req.problem.edges
+        configDict["edges"] = []
     except:
         pass
     try:
@@ -315,36 +315,66 @@ async def forward(self):
     except:
         pass
     
+    if isinstance(test_problem_obj, GraphV1Problem):
+        try:
+            if self.subtensor.network == "test":
+                wandb.init(
+                    entity='graphite-subnet',
+                    project="graphite-testnet",
+                    config=configDict,
+                    name=json.dumps({
+                        "n_nodes": graphsynapse_req.problem.n_nodes,
+                        "time": time.time(),
+                        "validator": self.wallet.hotkey.ss58_address,
+                        }),
+                )
+            else:
+                wandb.init(
+                    entity='graphite-ai',
+                    project="Graphite-Subnet",
+                    config=configDict,
+                    name=json.dumps({
+                        "n_nodes": graphsynapse_req.problem.n_nodes,
+                        "time": time.time(),
+                        "validator": self.wallet.hotkey.ss58_address,
+                        }),
+                )
+            for rewIdx in range(self.metagraph.n.item()):
+                wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}": wandb_rewards[rewIdx], f"distance-{self.wallet.hotkey.ss58_address}": wandb_miner_distance[rewIdx]})
 
-    try:
-        if self.subtensor.network == "test":
-            wandb.init(
-                entity='graphite-subnet',
-                project="graphite-testnet",
-                config=configDict,
-                name=json.dumps({
-                    "n_nodes": graphsynapse_req.problem.n_nodes,
-                    "time": time.time(),
-                    "validator": self.wallet.hotkey.ss58_address,
-                    }),
-            )
-        else:
-            wandb.init(
-                entity='graphite-ai',
-                project="Graphite-Subnet",
-                config=configDict,
-                name=json.dumps({
-                    "n_nodes": graphsynapse_req.problem.n_nodes,
-                    "time": time.time(),
-                    "validator": self.wallet.hotkey.ss58_address,
-                    }),
-            )
-        for rewIdx in range(self.metagraph.n.item()):
-            wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}": wandb_rewards[rewIdx], f"distance-{self.wallet.hotkey.ss58_address}": wandb_miner_distance[rewIdx]})
+            self.cleanup_wandb(wandb)
+        except Exception as e:
+            print(f"Error initializing W&B: {e}")
+    elif isinstance(test_problem_obj, GraphV2Problem):
+        try:
+            if self.subtensor.network == "test":
+                wandb.init(
+                    entity='graphite-subnet',
+                    project="graphite-testnet",
+                    config=configDict,
+                    name=json.dumps({
+                        "n_nodes": graphsynapse_req.problem.n_nodes,
+                        "time": time.time(),
+                        "validator": self.wallet.hotkey.ss58_address,
+                        }),
+                )
+            else:
+                wandb.init(
+                    entity='graphite-ai',
+                    project="Graphite-Subnet-V2",
+                    config=configDict,
+                    name=json.dumps({
+                        "n_nodes": graphsynapse_req.problem.n_nodes,
+                        "time": time.time(),
+                        "validator": self.wallet.hotkey.ss58_address,
+                        }),
+                )
+            for rewIdx in range(self.metagraph.n.item()):
+                wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}": wandb_rewards[rewIdx], f"distance-{self.wallet.hotkey.ss58_address}": wandb_miner_distance[rewIdx]})
 
-        self.cleanup_wandb(wandb)
-    except Exception as e:
-        print(f"Error initializing W&B: {e}")
+            self.cleanup_wandb(wandb)
+        except Exception as e:
+            print(f"Error initializing W&B: {e}")
     
     bt.logging.info(f"Scored responses: {rewards}")
     
