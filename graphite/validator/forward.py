@@ -345,7 +345,7 @@ async def forward(self):
             if self.subtensor.network == "test":
                 wandb.init(
                     entity='graphite-subnet',
-                    project="graphite-testnet-v2",
+                    project="graphite-testnet",
                     config=configDict,
                     name=json.dumps({
                         "n_nodes": graphsynapse_req.problem.n_nodes,
