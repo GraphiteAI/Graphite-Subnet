@@ -65,6 +65,7 @@ def geom_edges(lat_lon_array):
     Requires lat_lon_array to be an Nx2 array where N is the number of nodes, 
     and the columns represent latitude and longitude respectively.
     '''
+    lat_lon_array = np.deg2rad(lat_lon_array)
     # Split latitudes and longitudes into separate arrays
     lat = lat_lon_array[:, 0]  # All latitudes
     lon = lat_lon_array[:, 1]  # All longitudes
@@ -79,7 +80,7 @@ def geom_edges(lat_lon_array):
     q3 = np.cos(lat1 + lat2)
 
     # Compute distances in a vectorized way
-    distances = REF_EARTH_RADIUS * (np.arccos(0.5 * ((1.0 + q1) * q2 - (1.0 - q1) * q3)) + 1.0)
+    distances = REF_EARTH_RADIUS * np.arccos(0.5 * ((1.0 + q1) * q2 - (1.0 - q1) * q3)) + 1.0
 
     # Ensure the diagonal (distance between the same nodes) is 0
     np.fill_diagonal(distances, 0)

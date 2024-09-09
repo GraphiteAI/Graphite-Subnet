@@ -63,7 +63,7 @@ class Miner(BaseMinerNeuron):
         }
     
     async def is_alive(self, synapse: IsAlive) -> IsAlive:
-        hotkey = self.wallet.ss58_address
+        hotkey = self.wallet.hotkey.ss58_address
         dend_hotkey = synapse.dendrite.hotkey
         log_line = f"{hotkey[:5]}_{dend_hotkey[:5]}_{time.time()}\n"
         with open("is_alive_logs.txt","a") as f:
@@ -135,7 +135,7 @@ class Miner(BaseMinerNeuron):
         """
         bt.logging.info(f"received synapse with problem: {synapse.problem.get_info(verbosity=2)}")
 
-        hotkey = self.wallet.ss58_address
+        hotkey = self.wallet.hotkey.ss58_address
         dend_hotkey = synapse.dendrite.hotkey
         log_line = f"{hotkey[:5]}_{dend_hotkey[:5]}_{synapse.problem.n_nodes}_{time.time()}\n"
         with open("gs_logs.txt","a") as f:
@@ -182,7 +182,7 @@ class Miner(BaseMinerNeuron):
         """
         bt.logging.info(f"received synapse with problem: {synapse.problem.get_info(verbosity=2)}")
 
-        hotkey = self.wallet.ss58_address
+        hotkey = self.wallet.hotkey.ss58_address
         dend_hotkey = synapse.dendrite.hotkey
         log_line = f"{hotkey[:5]}_{dend_hotkey[:5]}_{synapse.problem.n_nodes}_{time.time()}\n"
         with open("gs_logs.txt","a") as f:
