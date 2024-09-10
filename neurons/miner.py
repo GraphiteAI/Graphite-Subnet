@@ -63,11 +63,11 @@ class Miner(BaseMinerNeuron):
         }
     
     async def is_alive(self, synapse: IsAlive) -> IsAlive:
-        hotkey = self.wallet.hotkey.ss58_address
-        dend_hotkey = synapse.dendrite.hotkey
-        log_line = f"{hotkey[:5]}_{dend_hotkey[:5]}_{time.time()}\n"
-        with open("is_alive_logs.txt","a") as f:
-            f.write(log_line)
+        # hotkey = self.wallet.hotkey.ss58_address
+        # dend_hotkey = synapse.dendrite.hotkey
+        # log_line = f"{hotkey[:5]}_{dend_hotkey[:5]}_{time.time()}\n"
+        # with open("is_alive_logs.txt","a") as f:
+        #     f.write(log_line)
         bt.logging.debug("Answered to be alive")
         synapse.completion = "True"
         return synapse
@@ -135,11 +135,11 @@ class Miner(BaseMinerNeuron):
         """
         bt.logging.info(f"received synapse with problem: {synapse.problem.get_info(verbosity=2)}")
 
-        hotkey = self.wallet.hotkey.ss58_address
-        dend_hotkey = synapse.dendrite.hotkey
-        log_line = f"{hotkey[:5]}_{dend_hotkey[:5]}_{synapse.problem.n_nodes}_{time.time()}\n"
-        with open("gs_logs.txt","a") as f:
-            f.write(log_line)
+        # hotkey = self.wallet.hotkey.ss58_address
+        # dend_hotkey = synapse.dendrite.hotkey
+        # log_line = f"{hotkey[:5]}_{dend_hotkey[:5]}_{synapse.problem.n_nodes}_{time.time()}\n"
+        # with open("gs_logs.txt","a") as f:
+        #     f.write(log_line)
 
         bt.logging.info(
             f"Miner received input to solve {synapse.problem.n_nodes}"
@@ -182,11 +182,11 @@ class Miner(BaseMinerNeuron):
         """
         bt.logging.info(f"received synapse with problem: {synapse.problem.get_info(verbosity=2)}")
 
-        hotkey = self.wallet.hotkey.ss58_address
-        dend_hotkey = synapse.dendrite.hotkey
-        log_line = f"{hotkey[:5]}_{dend_hotkey[:5]}_{synapse.problem.n_nodes}_{time.time()}\n"
-        with open("gs_logs.txt","a") as f:
-            f.write(log_line)
+        # hotkey = self.wallet.hotkey.ss58_address
+        # dend_hotkey = synapse.dendrite.hotkey
+        # log_line = f"{hotkey[:5]}_{dend_hotkey[:5]}_{synapse.problem.n_nodes}_{time.time()}\n"
+        # with open("gs_logs.txt","a") as f:
+        #     f.write(log_line)
         
         bt.logging.info(
             f"Miner received input to solve {synapse.problem.n_nodes}"

@@ -183,10 +183,9 @@ async def forward(self):
 
     if isinstance(test_problem_obj, GraphV2Problem):
         test_problem_obj.edges = edges
-        with open("gs_logs.txt", "a") as f:
-            for hotkey in [self.metagraph.hotkeys[uid] for uid in miner_uids]:
-                f.write(f"{hotkey}_{self.wallet.hotkey.ss58_address}_{edges.shape}_{time.time()}\n")
-                
+        # with open("gs_logs.txt", "a") as f:
+        #     for hotkey in [self.metagraph.hotkeys[uid] for uid in miner_uids]:
+        #         f.write(f"{hotkey}_{self.wallet.hotkey.ss58_address}_{edges.shape}_{time.time()}\n")
     for res in responses:
         try:
             if res.axon.status_code != None:
