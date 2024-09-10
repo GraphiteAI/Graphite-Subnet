@@ -365,7 +365,11 @@ class BaseValidatorNeuron(BaseNeuron):
 
         # Calculate the average reward for each uid across non-zero values.
         # Replace any NaN values with 0.
-        raw_weights = self.scores / np.linalg.norm(self.scores, ord=1, axis=0, keepdims=True)
+        try:
+            raw_weights = self.scores / np.linalg.norm(self.scores, ord=1, axis=0, keepdims=True)
+        except RuntimeWarning:
+            bt.logging.info("Sum of scores = 0, skip setting weights for now")
+            return None
 
         bt.logging.debug("raw_weights", raw_weights)
         bt.logging.debug("raw_weight_uids", str(self.metagraph.uids.tolist()))
