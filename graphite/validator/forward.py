@@ -63,10 +63,10 @@ async def forward(self):
     did_organic_task = False
     organic_task_id = ""
     try:
-        if organic_endpoint is not None and organic_endpoint != "":
+        if self.bearer_token_is_valid:
 
-            url = f"{organic_endpoint}/tasks/oldest/{curr_idx}"
-            headers = {"Authorization": "Bearer %s"%db_bearer_token}
+            url = f"{self.organic_endpoint}/tasks/oldest/{curr_idx}"
+            headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
             api_response = requests.get(url, headers=headers)
             api_response_output = api_response.json()
             
