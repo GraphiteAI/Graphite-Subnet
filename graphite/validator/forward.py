@@ -27,7 +27,7 @@ from graphite.utils.uids import get_available_uids
 import time
 
 from graphite.protocol import GraphV1Problem, GraphV2Problem, GraphV1Synapse, GraphV2Synapse
-from graphite.dataset.dataset_generator import MetricTSPGenerator, GeneralTSPGenerator
+from graphite.data.dataset_generator import MetricTSPGenerator, GeneralTSPGenerator
         
 import numpy as np
 import json
@@ -41,6 +41,8 @@ import requests
 import asyncio
 
 from pydantic import ValidationError
+
+REFERENCE_BLOCK = 3793218
 
 async def forward(self):
 
@@ -79,7 +81,7 @@ async def forward(self):
     except:
         api_response_output = []
 
-    start_block = 1000000 # current test block
+    start_block = REFERENCE_BLOCK # current test block
     end_block = start_block + 60 * 60 * 24 * 3 / 12 # block 3 days later
     
     bt.logging.info(f"S: {start_block}, E: {end_block}, C: {self.block} @ {(self.block - start_block)/(end_block - start_block)}")
@@ -93,10 +95,10 @@ async def forward(self):
                 prob_select = random.randint(1, 2)
         
                 if prob_select == 1:
-                    problems, sizes = MetricTSPGenerator.generate_and_save_dataset(1)
+                    problems, sizes = MetricTSPGenerator.generate_n_samples(1)
                     test_problem_obj = problems[0]
                 else:
-                    problems, sizes = GeneralTSPGenerator.generate_and_save_dataset(1)
+                    problems, sizes = GeneralTSPGenerator.generate_n_samples(1)
                     test_problem_obj = problems[0]
                     
                 try:
