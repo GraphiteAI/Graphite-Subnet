@@ -42,7 +42,7 @@ import asyncio
 
 from pydantic import ValidationError
 
-REFERENCE_BLOCK = 3793218
+REFERENCE_BLOCK = 100000
 
 async def forward(self):
 
