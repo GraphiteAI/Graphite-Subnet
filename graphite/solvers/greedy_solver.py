@@ -19,7 +19,7 @@
 
 from typing import List, Union
 from graphite.solvers.base_solver import BaseSolver
-from graphite.protocol import GraphProblem
+from graphite.protocol import GraphV1Problem, GraphV2Problem
 from graphite.utils.graph_utils import timeout
 import numpy as np
 import time
@@ -29,10 +29,10 @@ import random
 import bittensor as bt
 
 class NearestNeighbourSolver(BaseSolver):
-    def __init__(self, problem_types:List[GraphProblem]=[GraphProblem(n_nodes=2), GraphProblem(n_nodes=2, directed=True, problem_type='General TSP')]):
+    def __init__(self, problem_types:List[Union[GraphV1Problem, GraphV2Problem]]=[GraphV1Problem(n_nodes=2), GraphV1Problem(n_nodes=2, directed=True, problem_type='General TSP')]):
         super().__init__(problem_types=problem_types)
 
-    async def solve(self, formatted_problem:List[List[Union[int, float]]], future_id:int)->List[int]:
+    async def solve(self, formatted_problem, future_id:int)->List[int]:
         distance_matrix = formatted_problem
         n = len(distance_matrix[0])
         visited = [False] * n
@@ -65,14 +65,51 @@ class NearestNeighbourSolver(BaseSolver):
         route.append(route[0])
         return route
 
-    def problem_transformations(self, problem: GraphProblem):
+    def problem_transformations(self, problem: Union[GraphV1Problem, GraphV2Problem]):
         return problem.edges
         
 if __name__=="__main__":
-    # runs the solver on a test MetricTSP
-    n_nodes = 100
-    test_problem = GraphProblem(n_nodes=n_nodes)
-    solver = NearestNeighbourSolver(problem_types=[test_problem.problem_type])
+    # # runs the solver on a test MetricTSP
+    # n_nodes = 100
+    # test_problem = GraphV1Problem(n_nodes=n_nodes)
+    # solver = NearestNeighbourSolver(problem_types=[test_problem])
+    # start_time = time.time()
+    # route = asyncio.run(solver.solve_problem(test_problem))
+    # print(f"{solver.__class__.__name__} Solution: {route}")
+    # print(f"{solver.__class__.__name__} Time Taken for {n_nodes} Nodes: {time.time()-start_time}")
+
+
+    ## Test case for GraphV2Problem
+    from graphite.data.distance import geom_edges, man_2d_edges, euc_2d_edges
+    loaded_datasets = {}
+    with np.load('dataset/Asia_MSB.npz') as f:
+        loaded_datasets["Asia_MSB"] = np.array(f['data'])
+    def recreate_edges(problem: GraphV2Problem):
+        node_coords_np = loaded_datasets[problem.dataset_ref]
+        node_coords = np.array([node_coords_np[i][1:] for i in problem.selected_ids])
+        if problem.cost_function == "Geom":
+            return geom_edges(node_coords)
+        elif problem.cost_function == "Euclidean2D":
+            return euc_2d_edges(node_coords)
+        elif problem.cost_function == "Manhatten2D":
+            return man_2d_edges(node_coords)
+        else:
+            return "Only Geom, Euclidean2D, and Manhatten2D supported for now."
+      
+    n_nodes = random.randint(2000, 5000)
+    # randomly select n_nodes indexes from the selected graph
+    selected_node_idxs = random.sample(range(26000000), n_nodes)
+    test_problem = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref="Asia_MSB")
+    if isinstance(test_problem, GraphV2Problem):
+        test_problem.edges = recreate_edges(test_problem)
+    print("Problem", test_problem)
+    solver = NearestNeighbourSolver(problem_types=[test_problem])
+    start_time = time.time()
+    route = asyncio.run(solver.solve_problem(test_problem))
+    print(f"{solver.__class__.__name__} Solution: {route}")
+    print(f"{solver.__class__.__name__} Time Taken for {n_nodes} Nodes: {time.time()-start_time}")
+
+    solver = NearestNeighbourSolver(problem_types=[test_problem])
     start_time = time.time()
     route = asyncio.run(solver.solve_problem(test_problem))
     print(f"{solver.__class__.__name__} Solution: {route}")

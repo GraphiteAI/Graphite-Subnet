@@ -25,6 +25,8 @@ import argparse
 import threading
 import bittensor as bt
 import time
+import random
+import math
 
 from typing import List, Union
 from traceback import print_exception
@@ -35,6 +37,7 @@ from graphite.mock import MockDendrite
 from graphite.utils.config import add_validator_args
 
 from graphite.protocol import IsAlive
+from graphite.utils.uids import check_uid_availability
 
 import requests
 
@@ -96,17 +99,57 @@ class BaseValidatorNeuron(BaseNeuron):
         
 
     async def get_available_uids(self):
+        available_uids = {}
+
+        for uid in range(self.metagraph.n.item()):
+            uid_is_available = check_uid_availability(
+                self.metagraph, uid, self.config.neuron.vpermit_tao_limit
+            )
+
+            if uid_is_available:
+                available_uids[uid] = uid
+
+        return available_uids
+    
+    async def get_available_uids_organic(self):
         # get all axons in subnet
         all_axons = self.metagraph.axons
 
         # checks IsAlive() for each uid
         tasks = [self.check_alive(axon, all_axons.index(axon)) for axon in all_axons]
         results = await asyncio.gather(*tasks)
-
+       
         # dictionary that maps UID -> AxonInfo for all alive UIDs
         available_uids = {uid: axon for uid, axon in enumerate(results) if axon is not None}
 
         return available_uids
+    
+    async def get_k_uids(self, k:int=30):
+        available_uids = await self.get_available_uids()
+        random_uids = random.sample(list(available_uids.keys()), min(k, len(available_uids)))
+        return {uid: available_uids[uid] for uid in random_uids}
+    
+    async def get_top_k_uids(self, k:int=30, alpha:float=0.7):
+        assert (alpha<=1) and (alpha>0.5), ValueError("For the get_top_k_uids method, alpha needs to be between 0.5 and 1")
+        # get available_uids
+        available_uids = await self.get_available_uids_organic()
+        incentives = self.metagraph.I
+        available_uids_and_incentives = [(uid, incentives[uid]) for uid in available_uids.keys()]
+        sorted_axon_list = sorted(available_uids_and_incentives, key=lambda x: x[1], reverse=True)
+        # query a random sample of half of the top 10% of miners:
+        top_k_axons = sorted_axon_list[:min(len(sorted_axon_list),k)]
+        if len(sorted_axon_list) > k:
+            bottom_remainder = math.floor(k*(1-alpha))
+            if bottom_remainder > (len(sorted_axon_list)-k):
+                bottom_remainder = len(sorted_axon_list) - k
+            top_n = k - bottom_remainder
+            assert (top_n>0) and (bottom_remainder>=0), ValueError(f'Invalid call values: calling {top_n} top miners and {bottom_remainder} bottom miners')
+            other_axons = [x[0] for x in random.sample(sorted_axon_list[k:], bottom_remainder)]
+            random_top_axons = [x[0] for x in random.sample(top_k_axons, top_n)]
+            selected_uids = random_top_axons + other_axons
+            return {uid: available_uids[uid] for uid in selected_uids}
+        else:
+            return {uid: available_uids[uid] for uid, incentive in sorted_axon_list}
 
     async def check_alive(self, axon, uid):
         # check if axon is alive
@@ -115,6 +158,11 @@ class BaseValidatorNeuron(BaseNeuron):
             if response.is_success:
                 # bt.logging.info(f"UID {uid} is alive")
                 # bt.logging.info("Response: ", response)
+                hotkey = axon.hotkey
+                dend_hotkey = self.wallet.hotkey.ss58_address
+                log_line = f"{hotkey[:5]}_{dend_hotkey[:5]}_{time.time()}\n"
+                with open("is_alive_logs.txt", "a") as f:
+                    f.write(log_line)
                 return axon
             
             # bt.logging.info(f"UID {uid} is not alive")

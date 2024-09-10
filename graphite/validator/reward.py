@@ -19,10 +19,10 @@
 
 import torch
 import numpy as np
-from typing import List
+from typing import List, Union
 from graphite.utils.constants import BENCHMARK_SOLUTIONS, COST_FUNCTIONS
 from graphite.utils.graph_utils import is_valid_solution
-from graphite.protocol import GraphProblem, GraphSynapse
+from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse
 from graphite.solvers import NearestNeighbourSolver, BeamSearchSolver, DPSolver, HPNSolver
 from graphite.solvers.greedy_solver_vali import NearestNeighbourSolverVali
 import bittensor as bt
@@ -53,7 +53,7 @@ def score_worse_than_reference(score, reference, objective_function):
 
 
 class ScoreResponse:
-    def __init__(self, mock_synapse: GraphSynapse):
+    def __init__(self, mock_synapse: Union[GraphV1Synapse, GraphV2Synapse]):
         self.synapse = mock_synapse
         self.problem = self.synapse.problem
         # internally, validators apply a 30s timeout as the benchmark solution
@@ -83,14 +83,14 @@ class ScoreResponse:
         self.benchmark_score = self.score_response(self.synapse)
         bt.logging.info(f"Validator score: {self.benchmark_score}")
 
-    def get_score(self, response:GraphSynapse):
+    def get_score(self, response: Union[GraphV1Synapse, GraphV2Synapse]):
         # all cost_functions should handle False as an indication that the problem was unsolvable and assign it a value of np.inf
         synapse_copy = self.synapse
         synapse_copy.solution = response.solution
         path_cost = self.cost_function(synapse_copy)
         return path_cost
 
-    def score_response(self, response:GraphSynapse):
+    def score_response(self, response: Union[GraphV1Synapse, GraphV2Synapse]):
         if (isinstance(response.solution, list) and all([isinstance(value, int) for value in response.solution])) and is_valid_solution(self.problem, response.solution):
             response_score = self.get_score(response)
             # check if the response beats greedy algorithm: return 0 if it performs poorer than greedy
@@ -138,7 +138,7 @@ def scaled_rewards(scores, benchmark: float, objective_function:str = 'min'):
 def get_rewards(
     self,
     score_handler: ScoreResponse,
-    responses: List[GraphSynapse],
+    responses: List[Union[GraphV1Synapse, GraphV2Synapse]],
 ) -> torch.FloatTensor:
     """
     Returns a tensor of rewards for the given query and responses.
@@ -163,33 +163,33 @@ def get_rewards(
 
 if __name__=='__main__':
     # simulate solvers and responses
-    test_problem = GraphProblem(n_nodes=10, directed=True)
+    test_problem = GraphV1Problem(n_nodes=10, directed=True)
     # print(test_problem.get_info(verbosity=3))
 
     # test miner synapse
-    miner_1_synapse = GraphSynapse(problem=test_problem)
+    miner_1_synapse = GraphV1Synapse(problem=test_problem)
     miner_1_solver = NearestNeighbourSolver()
     route_1 = asyncio.run(miner_1_solver.solve_problem(miner_1_synapse.problem))
     miner_1_synapse.solution = route_1
     
-    miner_2_synapse = GraphSynapse(problem=test_problem)
+    miner_2_synapse = GraphV1Synapse(problem=test_problem)
     miner_2_solver = DPSolver()
     route_2 = asyncio.run(miner_2_solver.solve_problem(miner_2_synapse.problem))
     miner_2_synapse.solution = route_2
 
-    miner_3_synapse = GraphSynapse(problem=test_problem)
+    miner_3_synapse = GraphV1Synapse(problem=test_problem)
     miner_3_solver = HPNSolver()
     route_3 = asyncio.run(miner_3_solver.solve_problem(miner_3_synapse.problem))
     miner_3_synapse.solution = route_3
 
-    miner_4_synapse = GraphSynapse(problem=test_problem)
+    miner_4_synapse = GraphV1Synapse(problem=test_problem)
     miner_4_solver = BeamSearchSolver()
     route_4 = asyncio.run(miner_4_solver.solve_problem(miner_4_synapse.problem))
     miner_4_synapse.solution = route_4
-    # print(f"reconstructing graph synapse: {GraphSynapse.from_headers(miner_1_synapse.to_headers())}")
+    # print(f"reconstructing graph synapse: {GraphV1Synapse.from_headers(miner_1_synapse.to_headers())}")
     responses = [miner_1_synapse, miner_2_synapse, miner_3_synapse, miner_4_synapse]
 
-    score_handler = ScoreResponse(mock_synapse=GraphSynapse(problem=test_problem))
+    score_handler = ScoreResponse(mock_synapse=GraphV1Synapse(problem=test_problem))
     asyncio.run(score_handler.get_benchmark())
     # Get all the reward results by iteratively calling your reward() function.
     miner_scores = [score_handler.score_response(response) for response in responses]

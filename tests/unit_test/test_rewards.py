@@ -4,7 +4,7 @@ script for testing rewards function
 
 import unittest
 from graphite.validator.reward import scaled_rewards
-from graphite.protocol import GraphProblem, GraphSynapse
+from graphite.protocol import GraphV1Problem, GraphV1Synapse
 from graphite.solvers import NearestNeighbourSolver, DPSolver, HPNSolver, BeamSearchSolver
 import numpy as np
 

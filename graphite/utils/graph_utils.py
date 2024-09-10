@@ -20,7 +20,7 @@
 import math
 from typing import List, Union
 import numpy as np
-from graphite.protocol import GraphProblem, GraphSynapse
+from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse
 from functools import wraps, partial
 import bittensor as bt
 import asyncio
@@ -33,7 +33,7 @@ def is_valid_path(path:List[int])->bool:
     # a valid path should have at least 3 return values and return to the source
     return (len(path)>=3) and (path[0]==path[-1])
 
-def get_tour_distance(synapse:GraphSynapse)->float:
+def get_tour_distance(synapse:Union[GraphV1Synapse, GraphV2Synapse])->float:
     '''
     Returns the total tour distance for the TSP or graph-traversal problem as a float.
 
@@ -46,7 +46,7 @@ def get_tour_distance(synapse:GraphSynapse)->float:
     if not synapse.solution:
         return np.inf
     distance=np.nan
-    if problem.directed:
+    if problem.directed or isinstance(synapse.problem, GraphV2Problem):
         # This is a General TSP problem
         # check if path and edges are of the appropriate size
         edges=problem.edges
@@ -82,7 +82,7 @@ def normalize_coordinates(coordinates:List[List[Union[int,float]]]):
 
     Normalized coordinate values are required my some open-source algorithms/models.
 
-    Assumes all coordinates are non-negative (in line with the current GraphProblem Formulation)
+    Assumes all coordinates are non-negative (in line with the current GraphV1Problem Formulation)
     '''
     coordinate_arr = np.array(coordinates)
     max_val = 0
@@ -140,7 +140,7 @@ def check_nodes(solution:List[int], n_cities:int):
 def start_and_end(solution:List[int]):
     return solution[0] == solution[-1]
 
-def is_valid_solution(problem:GraphProblem, solution:List[int]):
+def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem], solution:List[int]):
     if solution == None:
         return False
     if isinstance(solution, bool):
@@ -156,7 +156,7 @@ def is_valid_solution(problem:GraphProblem, solution:List[int]):
         else:
             return True
 
-def valid_problem(problem:GraphProblem)->bool:
+def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem])->bool:
     if problem.problem_type == 'Metric TSP':
         if (problem.directed==False) and (problem.visit_all==True) and (problem.to_origin==True) and (problem.objective_function=='min'):
             return True

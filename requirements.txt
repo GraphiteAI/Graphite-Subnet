@@ -7,3 +7,6 @@ matplotlib==3.9.1
 scipy==1.14.0
 wandb==0.17.4
 python-dotenv==1.0.1
+osmium==3.7.0
+huggingface-hub==0.20.3
+Pympler==1.1

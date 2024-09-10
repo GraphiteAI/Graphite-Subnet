@@ -30,6 +30,10 @@ from graphite.utils.config import add_miner_args
 
 from typing import Union
 
+import osmium
+import numpy as np
+
+
 class BaseMinerNeuron(BaseNeuron):
     """
     Base class for Bittensor miners.
@@ -56,7 +60,6 @@ class BaseMinerNeuron(BaseNeuron):
             )
         # The axon handles request processing, allowing validators to send this miner requests.
         self.axon = bt.axon(wallet=self.wallet, config=self.config() if callable(self.config) else self.config)
-
         # Attach determiners which functions are called when servicing a request.
 
         bt.logging.info(f"Axon created: {self.axon}")

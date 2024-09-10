@@ -20,16 +20,18 @@
 from abc import ABC, abstractmethod
 from typing import List
 from graphite.utils.graph_utils import valid_problem, timeout
-from graphite.protocol import GraphProblem
+from graphite.protocol import GraphV1Problem, GraphV2Problem
 import bittensor as bt
 import asyncio
 import concurrent.futures
 import time
+from typing import Union
+import numpy as np
 
 DEFAULT_SOLVER_TIMEOUT = 20
 
 class BaseSolver(ABC):
-    def __init__(self, problem_types:List[GraphProblem]):
+    def __init__(self, problem_types:List[Union[GraphV1Problem, GraphV2Problem]]):
         self.problem_types = [problem.problem_type for problem in problem_types] # defining what problems the solver is equipped to solve
         self.future_tracker = {}
     
@@ -37,7 +39,7 @@ class BaseSolver(ABC):
     @abstractmethod
     async def solve(self, formatted_problem, future_id, *args, **kwargs)->List[int]:
         '''
-        Abstract class that handles the solving of GraphProblems contained within the Synapse.
+        Abstract class that handles the solving of GraphV1Problems contained within the Synapse.
 
         Solvers can be developed to handle multiple types of graph traversal problems.
 
@@ -46,7 +48,7 @@ class BaseSolver(ABC):
         ...
     
     @abstractmethod
-    def problem_transformations(self, problem: GraphProblem):
+    def problem_transformations(self, problem: Union[GraphV1Problem, GraphV2Problem]):
         '''
         This abstract class applies any necessary transformation to the problem to convert it to the form required for the solve method
         '''
@@ -58,8 +60,8 @@ class BaseSolver(ABC):
         Note that this does not guarantee the problem has a solution. For example: the TSP problem might be a partially connected graph with no hamiltonian cycle
         '''
         return valid_problem(problem) and problem.problem_type in self.problem_types
-    
-    async def solve_problem(self, problem: GraphProblem, timeout:int=DEFAULT_SOLVER_TIMEOUT):
+
+    async def solve_problem(self, problem: Union[GraphV1Problem, GraphV2Problem], timeout:int=DEFAULT_SOLVER_TIMEOUT):
         '''
         This method implements the security checks
         Then it makes the necessary transformations to the problem
@@ -68,6 +70,7 @@ class BaseSolver(ABC):
         Checks for the integrity of the data (that the problem is legitimate) are handled outside the forward function
         '''
         if self.is_valid_problem(problem):
+
             future_id = id(problem)
             self.future_tracker[future_id] = False
 

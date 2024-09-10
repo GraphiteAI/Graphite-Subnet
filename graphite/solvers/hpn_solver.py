@@ -17,10 +17,10 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-from typing import List
-from graphite.models.hybrid_pointer_network import HPN
+from typing import List, Union
 from graphite.solvers.base_solver import BaseSolver
-from graphite.protocol import GraphProblem
+from graphite.protocol import GraphV1Problem
+from graphite.models.hybrid_pointer_network import HPN
 from graphite.utils.graph_utils import normalize_coordinates, timeout
 from scipy.spatial import distance
 import numpy as np
@@ -32,7 +32,7 @@ class HPNSolver(BaseSolver):
     '''
     implement solve method and necessary transformations
     '''
-    def __init__(self, problem_types:List[GraphProblem]=[GraphProblem(n_nodes=2)], weights_fp:str = 'graphite/models/model_weights/hpn_base_model.pkl'):
+    def __init__(self, problem_types:List[Union[GraphV1Problem]]=[GraphV1Problem(n_nodes=2)], weights_fp:str = 'graphite/models/model_weights/hpn_base_model.pkl'):
         super().__init__(problem_types=problem_types)
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu') # assign device to run the model on
         self.critic = HPN(n_feature=2, n_hidden=128) # instantiate model to handle metric 2-d geographic TSP problems
@@ -114,14 +114,14 @@ class HPNSolver(BaseSolver):
         min_path = tour_1d[start_index:] + tour_1d[1:start_index+1]
         return min_path
 
-    def problem_transformations(self, problem: GraphProblem):
+    def problem_transformations(self, problem: Union[GraphV1Problem]):
         # normalize values in the coordinates
         formatted_problem = normalize_coordinates(problem.nodes)
         return formatted_problem
         
 if __name__=='__main__':
     n_nodes = 1000
-    test_problem = GraphProblem(n_nodes=n_nodes)
+    test_problem = GraphV1Problem(n_nodes=n_nodes)
     solver = HPNSolver(problem_types=[test_problem.problem_type])
     start_time = time.time()
     route = asyncio.run(solver.solve_problem(test_problem))
