@@ -168,6 +168,7 @@ async def forward(self):
     reconstruct_edge_start_time = time.time()
     if isinstance(test_problem_obj, GraphV2Problem):
         edges = self.recreate_edges(test_problem_obj)
+
     reconstruct_edge_time = time.time() - reconstruct_edge_start_time
 
     bt.logging.info(f"synapse type {type(graphsynapse_req)}")
@@ -179,13 +180,13 @@ async def forward(self):
         timeout = 30 + reconstruct_edge_time, # 30s + time to reconstruct, can scale with problem types in the future
     )
 
-    with open("gs_logs.txt", "a") as f:
-        for hotkey in [self.metagraph.hotkeys[uid] for uid in miner_uids]:
-            f.write(f"{hotkey}_{self.wallet.hotkey.ss58_address}_{edges.shape}_{time.time()}\n")
 
     if isinstance(test_problem_obj, GraphV2Problem):
         test_problem_obj.edges = edges
-
+        with open("gs_logs.txt", "a") as f:
+            for hotkey in [self.metagraph.hotkeys[uid] for uid in miner_uids]:
+                f.write(f"{hotkey}_{self.wallet.hotkey.ss58_address}_{edges.shape}_{time.time()}\n")
+                
     for res in responses:
         try:
             if res.axon.status_code != None:
