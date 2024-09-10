@@ -62,13 +62,13 @@ async def forward(self):
 
     did_organic_task = False
     organic_task_id = ""
-    try:
-        if self.bearer_token_is_valid:
+    # try:
+    #     if organic_endpoint is not None and organic_endpoint != "":
 
-            url = f"{self.organic_endpoint}/tasks/oldest/{curr_idx}"
-            headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
-            api_response = requests.get(url, headers=headers)
-            api_response_output = api_response.json()
+    #         url = f"{organic_endpoint}/tasks/oldest/{curr_idx}"
+    #         headers = {"Authorization": "Bearer %s"%db_bearer_token}
+    #         api_response = requests.get(url, headers=headers)
+    #         api_response_output = api_response.json()
             
             organic_task_id = api_response_output["_id"]
             del api_response_output["_id"]
@@ -151,6 +151,8 @@ async def forward(self):
             bt.logging.debug(e.errors())
             bt.logging.debug(e)
 
+
+    # prob_select = random.randint(1, 2)
     
     # available_uids = await self.get_available_uids()
     
@@ -216,6 +218,7 @@ async def forward(self):
         wandb_miner_distance[uid] = score_response_obj.score_response(responses[id]) if score_response_obj.score_response(responses[id])!=None else 0
         wandb_miner_solution[uid] = responses[id].solution
         wandb_axon_elapsed[uid] = responses[id].axon.process_time
+
 
     # if len(responses) > 0 and did_organic_task == True:
     #     try:
@@ -377,6 +380,7 @@ async def forward(self):
             self.cleanup_wandb(wandb)
         except Exception as e:
             print(f"Error initializing W&B: {e}")
+
     
     bt.logging.info(f"Scored responses: {rewards}")
     
