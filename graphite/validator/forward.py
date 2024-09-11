@@ -345,7 +345,7 @@ async def forward(self):
                         }),
                 )
             for rewIdx in range(self.metagraph.n.item()):
-                wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}": wandb_rewards[rewIdx], f"distance-{self.wallet.hotkey.ss58_address}": wandb_miner_distance[rewIdx]})
+                wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}": wandb_rewards[rewIdx], f"distance-{self.wallet.hotkey.ss58_address}": wandb_miner_distance[rewIdx]}, step=int(rewIdx))
 
             self.cleanup_wandb(wandb)
         except Exception as e:
@@ -375,7 +375,7 @@ async def forward(self):
                         }),
                 )
             for rewIdx in range(self.metagraph.n.item()):
-                wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}": wandb_rewards[rewIdx], f"distance-{self.wallet.hotkey.ss58_address}": wandb_miner_distance[rewIdx]})
+                wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}": wandb_rewards[rewIdx], f"distance-{self.wallet.hotkey.ss58_address}": wandb_miner_distance[rewIdx]}, step=int(rewIdx))
 
             self.cleanup_wandb(wandb)
         except Exception as e:
