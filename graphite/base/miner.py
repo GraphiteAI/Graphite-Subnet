@@ -69,6 +69,7 @@ class BaseMinerNeuron(BaseNeuron):
         self.is_running: bool = False
         self.thread: Union[threading.Thread, None] = None
         self.lock = asyncio.Lock()
+        self.last_update = 0
 
     def run(self):
         """
@@ -97,6 +98,7 @@ class BaseMinerNeuron(BaseNeuron):
 
         # Check that miner is registered on the network.
         self.sync()
+        self.last_update = self.block
 
         # Serve passes the axon information to the network + netuid we are hosting on.
         # This will auto-update if the axon port of external ip have changed.
@@ -114,7 +116,7 @@ class BaseMinerNeuron(BaseNeuron):
         try:
             while not self.should_exit:
                 while (
-                    self.block - self.metagraph.last_update[self.uid]
+                    self.block - self.last_update
                     < self.config.neuron.epoch_length
                 ):
                     # Wait before checking again.
@@ -126,6 +128,7 @@ class BaseMinerNeuron(BaseNeuron):
 
                 # Sync metagraph and potentially set weights.
                 self.sync()
+                self.last_update = self.block
                 self.step += 1
 
         # If someone intentionally stops the miner, it'll safely terminate operations.
@@ -188,7 +191,7 @@ class BaseMinerNeuron(BaseNeuron):
 
     def resync_metagraph(self):
         """Resyncs the metagraph and updates the hotkeys and moving averages based on the new metagraph."""
-        # bt.logging.info("resync_metagraph()")
+        bt.logging.info("resync_metagraph()")
 
         # Sync the metagraph.
         self.metagraph.sync(subtensor=self.subtensor)
