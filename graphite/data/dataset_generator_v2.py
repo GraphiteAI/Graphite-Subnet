@@ -139,7 +139,7 @@ class MetricTSPV2Generator(DatasetGenerator):
     file_name = os.path.join('dataset.json')
     
     def recreate_edges(problem: GraphV2Problem, loaded_datasets):
-        node_coords_np = loaded_datasets[problem.dataset_ref]
+        node_coords_np = loaded_datasets[problem.dataset_ref]['data']
         node_coords = np.array([node_coords_np[i][1:] for i in problem.selected_ids])
         if problem.cost_function == "Geom":
             problem.edges = geom_edges(node_coords).tolist()
