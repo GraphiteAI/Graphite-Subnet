@@ -139,7 +139,7 @@ class MetricTSPV2Generator(DatasetGenerator):
     file_name = os.path.join('dataset.json')
     
     def recreate_edges(problem: GraphV2Problem, loaded_datasets):
-        node_coords_np = loaded_datasets[problem.dataset_ref]['data']
+        node_coords_np = loaded_datasets[problem.dataset_ref]["data"]
         node_coords = np.array([node_coords_np[i][1:] for i in problem.selected_ids])
         if problem.cost_function == "Geom":
             problem.edges = geom_edges(node_coords).tolist()
@@ -158,7 +158,7 @@ class MetricTSPV2Generator(DatasetGenerator):
             # randomly select n_nodes indexes from the selected graph
             prob_select = random.randint(0, len(list(loaded_datasets.keys()))-1)
             dataset_ref = list(loaded_datasets.keys())[prob_select]
-            selected_node_idxs = random.sample(range(len(loaded_datasets[dataset_ref])), n_nodes)
+            selected_node_idxs = random.sample(range(len(loaded_datasets[dataset_ref]["data"])), n_nodes)
             test_problem = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
             cls.recreate_edges(test_problem, loaded_datasets)
             problems.append(test_problem)
@@ -172,18 +172,18 @@ class MetricTSPV2Generator(DatasetGenerator):
             # randomly select n_nodes indexes from the selected graph
             prob_select = random.randint(0, len(list(loaded_datasets.keys()))-1)
             dataset_ref = list(loaded_datasets.keys())[prob_select]
-            selected_node_idxs = random.sample(range(len(loaded_datasets[dataset_ref])), n_nodes)
+            selected_node_idxs = random.sample(range(len(loaded_datasets[dataset_ref]["data"])), n_nodes)
             test_problem = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
             problems.append(test_problem)
         return problems
     
     @classmethod
-    def generate_one_sample(cls, size:int, load_datasets):
+    def generate_one_sample(cls, size:int, loaded_datasets):
         prob_select = random.randint(0, len(list(loaded_datasets.keys()))-1)
-        dataset_ref = list(loaded_datasets.keys())[prob_select]
+        dataset_ref = list(loaded_datasets.keys())[prob_select]["data"]
         selected_node_idxs = random.sample(range(len(loaded_datasets[dataset_ref])), size)
         test_problem = GraphV2Problem(problem_type="Metric TSP", n_nodes=size, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
-        cls.recreate_edges(test_problem, load_datasets)
+        cls.recreate_edges(test_problem, loaded_datasets)
         return test_problem
 
 
