@@ -180,8 +180,8 @@ class MetricTSPV2Generator(DatasetGenerator):
     @classmethod
     def generate_one_sample(cls, size:int, loaded_datasets):
         prob_select = random.randint(0, len(list(loaded_datasets.keys()))-1)
-        dataset_ref = list(loaded_datasets.keys())[prob_select]["data"]
-        selected_node_idxs = random.sample(range(len(loaded_datasets[dataset_ref])), size)
+        dataset_ref = list(loaded_datasets.keys())[prob_select]
+        selected_node_idxs = random.sample(range(len(loaded_datasets[dataset_ref]["data"])), size)
         test_problem = GraphV2Problem(problem_type="Metric TSP", n_nodes=size, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
         cls.recreate_edges(test_problem, loaded_datasets)
         return test_problem
