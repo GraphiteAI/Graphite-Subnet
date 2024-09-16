@@ -29,6 +29,7 @@ from collections import Counter
 import asyncio
 import numpy as np
 from graphite.data.distance import geom_edges, man_2d_edges, euc_2d_edges
+from graphite.data.dataset_utils import load_default_dataset
 from pathlib import Path
 import time
 
@@ -100,7 +101,7 @@ class DatasetGenerator(ABC):
             os.makedirs(save_dir)
 
         # Generate samples - Note that this these samples are generated with out edges
-        problems = cls.generate_n_samples_without_edges(n_samples, loaded_datasets)
+        problems, problem_sizes = cls.generate_n_samples_without_edges(n_samples, loaded_datasets)
         
         # serialize and save json string with meta data of the dataset
         output_json = cls.serialize_dataset(problems)
@@ -137,8 +138,13 @@ class DatasetGenerator(ABC):
 class MetricTSPV2Generator(DatasetGenerator):
     save_dir = os.path.join(DATASET_DIR,'metric_tsp_v2')
     file_name = os.path.join('dataset.json')
+
+    @classmethod
+    def _problem_size(self, problem: GraphV2Problem):
+        return problem.n_nodes // 1000 * 1000
     
-    def recreate_edges(problem: GraphV2Problem, loaded_datasets):
+    @classmethod
+    def recreate_edges(cls, problem: GraphV2Problem, loaded_datasets):
         node_coords_np = loaded_datasets[problem.dataset_ref]["data"]
         node_coords = np.array([node_coords_np[i][1:] for i in problem.selected_ids])
         if problem.cost_function == "Geom":
@@ -152,17 +158,19 @@ class MetricTSPV2Generator(DatasetGenerator):
         
     @classmethod
     def generate_n_samples(cls, n: int, loaded_datasets):
+        '''
+        This method generates n_samples with edges recreated. This is very intensive on the memory consumption so it is advised to keep n small.
+        '''
         problems = []
         for _ in range(n):
             n_nodes = random.randint(2000, 5000)
             # randomly select n_nodes indexes from the selected graph
-            prob_select = random.randint(0, len(list(loaded_datasets.keys()))-1)
-            dataset_ref = list(loaded_datasets.keys())[prob_select]
+            dataset_ref = random.sample(list(loaded_datasets.keys()),1)[0]
             selected_node_idxs = random.sample(range(len(loaded_datasets[dataset_ref]["data"])), n_nodes)
             test_problem = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
             cls.recreate_edges(test_problem, loaded_datasets)
             problems.append(test_problem)
-        return problems
+        return problems, [cls._problem_size(problem) for problem in problems]
 
     @classmethod
     def generate_n_samples_without_edges(cls, n: int, loaded_datasets):
@@ -170,41 +178,32 @@ class MetricTSPV2Generator(DatasetGenerator):
         for _ in range(n):
             n_nodes = random.randint(2000, 5000)
             # randomly select n_nodes indexes from the selected graph
-            prob_select = random.randint(0, len(list(loaded_datasets.keys()))-1)
-            dataset_ref = list(loaded_datasets.keys())[prob_select]
+            dataset_ref = random.sample(list(loaded_datasets.keys()),1)[0]
             selected_node_idxs = random.sample(range(len(loaded_datasets[dataset_ref]["data"])), n_nodes)
             test_problem = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
             problems.append(test_problem)
-        return problems
+        return problems, [cls._problem_size(problem) for problem in problems]
     
     @classmethod
     def generate_one_sample(cls, size:int, loaded_datasets):
-        prob_select = random.randint(0, len(list(loaded_datasets.keys()))-1)
-        dataset_ref = list(loaded_datasets.keys())[prob_select]
+        dataset_ref = random.sample(list(loaded_datasets.keys()),1)[0]
         selected_node_idxs = random.sample(range(len(loaded_datasets[dataset_ref]["data"])), size)
         test_problem = GraphV2Problem(problem_type="Metric TSP", n_nodes=size, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
         cls.recreate_edges(test_problem, loaded_datasets)
         return test_problem
 
-
 if __name__=="__main__":
     print('________________________')
     print('Testing MetricTSPGenerator V2')
-    loaded_datasets = {}
-    try:
-        with np.load('dataset/Asia_MSB.npz') as f:
-            loaded_datasets["Asia_MSB"] = np.array(f['data'])
-    except:
-        pass
-    try:
-        with np.load('dataset/World_TSP.npz') as f:
-            loaded_datasets["World_TSP"] = np.array(f['data'])
-    except:
+    class Mock:
         pass
 
-    problems = MetricTSPV2Generator.generate_and_save_dataset_without_edges(n_samples=100, loaded_datasets=loaded_datasets)
+    mock = Mock()
+    load_default_dataset(mock)
+
+    problems = MetricTSPV2Generator.generate_and_save_dataset_without_edges(n_samples=100, loaded_datasets=mock.loaded_datasets)
     sample_problem = problems[0]
-    MetricTSPV2Generator.recreate_edges(sample_problem, loaded_datasets) # recreate edges
+    MetricTSPV2Generator.recreate_edges(sample_problem, mock.loaded_datasets) # recreate edges
     solver = NearestNeighbourSolver()
     # print(sample_problem)
     print(type(sample_problem))
@@ -212,11 +211,11 @@ if __name__=="__main__":
     print(asyncio.run(solver.solve_problem(sample_problem)))
 
     print(f"____Test Edge Generation Speed____")
-    test_problem = MetricTSPV2Generator.generate_one_sample(size=5000, load_datasets=loaded_datasets)
+    test_problem = MetricTSPV2Generator.generate_one_sample(size=5000, loaded_datasets=mock.loaded_datasets)
     start_time = time.time()
-    MetricTSPV2Generator.recreate_edges(test_problem, loaded_datasets)
+    MetricTSPV2Generator.recreate_edges(test_problem, mock.loaded_datasets)
     print(f"Generating 5000 node problem took {time.time() - start_time} seconds")
-    test_problem = MetricTSPV2Generator.generate_one_sample(size=2000, load_datasets=loaded_datasets)
+    test_problem = MetricTSPV2Generator.generate_one_sample(size=2000, loaded_datasets=mock.loaded_datasets)
     start_time = time.time()
-    MetricTSPV2Generator.recreate_edges(test_problem, loaded_datasets)
+    MetricTSPV2Generator.recreate_edges(test_problem, mock.loaded_datasets)
     print(f"Generating 2000 node problem took {time.time() - start_time} seconds")

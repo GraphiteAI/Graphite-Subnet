@@ -17,12 +17,10 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-from typing import List
+from typing import List, Union
 from graphite.solvers import *
-from graphite.solvers.naive_v2_solver import NaiveSolver
-from graphite.data.dataset_generator_v2 import MetricTSPV2Generator
-from graphite.data.dataset_utils import load_default_dataset
-from graphite.protocol import GraphV2Problem, GraphV2Synapse
+from graphite.data.dataset_generator import MetricTSPGenerator, GeneralTSPGenerator
+from graphite.protocol import GraphV1Problem, GraphV1Synapse
 from graphite.utils.graph_utils import get_tour_distance
 import pandas as pd
 import tqdm
@@ -35,7 +33,7 @@ import matplotlib
 
 ROOT_DIR = "tests"
 SAVE_DIR = "evaluation_results"
-N_PROBLEMS = 100
+N_PROBLEMS = 1000
 
 def can_show_plot():
     # Check if running in a headless environment
@@ -51,73 +49,50 @@ def can_show_plot():
 
     return True
 
-def compare_problems(solvers: List, problems: List[GraphV2Problem], loaded_datasets: dict):
+def compare_problems(solvers: List, problems: List[GraphV1Problem]):
     problem_types = set([problem.problem_type for problem in problems])
-    mock_synapses = [GraphV2Synapse(problem=problem) for problem in problems]
-    # results = {solver.__class__.__name__: [] for solver in solvers}
+    mock_synapses = [GraphV1Synapse(problem=problem) for problem in problems]
+    results = {solver.__class__.__name__: [] for solver in solvers}
     run_times_dict = {solver.__class__.__name__: [] for solver in solvers}
     scores_dict = {solver.__class__.__name__: [] for solver in solvers}
     for i, solver in enumerate(solvers):
         run_times = []
-        scores = []
         print(f"Running Solver {i+1} - {solver.__class__.__name__}")
         for mock_synapse in tqdm.tqdm(mock_synapses, desc=f"{solver.__class__.__name__} solving {problem_types}"):
-            # generate the edges adhoc
-            MetricTSPV2Generator.recreate_edges(problem = mock_synapse.problem, loaded_datasets=loaded_datasets)
             start_time = time.perf_counter()
             mock_synapse.solution = asyncio.run(solver.solve_problem(mock_synapse.problem))
-
-            # remove edges and nodes to reduce memory consumption
             run_time = time.perf_counter() - start_time
             run_times.append(run_time)
-            scores.append(get_tour_distance(mock_synapse))
-            mock_synapse.problem.edges = None
-            mock_synapse.problem.nodes = None
+        scores = [get_tour_distance(mock_synapse) for mock_synapse in mock_synapses]
         run_times_dict[solver.__class__.__name__] = run_times
         scores_dict[solver.__class__.__name__] = scores
     return run_times_dict, scores_dict
 
 def compute_relative_scores(scores_df: pd.DataFrame, tolerance=1e-5):
-    def normalize_row(row):
-        min_val = row.min()
-        max_val = row.max()
-        if max_val > min_val:  # To avoid division by zero
-            return (row - min_val) / (max_val - min_val)
-        else:
-            return row  # If all values are the same, return the original row
-        
     relative_scores = pd.DataFrame(index=scores_df.index)
     solvers = scores_df.columns.difference(['problem_size'])
-
+    
     for solver in solvers:
         relative_scores[solver] = scores_df[solvers].apply(
             lambda row: sum(
                 np.isclose(row[solver], row[other_solver], rtol=tolerance) or row[solver] < row[other_solver]
                 for other_solver in solvers
             ), axis=1)
-
+    
     # Normalize the relative scores to the range 0 to 1
-    normalized_relative_scores = relative_scores.apply(normalize_row, axis=1)
+    normalized_relative_scores = (relative_scores - relative_scores.min()) / (relative_scores.max() - relative_scores.min())
     return normalized_relative_scores
 
 def main():
     if not os.path.exists(os.path.join(ROOT_DIR, SAVE_DIR)):
         os.makedirs(os.path.join(ROOT_DIR, SAVE_DIR))
 
-    # create Mock object to store the dataeset
-    class Mock:
-        pass
-
-    mock = Mock()
-    load_default_dataset(mock) # load dataset as an attribute to mock instance
-
     # Use MetricTSPGenerator to generate problems of various graph sizes
-    metric_problems, metric_sizes = MetricTSPV2Generator.generate_n_samples_without_edges(N_PROBLEMS, mock.loaded_datasets)
+    metric_problems, metric_sizes = MetricTSPGenerator.generate_n_samples(N_PROBLEMS)
 
-    # test_solvers = [NearestNeighbourSolver(), BeamSearchSolver(), HPNSolver()]
-    test_solvers = [NearestNeighbourSolver(), NaiveSolver()]
+    test_solvers = [NearestNeighbourSolver(), BeamSearchSolver(), HPNSolver()]
 
-    run_times_dict, scores_dict = compare_problems(test_solvers, metric_problems, mock.loaded_datasets)
+    run_times_dict, scores_dict = compare_problems(test_solvers, metric_problems)
 
     # Create DataFrames for run times and scores
     run_times_df = pd.DataFrame(run_times_dict)
