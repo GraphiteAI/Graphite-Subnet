@@ -141,7 +141,7 @@ class BaseValidatorNeuron(BaseNeuron):
             incentives = self.metagraph.I
             incentive_indexed = {key: index for index, key in enumerate(incentives)}
             incentives_ranked = [incentive_indexed[key] for key in sorted(incentive_indexed.keys())]
-            incentives_ranked_final = [i for i in incentives_ranked if i in available_uids.keys]
+            incentives_ranked_final = [i for i in incentives_ranked if i in available_uids.keys()]
             group_size = len(incentives_ranked_final) // 30
             groups = [incentives_ranked_final[i * group_size:(i + 1) * group_size] for i in range(30)]
             
