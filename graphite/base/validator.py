@@ -80,6 +80,8 @@ class BaseValidatorNeuron(BaseNeuron):
             self.metagraph.n, dtype=np.float32
         )
 
+        self.uid_query_sets = []
+
         self.sync()
 
         # Serve axon to enable external connections.
@@ -90,6 +92,9 @@ class BaseValidatorNeuron(BaseNeuron):
 
         # Create asyncio event loop to manage async tasks.
         self.loop = asyncio.get_event_loop()
+
+        # Harded coded for now until new API release
+        self.bearer_token_is_valid = False
 
         # Instantiate runners
         self.should_exit: bool = False
@@ -111,7 +116,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
         return available_uids
     
-    async def get_available_uids_organic(self):
+    async def get_available_uids_alive(self):
         # get all axons in subnet
         all_axons = self.metagraph.axons
 
@@ -125,14 +130,58 @@ class BaseValidatorNeuron(BaseNeuron):
         return available_uids
     
     async def get_k_uids(self, k:int=30):
-        available_uids = await self.get_available_uids()
-        random_uids = random.sample(list(available_uids.keys()), min(k, len(available_uids)))
-        return {uid: available_uids[uid] for uid in random_uids}
-    
+        if len(self.uid_query_sets) > 0:
+            available_uids = await self.get_available_uids()
+            to_query = {}
+            for uid in self.uid_query_sets[0]:
+                if uid in available_uids:
+                    to_query[uid] = available_uids[uid]
+            self.uid_query_sets.pop(0)
+            return to_query
+        else:
+            available_uids = await self.get_available_uids()
+            random_uids = random.sample(list(available_uids.keys()), min(k, len(available_uids)))
+            incentives = self.metagraph.I
+            incentive_indexed = {key + index/10000000 + random.random()/1000000: index for index, key in enumerate(incentives)}
+            incentives_ranked = [incentive_indexed[key] for key in sorted(incentive_indexed.keys())]
+            incentives_ranked_final = [i for i in incentives_ranked if i in available_uids.keys()]
+            group_size = len(incentives_ranked_final) // k
+            excess = len(incentives_ranked_final) - k * group_size
+            groups = [incentives_ranked_final[i * group_size:(i + 1) * group_size] for i in range(k - excess)] 
+            incentives_ranked_final_rem = incentives_ranked_final[(k - excess)*group_size:]
+            groups2 = [incentives_ranked_final_rem[i * (group_size+1):(i + 1) * (group_size+1)] for i in range(excess)]
+            groups += groups2
+            num_groups = math.ceil(len(incentives_ranked_final) / k)
+                
+            query_sets = []
+            for _ in range(num_groups):  
+                current_selection = []
+                for group in groups:
+                    if len(group) > 1:
+                        selected = random.choice(group)
+                        group.remove(selected)  
+                        current_selection.append(selected)
+                    else:
+                        current_selection.append(group[0])
+                query_sets.append(current_selection)
+            self.uid_query_sets = query_sets
+
+            if len(self.uid_query_sets) > 0:
+                to_query = {}
+                for uid in self.uid_query_sets[0]:
+                    if uid in available_uids:
+                        to_query[uid] = available_uids[uid]
+                self.uid_query_sets.pop(0)
+                return to_query
+            else:
+                available_uids = await self.get_available_uids()
+                random_uids = random.sample(list(available_uids.keys()), min(k, len(available_uids)))
+                return {uid: available_uids[uid] for uid in random_uids}
+
     async def get_top_k_uids(self, k:int=30, alpha:float=0.7):
         assert (alpha<=1) and (alpha>0.5), ValueError("For the get_top_k_uids method, alpha needs to be between 0.5 and 1")
         # get available_uids
-        available_uids = await self.get_available_uids_organic()
+        available_uids = await self.get_available_uids_alive()
         incentives = self.metagraph.I
         available_uids_and_incentives = [(uid, incentives[uid]) for uid in available_uids.keys()]
         sorted_axon_list = sorted(available_uids_and_incentives, key=lambda x: x[1], reverse=True)
@@ -217,8 +266,8 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def instantiate_wandb(self):
         load_dotenv()
-        # organic_endpoint = os.getenv('MONGODB_ENDPOINT')
-        # db_bearer_token = os.getenv('MONGODB_BEARER_TOKEN')
+        # self.organic_endpoint = os.getenv('MONGODB_ENDPOINT')
+        # self.db_bearer_token = os.getenv('MONGODB_BEARER_TOKEN')
         wandb_api_key = os.getenv('WANDB_API_KEY')
         
         if not wandb_api_key:

@@ -18,7 +18,6 @@
 # DEALINGS IN THE SOFTWARE.
 
 import bittensor as bt
-
 from bittensor import axon, dendrite
 
 from graphite.validator.reward import get_rewards, ScoreResponse
@@ -26,23 +25,16 @@ from graphite.utils.uids import get_available_uids
 
 import time
 
-from graphite.protocol import GraphV1Problem, GraphV2Problem, GraphV1Synapse, GraphV2Synapse
-from graphite.data.dataset_generator import MetricTSPGenerator, GeneralTSPGenerator
+from graphite.protocol import GraphV2Problem, GraphV2Synapse
         
 import numpy as np
 import json
-import base64
-
 import wandb
 import os
-
 import random
 import requests
-import asyncio
 
 from pydantic import ValidationError
-
-REFERENCE_BLOCK = 3793451
 
 async def forward(self):
 
@@ -81,75 +73,24 @@ async def forward(self):
     except:
         api_response_output = []
 
-    start_block = REFERENCE_BLOCK # current test block
-    end_block = start_block + 60 * 60 * 24 * 3 / 12 # block 3 days later
-    
-    bt.logging.info(f"S: {start_block}, E: {end_block}, C: {self.block} @ {(self.block - start_block)/(end_block - start_block)}")
-    if random.random() > (self.block - start_block)/(end_block - start_block): # linear shift in distribution
-        if len(api_response_output) > 0:
-            try:
-                test_problem_obj = GraphV1Problem(**api_response_output)
-            except Exception as e:
-                bt.logging.error(e)
-                
-                prob_select = random.randint(1, 2)
-        
-                if prob_select == 1:
-                    problems, sizes = MetricTSPGenerator.generate_n_samples(1)
-                    test_problem_obj = problems[0]
-                else:
-                    problems, sizes = GeneralTSPGenerator.generate_n_samples(1)
-                    test_problem_obj = problems[0]
-                    
-                try:
-                    url = f"{self.organic_endpoint}/tasks/{organic_task_id}"
-                    headers = {"Authorization": "Bearer %s"%self.db_bearer_token}
-                    api_response = requests.delete(url, headers=headers)
+   
+    # determine the number of nodes to select
+    n_nodes = random.randint(2000, 5000)
+    # randomly select n_nodes indexes from the selected graph
+    prob_select = random.randint(0, len(list(self.loaded_datasets.keys()))-1)
+    dataset_ref = list(self.loaded_datasets.keys())[prob_select]
+    bt.logging.info(f"n_nodes V2 {n_nodes}")
+    bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
+    selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
+    test_problem_obj = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
 
-                    did_organic_task = False
-                except:
-                    pass
-        else:
-            prob_select = random.randint(1, 2)
-            try:
-                if prob_select == 1:
-                    problems, sizes = MetricTSPGenerator.generate_n_samples(1)
-                    test_problem_obj = problems[0]
-                else:
-                    problems, sizes = GeneralTSPGenerator.generate_n_samples(1)
-                    test_problem_obj = problems[0]
-            except ValidationError as e:
-                bt.logging.debug(f"{'Metric TSP' if prob_select==1 else 'General TSP'}")
-                bt.logging.debug(f"GraphV1Problem Validation Error: {e.json()}")
-                bt.logging.debug(e.errors())
-                bt.logging.debug(e)
-
-        try:
-            graphsynapse_req = GraphV1Synapse(problem=test_problem_obj)
-            bt.logging.info(f"GraphV1Synapse Problem, n_nodes: {graphsynapse_req.problem.n_nodes}")
-        except ValidationError as e:
-            bt.logging.debug(f"GraphV1Synapse Validation Error: {e.json()}")
-            bt.logging.debug(e.errors())
-            bt.logging.debug(e)
-    else:
-        # determine the number of nodes to select
-        n_nodes = random.randint(2000, 5000)
-        # randomly select n_nodes indexes from the selected graph
-        prob_select = random.randint(0, len(list(self.loaded_datasets.keys()))-1)
-        dataset_ref = list(self.loaded_datasets.keys())[prob_select]
-        bt.logging.info(f"n_nodes V2 {n_nodes}")
-        bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
-        bt.logging.info(f"dataset length {len(self.loaded_datasets[dataset_ref]['data'])} from {self.loaded_datasets[dataset_ref]['data'].shape} " )
-        selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
-        test_problem_obj = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
-
-        try:
-            graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
-            bt.logging.info(f"GraphV2Synapse Problem, n_nodes: {graphsynapse_req.problem.n_nodes}")
-        except ValidationError as e:
-            bt.logging.debug(f"GraphV2Synapse Validation Error: {e.json()}")
-            bt.logging.debug(e.errors())
-            bt.logging.debug(e)
+    try:
+        graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
+        bt.logging.info(f"GraphV2Synapse Problem, n_nodes: {graphsynapse_req.problem.n_nodes}")
+    except ValidationError as e:
+        bt.logging.debug(f"GraphV2Synapse Validation Error: {e.json()}")
+        bt.logging.debug(e.errors())
+        bt.logging.debug(e)
 
 
     # prob_select = random.randint(1, 2)
@@ -200,8 +141,6 @@ async def forward(self):
     if isinstance(test_problem_obj, GraphV2Problem):
         graphsynapse_req_updated = GraphV2Synapse(problem=test_problem_obj) # reconstruct with edges
         score_response_obj = ScoreResponse(graphsynapse_req_updated)
-    elif isinstance(test_problem_obj, GraphV1Problem):
-        score_response_obj = ScoreResponse(graphsynapse_req)
 
     score_response_obj.current_num_concurrent_forwards = self.current_num_concurrent_forwards
     await score_response_obj.get_benchmark()
@@ -313,6 +252,10 @@ async def forward(self):
         configDict["dataset_ref"] = graphsynapse_req.problem.dataset_ref
     except:
         pass
+    try:
+        configDict["selected_uids"] = miner_uids
+    except:
+        pass
 
 
     try:
@@ -320,37 +263,7 @@ async def forward(self):
     except:
         pass
     
-    if isinstance(test_problem_obj, GraphV1Problem):
-        try:
-            if self.subtensor.network == "test":
-                wandb.init(
-                    entity='graphite-subnet',
-                    project="graphite-testnet",
-                    config=configDict,
-                    name=json.dumps({
-                        "n_nodes": graphsynapse_req.problem.n_nodes,
-                        "time": time.time(),
-                        "validator": self.wallet.hotkey.ss58_address,
-                        }),
-                )
-            else:
-                wandb.init(
-                    entity='graphite-ai',
-                    project="Graphite-Subnet",
-                    config=configDict,
-                    name=json.dumps({
-                        "n_nodes": graphsynapse_req.problem.n_nodes,
-                        "time": time.time(),
-                        "validator": self.wallet.hotkey.ss58_address,
-                        }),
-                )
-            for rewIdx in range(self.metagraph.n.item()):
-                wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}": wandb_rewards[rewIdx], f"distance-{self.wallet.hotkey.ss58_address}": wandb_miner_distance[rewIdx]}, step=int(rewIdx))
-
-            self.cleanup_wandb(wandb)
-        except Exception as e:
-            print(f"Error initializing W&B: {e}")
-    elif isinstance(test_problem_obj, GraphV2Problem):
+    if isinstance(test_problem_obj, GraphV2Problem):
         try:
             if self.subtensor.network == "test":
                 wandb.init(
