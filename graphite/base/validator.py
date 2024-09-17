@@ -139,14 +139,19 @@ class BaseValidatorNeuron(BaseNeuron):
             available_uids = await self.get_available_uids()
             random_uids = random.sample(list(available_uids.keys()), min(k, len(available_uids)))
             incentives = self.metagraph.I
-            incentive_indexed = {key: index for index, key in enumerate(incentives)}
+            incentive_indexed = {key + index/10000000 + random.random()/1000000: index for index, key in enumerate(incentives)}
             incentives_ranked = [incentive_indexed[key] for key in sorted(incentive_indexed.keys())]
             incentives_ranked_final = [i for i in incentives_ranked if i in available_uids.keys()]
-            group_size = len(incentives_ranked_final) // 30
-            groups = [incentives_ranked_final[i * group_size:(i + 1) * group_size] for i in range(30)]
-            
+            group_size = len(incentives_ranked_final) // k
+            excess = len(incentives_ranked_final) - k * group_size
+            groups = [incentives_ranked_final[i * group_size:(i + 1) * group_size] for i in range(k - excess)] 
+            incentives_ranked_final_rem = incentives_ranked_final[(k - excess)*group_size:]
+            groups2 = [incentives_ranked_final_rem[i * (group_size+1):(i + 1) * (group_size+1)] for i in range(excess)]
+            groups += groups2
+            num_groups = math.ceil(len(incentives_ranked_final) / k)
+                
             query_sets = []
-            for _ in range(30):  # This ensures we make 30 selections
+            for _ in range(num_groups):  
                 current_selection = []
                 for group in groups:
                     if len(group) > 1:
@@ -154,7 +159,6 @@ class BaseValidatorNeuron(BaseNeuron):
                         group.remove(selected)  
                         current_selection.append(selected)
                     else:
-                        # If group only has 1 element left, automatically select it
                         current_selection.append(group[0])
                 query_sets.append(current_selection)
             self.uid_query_sets = query_sets
