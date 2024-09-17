@@ -93,6 +93,9 @@ class BaseValidatorNeuron(BaseNeuron):
         # Create asyncio event loop to manage async tasks.
         self.loop = asyncio.get_event_loop()
 
+        # Harded coded for now until new API release
+        self.bearer_token_is_valid = False
+
         # Instantiate runners
         self.should_exit: bool = False
         self.is_running: bool = False
@@ -113,7 +116,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
         return available_uids
     
-    async def get_available_uids_organic(self):
+    async def get_available_uids_alive(self):
         # get all axons in subnet
         all_axons = self.metagraph.axons
 
@@ -178,7 +181,7 @@ class BaseValidatorNeuron(BaseNeuron):
     async def get_top_k_uids(self, k:int=30, alpha:float=0.7):
         assert (alpha<=1) and (alpha>0.5), ValueError("For the get_top_k_uids method, alpha needs to be between 0.5 and 1")
         # get available_uids
-        available_uids = await self.get_available_uids_organic()
+        available_uids = await self.get_available_uids_alive()
         incentives = self.metagraph.I
         available_uids_and_incentives = [(uid, incentives[uid]) for uid in available_uids.keys()]
         sorted_axon_list = sorted(available_uids_and_incentives, key=lambda x: x[1], reverse=True)
@@ -263,8 +266,8 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def instantiate_wandb(self):
         load_dotenv()
-        # organic_endpoint = os.getenv('MONGODB_ENDPOINT')
-        # db_bearer_token = os.getenv('MONGODB_BEARER_TOKEN')
+        # self.organic_endpoint = os.getenv('MONGODB_ENDPOINT')
+        # self.db_bearer_token = os.getenv('MONGODB_BEARER_TOKEN')
         wandb_api_key = os.getenv('WANDB_API_KEY')
         
         if not wandb_api_key:
