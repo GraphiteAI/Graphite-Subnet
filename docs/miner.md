@@ -64,13 +64,13 @@ pip install -e .
 To run a miner on the Graphite-AI subnet, miners will need to run the miner neuron. This neuron listens for incoming requests from validators and rewards are then given based on successful reponses to those requests.
 
 ```bash
-python3 -m neurons.miner --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.debug info --axon.port PORT
+python3 -m neurons.miner --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.debug info --axon.port PORT --blacklist.force_validator_permit True
 ```
 If you are running on a remote server, ensure that your internal and external ports are correct. If they differ, please add the --axon.external_port <EXTERNAL_PORT> flag.
 
 using pm2:
 ```bash
-pm2 start neurons/miner.py --name graphite_miner --interpreter python -- --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.debug info --axon.port PORT
+pm2 start neurons/miner.py --name graphite_miner --interpreter python -- --netuid NETUID --subtensor.network NETWORK --wallet.name NAME --wallet.hotkey HOTKEY --logging.debug info --axon.port PORT --blacklist.force_validator_permit True
 ```
 
 For more detailed instructions on creating a wallet and registering onto a subnet, refer to our [installation guide](./installation.md).
