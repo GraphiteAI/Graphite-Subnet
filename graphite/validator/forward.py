@@ -86,7 +86,7 @@ async def forward(self):
     #     test_problem_obj = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
     # if random.random() > 0.5:
     #     # n_salesmen
-    m = random.uniform(2, 10)
+    m = random.randint(2, 10)
     test_problem_obj = GraphV2ProblemMulti(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref, n_salesmen=m, depots=[0]*m)
     try:
         graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
@@ -141,7 +141,7 @@ async def forward(self):
                 # bt.logging.info(f"Received responses axon: {res.axon} {res.solution}")
         except:
             pass
-        
+
     bt.logging.info(f"NUMBER OF RESPONSES: {len(responses)}")
 
     if isinstance(test_problem_obj, GraphV2Problem):
