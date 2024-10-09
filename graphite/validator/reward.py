@@ -57,8 +57,9 @@ class ScoreResponse:
         self.synapse = mock_synapse
         self.problem = self.synapse.problem
         # internally, validators apply a 30s timeout as the benchmark solution
-        self.solver = NearestNeighbourSolverVali() # create instance of benchmark solver #TODO consider hardcoding to make the code more readable
-        self.cost_function = COST_FUNCTIONS[self.problem.problem_type] # default cost function is "get_tour_distance"
+        # self.solver = NearestNeighbourSolverVali() # create instance of benchmark solver
+        self.solver = BENCHMARK_SOLUTIONS[self.problem.problem_type]() # create instance of benchmark solver
+        self.cost_function = COST_FUNCTIONS[self.problem.problem_type] # default cost function is "get_tour_distance" or "get_multi_minmax_tour_distance"
         # asyncio.create_task(self.get_benchmark())
         self._current_num_concurrent_forwards = 1
 
@@ -91,7 +92,7 @@ class ScoreResponse:
         return path_cost
 
     def score_response(self, response: Union[GraphV1Synapse, GraphV2Synapse]):
-        if (isinstance(response.solution, list) and all([isinstance(value, int) for value in response.solution])) and is_valid_solution(self.problem, response.solution):
+        if is_valid_solution(self.problem, response.solution):
             response_score = self.get_score(response)
             # check if the response beats greedy algorithm: return 0 if it performs poorer than greedy
             return response_score
