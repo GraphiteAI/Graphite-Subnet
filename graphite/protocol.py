@@ -190,6 +190,7 @@ MAX_SALESMEN = 10
 
 class GraphV2ProblemMulti(GraphV2Problem):
     problem_type: Literal['Metric mTSP', 'General mTSP'] = Field('Metric mTSP', description="Problem Type")
+    n_nodes: conint(ge=500, le=2000) = Field(500, description="Number of Nodes (must be between 500 and 2000) for mTSP")
     n_salesmen: conint(ge=2, le=MAX_SALESMEN) = Field(2, description="Number of Salesmen in the mTSP formulation")
     # Note that in this initial problem formulation, we will start with a single depot structure
     single_depot: bool = Field(True, description="Whether problem is a single or multi depot formulation")
