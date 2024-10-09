@@ -274,7 +274,7 @@ def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem], solution:Li
             return False
         if problem.to_origin == True:
             if not (all([path[0]==path[-1] for path in solution if len(path) > 0]) \
-                    and all([len[path]>2 for path in solution if len(path)>0]) \
+                    and all([len(path)>2 for path in solution if len(path)>0]) \
                     and all([path[0]==depot for path, depot in zip(solution, problem.depots)])):
                     return False
         if problem.visit_all == True:
