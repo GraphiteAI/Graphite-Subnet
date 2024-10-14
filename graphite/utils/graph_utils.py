@@ -33,66 +33,65 @@ def is_valid_path(path:List[int])->bool:
     # a valid path should have at least 3 return values and return to the source
     return (len(path)>=3) and (path[0]==path[-1])
 
-### Generic edge weight matrix transformation of mTSP to Metric TSP
-def sdmtsp_2_tsp(arr, m):
-    # Get the original shape
-    n = arr.shape[0]
-    # Set the diagonal to np.inf
-    np.fill_diagonal(arr, np.inf)
+# ### Generic edge weight matrix transformation to mTSP for min total distance formulation (not used in current V2 Multi)
+# def sdmtsp_2_tsp(arr, m):
+#     # Get the original shape
+#     n = arr.shape[0]
+#     # Set the diagonal to np.inf
+#     np.fill_diagonal(arr, np.inf)
     
-    # Create a new array with the expanded size
-    expanded_shape = (n + m - 1, n + m - 1)
-    expanded_arr = np.full(expanded_shape, np.inf)
+#     # Create a new array with the expanded size
+#     expanded_shape = (n + m - 1, n + m - 1)
+#     expanded_arr = np.full(expanded_shape, np.inf)
 
-    # Fill in the new array
-    # Copy the 0th column (reshape to ensure correct dimensions)
-    expanded_arr[:n, :] = arr[:, [0]].repeat(expanded_arr.shape[0], axis=1)
+#     # Fill in the new array
+#     # Copy the 0th column (reshape to ensure correct dimensions)
+#     expanded_arr[:n, :] = arr[:, [0]].repeat(expanded_arr.shape[0], axis=1)
     
-    # Copy the 0th row (reshape to ensure correct dimensions)
-    expanded_arr[:, :n] = arr[0, :].reshape(1, -1).repeat(expanded_arr.shape[0], axis=0)
+#     # Copy the 0th row (reshape to ensure correct dimensions)
+#     expanded_arr[:, :n] = arr[0, :].reshape(1, -1).repeat(expanded_arr.shape[0], axis=0)
 
-    # Fill the rest of the original array
-    expanded_arr[:n, :n] = arr
+#     # Fill the rest of the original array
+#     expanded_arr[:n, :n] = arr
 
-    return expanded_arr
+#     return expanded_arr
 
-def decompose_sdmtsp(solution:list[int], m):
-    '''
-    This function takes a computed solution and decomposes it into its constituent paths.
+# def decompose_sdmtsp(solution:list[int], m):
+#     '''
+#     This function takes a computed solution and decomposes it into its constituent paths.
     
-    len(solution) == n_nodes + m_salesmen.
+#     len(solution) == n_nodes + m_salesmen.
 
-    breakpoints are represented by the indices [n, n+m-1]
-    '''
-    n = len(solution) - m
-    breakpoints = set(range(n, n+m))
-    breakpoints.add(0)
-    paths = []
-    path = []
-    solution_iter = iter(solution)
-    curr = next(solution_iter)
-    assert curr == 0, ValueError("Valid paths need to begin from source depot (index 0)")
-    path.append(curr)
-    while True:
-        try: 
-            curr = next(solution_iter)
-            if curr in breakpoints:
-                # cast the node as source
-                path.append(0)
-                paths.append(path)
-                # instantiate new valid path starting from source
-                path = [0]
-            else:
-                path.append(curr)
-        except StopIteration:
-            break
+#     breakpoints are represented by the indices [n, n+m-1]
+#     '''
+#     n = len(solution) - m
+#     breakpoints = set(range(n, n+m))
+#     breakpoints.add(0)
+#     paths = []
+#     path = []
+#     solution_iter = iter(solution)
+#     curr = next(solution_iter)
+#     assert curr == 0, ValueError("Valid paths need to begin from source depot (index 0)")
+#     path.append(curr)
+#     while True:
+#         try: 
+#             curr = next(solution_iter)
+#             if curr in breakpoints:
+#                 # cast the node as source
+#                 path.append(0)
+#                 paths.append(path)
+#                 # instantiate new valid path starting from source
+#                 path = [0]
+#             else:
+#                 path.append(curr)
+#         except StopIteration:
+#             break
     
-    if path != [0]:
-        assert path[-1] == 0, ValueError(f"Received solution that did not end at source; solution ended at node {solution[-1]}")
-        paths.append(path)
+#     if path != [0]:
+#         assert path[-1] == 0, ValueError(f"Received solution that did not end at source; solution ended at node {solution[-1]}")
+#         paths.append(path)
     
-    return paths
-
+#     return paths
 
 def is_valid_multi_path(paths: List[List[int]], depots: List[int], num_cities)->bool:
     '''

@@ -21,7 +21,7 @@ from typing import List, Union
 import random
 from graphite.solvers.base_solver import BaseSolver
 from graphite.protocol import GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti
-from graphite.utils.graph_utils import timeout, sdmtsp_2_tsp
+from graphite.utils.graph_utils import timeout
 import numpy as np
 import time
 import asyncio
@@ -41,11 +41,11 @@ def split_into_sublists(lst, m):
     
     return sublists
 
-class NaiveSolver(BaseSolver):
+class NaiveMultiSolver(BaseSolver):
     '''
     Mock solver for comparison. Returns the route as per the random selection.
     '''
-    def __init__(self, problem_types:List[Union[GraphV2Problem, GraphV2ProblemMulti]]=[GraphV2Problem(), GraphV2ProblemMulti()]):
+    def __init__(self, problem_types:List[GraphV2ProblemMulti]=[GraphV2ProblemMulti()]):
         super().__init__(problem_types=problem_types)
 
     async def solve(self, formatted_problem, future_id:int)->List[int]:
@@ -58,18 +58,5 @@ class NaiveSolver(BaseSolver):
             completed_tours.append([0] + path + [0])
         return completed_tours
 
-    def problem_transformations(self, problem: Union[GraphV2Problem, GraphV2ProblemMulti]):
-        if isinstance(problem, GraphV2Problem):
-            return problem.edges
-        elif isinstance(problem, GraphV2ProblemMulti):
-            if problem.single_depot == True:
-                # this means that it is a single depot mTSP fomulation
-                # Transform the mTSP formulation of single depot into TSP by duplicating source depot
-                # For m salesmen and n original cities, add 1 more column and row for each additional salesman that has identical cost structure to the source node.
-                problem.edges = np.array(problem.edges)
-                print(problem.edges.shape)
-                problem.edges = sdmtsp_2_tsp(problem.edges, problem.n_salesmen, )
-                print(problem.edges.shape)
-                return problem
-            else:
-                pass
+    def problem_transformations(self, problem: GraphV2ProblemMulti):
+        return problem

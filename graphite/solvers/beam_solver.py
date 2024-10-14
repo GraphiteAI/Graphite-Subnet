@@ -19,8 +19,10 @@
 
 from typing import List, Union
 from graphite.solvers.base_solver import BaseSolver
-from graphite.protocol import GraphV1Problem, GraphV2Problem
-from graphite.utils.graph_utils import timeout
+from graphite.protocol import GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2Synapse
+from graphite.utils.graph_utils import timeout, get_tour_distance, get_multi_minmax_tour_distance
+import numpy as np
+import random
 import asyncio
 import time
 
@@ -61,17 +63,16 @@ class BeamSearchSolver(BaseSolver):
         best_path, best_distance = min(final_candidates, key=lambda x: x[1])
 
         return best_path
-
-    def problem_transformations(self, problem: Union[GraphV1Problem, GraphV2Problem]):
-        return problem.edges
     
+    def problem_transformations(self, problem: Union[GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti]):
+        return problem.edges
+        
 if __name__=='__main__':
     # runs the solver on a test MetricTSP
     n_nodes = 100
     test_problem = GraphV1Problem(n_nodes=n_nodes)
-    solver = BeamSearchSolver(problem_types=[test_problem.problem_type])
+    solver = BeamSearchSolver(problem_types=[test_problem])
     start_time = time.time()
     route = asyncio.run(solver.solve_problem(test_problem))
     print(f"{solver.__class__.__name__} Solution: {route}")
     print(f"{solver.__class__.__name__} Time Taken for {n_nodes} Nodes: {time.time()-start_time}")
-    

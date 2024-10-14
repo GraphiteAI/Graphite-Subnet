@@ -21,7 +21,8 @@ from typing import List, Union
 import matplotlib.pyplot as plt
 from graphite.solvers.base_solver import BaseSolver
 from graphite.protocol import GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2Synapse
-from graphite.utils.graph_utils import timeout, sdmtsp_2_tsp, decompose_sdmtsp, get_multi_minmax_tour_distance, get_tour_distance
+from graphite.utils.graph_utils import timeout, get_multi_minmax_tour_distance
+from graphite.data.dataset_utils import load_default_dataset
 import numpy as np
 import time
 import asyncio
@@ -115,123 +116,21 @@ class NearestNeighbourMultiSolver(BaseSolver):
         return problem
 
 if __name__=="__main__":
-    # # runs the solver on a test MetricTSP
-    # n_nodes = 100
-    # test_problem = GraphV1Problem(n_nodes=n_nodes)
-    # solver = NearestNeighbourSolver(problem_types=[test_problem])
-    # start_time = time.time()
-    # route = asyncio.run(solver.solve_problem(test_problem))
-    # print(f"{solver.__class__.__name__} Solution: {route}")
-    # print(f"{solver.__class__.__name__} Time Taken for {n_nodes} Nodes: {time.time()-start_time}")
-
-
-    ## Test case for GraphV2Problem
-    from graphite.data.distance import geom_edges, man_2d_edges, euc_2d_edges
-    loaded_datasets = {}
-    with np.load('dataset/Asia_MSB.npz') as f:
-        loaded_datasets["Asia_MSB"] = f['data']
-    with np.load('dataset/World_TSP.npz') as f:
-        loaded_datasets['World_TSP'] = f['data']
-    def recreate_edges(problem: Union[GraphV2Problem, GraphV2ProblemMulti]):
-        node_coords_np = loaded_datasets[problem.dataset_ref]
-        node_coords = np.array([node_coords_np[i][1:] for i in problem.selected_ids])
-        if problem.cost_function == "Geom":
-            return geom_edges(node_coords)
-        elif problem.cost_function == "Euclidean2D":
-            return euc_2d_edges(node_coords)
-        elif problem.cost_function == "Manhatten2D":
-            return man_2d_edges(node_coords)
-        else:
-            return "Only Geom, Euclidean2D, and Manhatten2D supported for now."
+    # runs the solver on a test MetricTSP
+    class Mock:
+        def __init__(self) -> None:
+            pass        
     
-    n_nodes = random.randint(2000, 5000)
-    dataset_ref = "World_TSP"
-    selected_ids = random.sample(range(len(loaded_datasets[dataset_ref])), n_nodes)
-    print(len(selected_ids))
-    n_salesmen = 4
-    depots = [0]*4
-    # Show the plot
-    solver = NearestNeighbourMultiSolver()
-    test_problem_multi = GraphV2ProblemMulti(n_nodes=n_nodes, dataset_ref=dataset_ref, selected_ids=selected_ids, n_salesmen=n_salesmen, depots=depots)
-    test_problem_multi.edges = recreate_edges(test_problem_multi)
-    print(len(test_problem_multi.edges))
-    paths = asyncio.run(solver.solve_problem(test_problem_multi))
-    visited_nodes = []
-    for path in paths:
-        visited_nodes.extend(path)
-    visited_nodes.sort()
-    for i, node in enumerate(visited_nodes[:-1]):
-        if visited_nodes[i+1] - node > 1:
-            raise ValueError("invalid routes")
-    assert max(visited_nodes) == n_nodes - 1, ValueError("not the right number of cities")
-    # print(len(paths))
-    # for path in paths:
-    #     print(", ".join([str(x) for x in path]) + "\n\n")
-    test_synapse_multi = GraphV2Synapse(problem = test_problem_multi, solution=paths)
-    path_cost = get_multi_minmax_tour_distance(test_synapse_multi)
-    print(path_cost)
-    
-    # Plot each path
-    for path in paths:
-        # Extract coordinates for the current path
-        node_coords_np = loaded_datasets[test_problem_multi.dataset_ref]
-        x_values = [np.array([node_coords_np[i][1:] for i in test_problem_multi.selected_ids])[i][0] for i in path]
-        y_values = [np.array([node_coords_np[i][1:] for i in test_problem_multi.selected_ids])[i][1] for i in path]
-    
-        # Plot the path
-        plt.plot(x_values, y_values, marker='o')  # 'o' adds markers at the cities
-        plt.text(x_values[0], y_values[0], f'Start {path[0]}', fontsize=9, verticalalignment='bottom')
-        plt.text(x_values[-1], y_values[-1], f'End {path[-1]}', fontsize=9, verticalalignment='top')
+    mock = Mock()
 
-    # Add labels and title
-    plt.title('Paths between Cities')
-    plt.xlabel('X Coordinate')
-    plt.ylabel('Y Coordinate')
-    plt.grid()
-    plt.legend([f'Path {i+1}' for i in range(len(paths))], loc='best')
+    load_default_dataset(mock)
 
-    # Show the plot
-    plt.show()
+    n_nodes = 500
+    m = 4
 
-    # for m in range(2, 10):
-    #     test_problem_multi = GraphV2ProblemMulti(problem_type="Metric mTSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref="Asia_MSB", n_salesmen=m, depots = [0]*m)
-    #     if isinstance(test_problem_multi, GraphV2ProblemMulti):
-    #         test_problem_multi.edges = recreate_edges(test_problem_multi)
-    #         route_multi = asyncio.run(solver.solve_problem(test_problem_multi))
-    #         solver = NearestNeighbourSolver(problem_types=[test_problem])
-    #         paths = decompose_sdmtsp(route_multi, test_problem_multi.n_salesmen)
-    #         print(len(paths))
-
-    #         test_synapse_multi = GraphV2Synapse(problem = test_problem_multi, solution=paths)
-    #         total_path_cost = get_multi_tour_distance(test_synapse_multi)
-    #         print(total_path_cost)
-                
-    #             # Plot each path
-    #         for path in paths:
-    #             # Extract coordinates for the current path
-    #             node_coords_np = loaded_datasets[test_problem_multi.dataset_ref]
-    #             x_values = [np.array([node_coords_np[i][1:] for i in test_problem_multi.selected_ids])[i][0] for i in path]
-    #             y_values = [np.array([node_coords_np[i][1:] for i in test_problem_multi.selected_ids])[i][1] for i in path]
-                
-    #             # Plot the path
-    #             plt.plot(x_values, y_values, marker='o')  # 'o' adds markers at the cities
-    #             plt.text(x_values[0], y_values[0], f'Start {path[0]}', fontsize=9, verticalalignment='bottom')
-    #             plt.text(x_values[-1], y_values[-1], f'End {path[-1]}', fontsize=9, verticalalignment='top')
-
-    #         # Add labels and title
-    #         plt.title('Paths between Cities')
-    #         plt.xlabel('X Coordinate')
-    #         plt.ylabel('Y Coordinate')
-    #         plt.grid()
-    #         plt.legend([f'Path {i+1}' for i in range(len(paths))], loc='best')
-
-    #         # Show the plot
-    #         plt.show()
-    # print(f"{solver.__class__.__name__} Solution: {paths}")
-    # print(f"{solver.__class__.__name__} Time Taken for {n_nodes} Nodes: {time.time()-start_time}")
-
-    # solver = NearestNeighbourSolver(problem_types=[test_problem])
-    # start_time = time.time()
-    # route = asyncio.run(solver.solve_problem(test_problem))
-    # print(f"{solver.__class__.__name__} Solution: {route}")
-    # print(f"{solver.__class__.__name__} Time Taken for {n_nodes} Nodes: {time.time()-start_time}")
+    test_problem = GraphV2ProblemMulti(n_nodes=n_nodes, selected_ids=random.sample(list(range(100000)),n_nodes), dataset_ref="Asia_MSB", n_salesmen=m, depots=[0]*m)
+    solver = NearestNeighbourMultiSolver(problem_types=[test_problem])
+    start_time = time.time()
+    route = asyncio.run(solver.solve_problem(test_problem))
+    print(f"{solver.__class__.__name__} Solution: {route}")
+    print(f"{solver.__class__.__name__} Time Taken for {n_nodes} Nodes: {time.time()-start_time}")
