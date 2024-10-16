@@ -99,7 +99,11 @@ class NearestNeighbourMultiSolver(BaseSolver):
         paths.append([0]+route[prev_stop:]) # append last route
 
         distances = []
-        for path in paths:
+        for i, path in enumerate(paths):
+            if set(path) == {0}:
+                paths[i] = [] # means that the tour is actually empty, occurs when there is a single city that is very far away
+                distances.append(0)
+                continue
             distance = 0
             for i, city in enumerate(path[:-1]):
                 distance += distance_matrix[city][path[i+1]]
