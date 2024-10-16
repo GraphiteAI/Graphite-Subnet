@@ -192,8 +192,8 @@ def get_multi_minmax_tour_distance(synapse: GraphV2Synapse)->float:
                 destination = path[i+1]
                 distance += edges[source][destination]
             distances.append(distance)
-        min_distance = max(distances)
-    return min_distance if not np.isnan(distance) else np.inf
+        max_distance = max(distances)
+    return max_distance if not np.isnan(distance) else np.inf
 
 def normalize_coordinates(coordinates:List[List[Union[int,float]]]):
     '''
