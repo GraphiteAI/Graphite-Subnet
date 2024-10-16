@@ -162,7 +162,7 @@ def get_tour_distance(synapse:Union[GraphV1Synapse, GraphV2Synapse])->float:
                 distance += math.hypot(coordinates[pair[0]][0] - coordinates[pair[1]][0], coordinates[pair[0]][1] - coordinates[pair[1]][1])
     return distance if not np.isnan(distance) else np.inf
 
-def get_multi_minmax_tour_distance(synapse: Union[GraphV2Synapse, GraphV2ProblemMulti])->float:
+def get_multi_minmax_tour_distance(synapse: GraphV2Synapse)->float:
     '''
     Returns the maximum tour distance across salesmen for the mTSP as a float.
 
