@@ -176,24 +176,23 @@ def get_multi_minmax_tour_distance(synapse: GraphV2Synapse)->float:
         return np.inf
     distance=np.nan
     assert isinstance(problem, GraphV2ProblemMulti), ValueError(f"Attempting to use multi-path function for problem of type: {type(problem)}")
-    if problem.directed or isinstance(problem, GraphV2Problem):
-        # This is a General TSP problem
-        # check if path and edges are of the appropriate size
-        edges=problem.edges
-        paths=synapse.solution
-        depots=problem.depots
+    
+    assert len(problem.edges) == len(problem.edges[0]) and len(problem.edges)==problem.n_nodes, ValueError(f"Wrong distance matrix shape of: ({len(problem.edges[0])}, {len(problem.edges)}) for problem of n_nodes: {problem.n_nodes}")
+    edges=problem.edges
+    paths=synapse.solution
+    depots=problem.depots
 
-        if isinstance(paths,list):
-            assert is_valid_multi_path(paths, depots, problem.n_nodes), ValueError('Provided path is invalid')
-            # assert len(path) == problem.n_nodes+1, ValueError('An invalid number of cities are contained within the provided path')
-            distances = []
-            for path in paths:
-                distance = 0
-                for i, source in enumerate(path[:-1]):
-                    destination = path[i+1]
-                    distance += edges[source][destination]
-                distances.append(distance)
-            min_distance = max(distances)
+    if isinstance(paths,list):
+        assert is_valid_multi_path(paths, depots, problem.n_nodes), ValueError('Provided path is invalid')
+        # assert len(path) == problem.n_nodes+1, ValueError('An invalid number of cities are contained within the provided path')
+        distances = []
+        for path in paths:
+            distance = 0
+            for i, source in enumerate(path[:-1]):
+                destination = path[i+1]
+                distance += edges[source][destination]
+            distances.append(distance)
+        min_distance = max(distances)
     return min_distance if not np.isnan(distance) else np.inf
 
 def normalize_coordinates(coordinates:List[List[Union[int,float]]]):
