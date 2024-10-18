@@ -33,6 +33,7 @@ import wandb
 import os
 import random
 import requests
+import uuid
 
 from pydantic import ValidationError
 
@@ -82,11 +83,12 @@ async def forward(self):
     bt.logging.info(f"n_nodes V2 {n_nodes}")
     bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
     selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
-    test_problem_obj = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
+    task_uuid = str(uuid.uuid1())
+    test_problem_obj = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref, task_uuid=task_uuid)
 
     try:
         graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
-        bt.logging.info(f"GraphV2Synapse Problem, n_nodes: {graphsynapse_req.problem.n_nodes}")
+        bt.logging.info(f"GraphV2Synapse Problem, n_nodes: {graphsynapse_req.problem.n_nodes}, task_id: {task_uuid}")
     except ValidationError as e:
         bt.logging.debug(f"GraphV2Synapse Validation Error: {e.json()}")
         bt.logging.debug(e.errors())
@@ -288,7 +290,7 @@ async def forward(self):
                         }),
                 )
             for rewIdx in range(self.metagraph.n.item()):
-                wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}": wandb_rewards[rewIdx], f"distance-{self.wallet.hotkey.ss58_address}": wandb_miner_distance[rewIdx]}, step=int(rewIdx))
+                        wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}/task-{task_uuid}": wandb_rewards[rewIdx], f"distance-{self.wallet.hotkey.ss58_address}/task-{task_uuid}": wandb_miner_distance[rewIdx]}, step=int(rewIdx))
 
             self.cleanup_wandb(wandb)
         except Exception as e:
