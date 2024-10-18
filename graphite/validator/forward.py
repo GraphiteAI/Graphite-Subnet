@@ -84,7 +84,15 @@ async def forward(self):
     bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
     selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
     task_uuid = str(uuid.uuid1())
-    test_problem_obj = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref, task_uuid=task_uuid)
+
+    test_problem_obj = GraphV2Problem(
+            problem_type="Metric TSP",
+            n_nodes=n_nodes,
+            selected_ids=selected_node_idxs,
+            cost_function="Geom",
+            dataset_ref=dataset_ref,
+            task_uuid=task_uuid
+    )
 
     try:
         graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
