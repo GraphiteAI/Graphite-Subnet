@@ -160,8 +160,11 @@ class Miner(BaseMinerNeuron):
         synapse.solution = route
         
         bt.logging.info(
-            f"Miner returned value {synapse.solution} {len(synapse.solution) if isinstance(synapse.solution, list) else synapse.solution}"
+            f"Miner completed task {synapse.problem.task_uuid} and returned value {synapse.solution} {len(synapse.solution) if isinstance(synapse.solution, list) else synapse.solution}"
         )
+
+        # TODO: Add logging to private WandB or optional public WandB
+        
         return synapse
 
     async def forwardV2(
@@ -189,7 +192,7 @@ class Miner(BaseMinerNeuron):
         #     f.write(log_line)
         
         bt.logging.info(
-            f"Miner received input to solve {synapse.problem.n_nodes}"
+            f"Miner received task {synapse.problem.task_uuid} to solve {synapse.problem.n_nodes}"
         )
 
         if isinstance(synapse.problem, GraphV2Problem):
@@ -208,8 +211,11 @@ class Miner(BaseMinerNeuron):
         synapse.problem.edges = None
         
         bt.logging.info(
-            f"Miner returned value {synapse.solution} {len(synapse.solution) if isinstance(synapse.solution, list) else synapse.solution}"
+            f"Miner completed task {synapse.problem.task_uuid} and returned value {synapse.solution} {len(synapse.solution) if isinstance(synapse.solution, list) else synapse.solution}"
         )
+
+        # TODO: Add logging to private WandB or optional public WandB
+        
         return synapse
     
     async def blacklist(
