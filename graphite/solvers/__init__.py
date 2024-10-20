@@ -3,3 +3,7 @@ from .beam_solver import BeamSearchSolver
 from .exact_solver import DPSolver
 from .greedy_solver import NearestNeighbourSolver
 from .hpn_solver import HPNSolver
+from .genetic_solver import GeneticSolver
+from .multi_greedy_solver import MultiGreedySolver
+from .three_opt_solver import ThreeOptSolver
+from .random_path_solver import RandomPathSolver

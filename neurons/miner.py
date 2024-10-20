@@ -29,7 +29,16 @@ from graphite.base.miner import BaseMinerNeuron
 from graphite.protocol import IsAlive
 
 
-from graphite.solvers import NearestNeighbourSolver, DPSolver
+from graphite.solvers import (
+    NearestNeighbourSolver,
+    DPSolver,
+    BeamSearchSolver,
+    HPNSolver,
+    GeneticSolver,
+    MultiGreedySolver,
+    ThreeOptSolver,
+    RandomPathSolver,
+)
 from graphite.protocol import GraphV1Problem, GraphV2Problem, GraphV1Synapse, GraphV2Synapse
 
 class Miner(BaseMinerNeuron):
@@ -58,10 +67,16 @@ class Miner(BaseMinerNeuron):
         )
 
         self.solvers = {
-            'small': DPSolver(),
-            'large': NearestNeighbourSolver()
+            "small": DPSolver(),
+            "large": NearestNeighbourSolver(),
+            "beam_search_solver": BeamSearchSolver(),
+            "hpn_solver": HPNSolver(),
+            "genetic_solver": GeneticSolver(),
+            "multi_greedy_solver": MultiGreedySolver(),
+            "three_opt_solver": ThreeOptSolver(),
+            "random_path_solver": RandomPathSolver(),
         }
-    
+
     async def is_alive(self, synapse: IsAlive) -> IsAlive:
         # hotkey = self.wallet.hotkey.ss58_address
         # dend_hotkey = synapse.dendrite.hotkey
@@ -71,7 +86,7 @@ class Miner(BaseMinerNeuron):
         bt.logging.debug("Answered to be alive")
         synapse.completion = "True"
         return synapse
-    
+
     def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
         # TODO: implement proper blacklist logic for is_alive
         return False, "NaN"
@@ -93,14 +108,14 @@ class Miner(BaseMinerNeuron):
         the miner's intended operation. This method demonstrates a basic transformation of input data.
         """
         bt.logging.info(f"received synapse with problem: {synapse.problem.get_info(verbosity=2)}")
-        
+
         bt.logging.info(
             f"Miner received input to solve {synapse.problem.n_nodes}"
         )
-        
+
         if isinstance(synapse.problem, GraphV2Problem):
             synapse.problem.edges = self.recreate_edges(synapse.problem)
-        
+
         bt.logging.info(f"synapse dendrite timeout {synapse.timeout}")
 
         # Conditional assignment of problems to each solver
@@ -108,10 +123,10 @@ class Miner(BaseMinerNeuron):
             # Solves the problem to optimality but is very computationally intensive
             route = await self.solvers['small'].solve_problem(synapse.problem)
         else:
-            # Simple heuristic that does not guarantee optimality. 
+            # Simple heuristic that does not guarantee optimality.
             route = await self.solvers['large'].solve_problem(synapse.problem)
         synapse.solution = route
-        
+
         bt.logging.info(
             f"Miner returned value {synapse.solution} {len(synapse.solution) if isinstance(synapse.solution, list) else synapse.solution}"
         )
@@ -144,10 +159,10 @@ class Miner(BaseMinerNeuron):
         bt.logging.info(
             f"Miner received input to solve {synapse.problem.n_nodes}"
         )
-        
+
         if isinstance(synapse.problem, GraphV2Problem):
             synapse.problem.edges = self.recreate_edges(synapse.problem)
-        
+
         bt.logging.info(f"synapse dendrite timeout {synapse.timeout}")
 
         # Conditional assignment of problems to each solver
@@ -155,10 +170,10 @@ class Miner(BaseMinerNeuron):
             # Solves the problem to optimality but is very computationally intensive
             route = await self.solvers['small'].solve_problem(synapse.problem)
         else:
-            # Simple heuristic that does not guarantee optimality. 
+            # Simple heuristic that does not guarantee optimality.
             route = await self.solvers['large'].solve_problem(synapse.problem)
         synapse.solution = route
-        
+
         bt.logging.info(
             f"Miner returned value {synapse.solution} {len(synapse.solution) if isinstance(synapse.solution, list) else synapse.solution}"
         )
@@ -187,31 +202,45 @@ class Miner(BaseMinerNeuron):
         # log_line = f"{hotkey[:5]}_{dend_hotkey[:5]}_{synapse.problem.n_nodes}_{time.time()}\n"
         # with open("gs_logs.txt","a") as f:
         #     f.write(log_line)
-        
+
         bt.logging.info(
             f"Miner received input to solve {synapse.problem.n_nodes}"
         )
 
         if isinstance(synapse.problem, GraphV2Problem):
             synapse.problem.edges = self.recreate_edges(synapse.problem)
-        
+
         bt.logging.info(f"synapse dendrite timeout {synapse.timeout}")
 
+        print("Run forwardV2")
+        if synapse.problem.directed or isinstance(synapse.problem, GraphV2Problem):
+            print("This is a General TSP problem")
+        else:
+            print("This is a metric TSP problem")
+
+        print(f"Problem: {synapse.problem}")
         # Conditional assignment of problems to each solver
         if synapse.problem.n_nodes < 15:
             # Solves the problem to optimality but is very computationally intensive
-            route = await self.solvers['small'].solve_problem(synapse.problem)
+            route = await self.solvers["small"].solve_problem(synapse.problem)
         else:
-            # Simple heuristic that does not guarantee optimality. 
-            route = await self.solvers['large'].solve_problem(synapse.problem)
+            start_time = time.time()
+            # route = await self.solvers["large"].solve_problem(synapse.problem)
+            route = await self.solvers["multi_greedy_solver"].solve_problem(
+                synapse.problem
+            )
+            # route = await self.solvers["random_path_solver"].solve_problem(synapse.problem)
         synapse.solution = route
         synapse.problem.edges = None
-        
+
+        print(
+            f"Time Taken for {synapse.problem.n_nodes} Nodes: {time.time()-start_time}"
+        )
         bt.logging.info(
             f"Miner returned value {synapse.solution} {len(synapse.solution) if isinstance(synapse.solution, list) else synapse.solution}"
         )
         return synapse
-    
+
     async def blacklist(
         self, synapse: Union[GraphV1Synapse, GraphV2Synapse]
     ) -> Tuple[bool, str]:
@@ -422,7 +451,7 @@ class Miner(BaseMinerNeuron):
         if synapse.dendrite is None or synapse.dendrite.hotkey is None:
             bt.logging.warning("Received a request without a dendrite or hotkey.")
             return 0.0
-        
+
         # TODO(developer): Define how miners should prioritize requests.
         caller_uid = self.metagraph.hotkeys.index(
             synapse.dendrite.hotkey
@@ -458,7 +487,7 @@ class Miner(BaseMinerNeuron):
         if synapse.dendrite is None or synapse.dendrite.hotkey is None:
             bt.logging.warning("Received a request without a dendrite or hotkey.")
             return 0.0
-        
+
         # TODO(developer): Define how miners should prioritize requests.
         caller_uid = self.metagraph.hotkeys.index(
             synapse.dendrite.hotkey
@@ -494,7 +523,7 @@ class Miner(BaseMinerNeuron):
         if synapse.dendrite is None or synapse.dendrite.hotkey is None:
             bt.logging.warning("Received a request without a dendrite or hotkey.")
             return 0.0
-        
+
         # TODO(developer): Define how miners should prioritize requests.
         caller_uid = self.metagraph.hotkeys.index(
             synapse.dendrite.hotkey
