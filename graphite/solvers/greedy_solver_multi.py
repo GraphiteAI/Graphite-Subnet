@@ -23,6 +23,7 @@ from graphite.solvers.base_solver import BaseSolver
 from graphite.protocol import GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2Synapse
 from graphite.utils.graph_utils import timeout, get_multi_minmax_tour_distance
 from graphite.data.dataset_utils import load_default_dataset
+from graphite.data.distance import geom_edges, euc_2d_edges, man_2d_edges
 import numpy as np
 import time
 import asyncio
@@ -35,6 +36,26 @@ class NearestNeighbourMultiSolver(BaseSolver):
         super().__init__(problem_types=problem_types)
 
     async def solve(self, formatted_problem, future_id:int)->List[int]:
+        def split_into_sublists(original_list, n_salesmen):
+            n = len(original_list)
+            sublist_size = n // n_salesmen  # Size of each sublist
+            remainder = n % n_salesmen       # Remainder to distribute
+
+            sublists = []
+            start_index = 0
+
+            for i in range(n_salesmen):
+                # Add 1 to the size for the first 'remainder' sublists
+                if i < remainder:
+                    size = sublist_size + 1
+                else:
+                    size = sublist_size
+                    
+                sublists.append(original_list[start_index:start_index + size])
+                start_index += size
+
+            return sublists
+
         # naively apply greedy solution and compute total tour length
         m = formatted_problem.n_salesmen
         distance_matrix = formatted_problem.edges
@@ -66,64 +87,31 @@ class NearestNeighbourMultiSolver(BaseSolver):
         
         # Return to the starting node
         total_distance += distance_matrix[current_node][route[0]]
-        print(f"Distance of single TSP path: {total_distance}")
-        route += [0]
-        # naive threshold for how long a subroute should be
-        threshold_distance = total_distance / m
-
-        # walkthrough the path and iteratively record the index by which a multiple of threshold_distance is crossed
-        breakpoint_indices = []
-
-        cumulative_dist = 0
-        for i, city in enumerate(route[:-1]):
-            cumulative_dist += distance_matrix[city][route[i+1]]
-            if cumulative_dist > threshold_distance:
-                breakpoint_indices.append(i+1)
-                cumulative_dist = 0
-        
-        # reassign routes via the breaks
-        paths = []
-        prev_stop = None
-        for index in breakpoint_indices:
-            try:
-                if prev_stop:
-                    paths.append([0] + route[prev_stop:index+1] + [0])
-                    prev_stop = index + 1
-                else:
-                    # indicates that this is subpath for the first salesman
-                    paths.append(route[:index+1] + [0])
-                    prev_stop = index + 1
-            except IndexError as e:
-                print(e)
-        
-        paths.append([0]+route[prev_stop:]) # append last route
-
-        distances = []
-        for i, path in enumerate(paths):
-            if set(path) == {0}:
-                paths[i] = [] # means that the tour is actually empty, occurs when there is a single city that is very far away
-                distances.append(0)
-                continue
-            distance = 0
-            for i, city in enumerate(path[:-1]):
-                distance += distance_matrix[city][path[i+1]]
-            distances.append(distance)
-
-        print(f"multiple salesmen distances: {distances}")
-
-        return paths
+        # Naive split into m evenly sized sublists
+        tours = split_into_sublists(route[1:], formatted_problem.n_salesmen)
+        closed_tours = [[0] + tour + [0] for tour in tours]
+        return closed_tours
     
     def problem_transformations(self, problem: Union[GraphV2ProblemMulti]):
-        # this means that it is a single depot mTSP fomulation
-        # Transform the mTSP formulation of single depot into TSP by duplicating source depot
-        # For m salesmen and n original cities, add 1 more column and row for each additional salesman that has identical cost structure to the source node.
         return problem
 
 if __name__=="__main__":
-    # runs the solver on a test MetricTSP
+    # runs the solver on a test Metric mTSP
     class Mock:
         def __init__(self) -> None:
-            pass        
+            pass
+
+        def recreate_edges(self, problem: Union[GraphV2Problem, GraphV2ProblemMulti]):
+            node_coords_np = self.loaded_datasets[problem.dataset_ref]["data"]
+            node_coords = np.array([node_coords_np[i][1:] for i in problem.selected_ids])
+            if problem.cost_function == "Geom":
+                return geom_edges(node_coords)
+            elif problem.cost_function == "Euclidean2D":
+                return euc_2d_edges(node_coords)
+            elif problem.cost_function == "Manhatten2D":
+                return man_2d_edges(node_coords)
+            else:
+                return "Only Geom, Euclidean2D, and Manhatten2D supported for now."
     
     mock = Mock()
 
@@ -133,6 +121,7 @@ if __name__=="__main__":
     m = 4
 
     test_problem = GraphV2ProblemMulti(n_nodes=n_nodes, selected_ids=random.sample(list(range(100000)),n_nodes), dataset_ref="Asia_MSB", n_salesmen=m, depots=[0]*m)
+    test_problem.edges = mock.recreate_edges(test_problem)
     solver = NearestNeighbourMultiSolver(problem_types=[test_problem])
     start_time = time.time()
     route = asyncio.run(solver.solve_problem(test_problem))
