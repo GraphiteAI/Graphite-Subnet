@@ -272,6 +272,11 @@ async def forward(self):
         configDict["selected_uids"] = miner_uids
     except:
         pass
+    try:
+        configDict["n_salesmen"] = graphsynapse_req.problem.n_salesmen
+        configDict["depots"] = graphsynapse_req.problem.depots
+    except:
+        pass
 
 
     try:
