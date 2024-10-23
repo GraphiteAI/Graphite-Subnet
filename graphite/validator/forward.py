@@ -75,8 +75,8 @@ async def forward(self):
 
     # target block ~3 days = 
     # Reference start block
-    ref_start_block = 3052888 # ~1 day ago
-    ref_end_block = 3052888 + 7200 * 3 # 7200 is the estimated number of blocks per day (12s / block)
+    ref_start_block = 3067365 # ~1 day ago
+    ref_end_block = ref_start_block + 7200 * 3 # 7200 is the estimated number of blocks per day (12s / block)
 
     # linearly increase the selection probability from 0 to 0.8
     ref_value = 0.8 * min((self.block-ref_start_block)/(ref_end_block - ref_start_block),1)
