@@ -116,7 +116,8 @@ def is_valid_multi_path(paths: List[List[int]], depots: List[int], num_cities)->
     for path in paths:
         if path != []:
             all_non_depot_nodes.extend(path[1:-1])
-    assert len(all_non_depot_nodes) == len(set(all_non_depot_nodes)) and set(all_non_depot_nodes) == set(list(range(1,num_cities))), ValueError("Did not visit all cities")
+    assert len(all_non_depot_nodes) == len(set(all_non_depot_nodes)), ValueError("Duplicate Visits")
+    assert set(all_non_depot_nodes) == set(list(range(1,num_cities))), ValueError("Invalid number of cities visited")
     return True
 
 def get_tour_distance(synapse:Union[GraphV1Synapse, GraphV2Synapse])->float:
