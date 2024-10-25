@@ -79,7 +79,7 @@ async def forward(self):
     ref_end_block = ref_start_block + 7200 * 3 # 7200 is the estimated number of blocks per day (12s / block)
 
     # linearly increase the selection probability from 0 to 0.8
-    ref_value = 0.8 * min((self.block-ref_start_block)/(ref_end_block - ref_start_block),1)
+    ref_value = 0.8 * min(max((self.block-ref_start_block),0)/(ref_end_block - ref_start_block),1)
     bt.logging.info(f"Selecting mTSP with a probability of: {ref_value}")
     # randomly select n_nodes indexes from the selected graph
     prob_select = random.randint(0, len(list(self.loaded_datasets.keys()))-1)
