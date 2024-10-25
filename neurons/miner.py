@@ -27,8 +27,6 @@ import graphite
 # import base miner class which takes care of most of the boilerplate
 from graphite.base.miner import BaseMinerNeuron
 from graphite.protocol import IsAlive
-
-
 from graphite.solvers import (
     NearestNeighbourSolver,
     DPSolver,
@@ -39,7 +37,9 @@ from graphite.solvers import (
     ThreeOptSolver,
     RandomPathSolver,
 )
-from graphite.protocol import GraphV1Problem, GraphV2Problem, GraphV1Synapse, GraphV2Synapse
+from graphite.protocol import GraphV1Problem, GraphV2Problem, GraphV1Synapse, GraphV2Synapse, GraphV2ProblemMulti
+from graphite.solvers import NearestNeighbourSolver, DPSolver, NearestNeighbourMultiSolver, NearestNeighbourMultiSolver2, InsertionMultiSolver
+from graphite.utils.graph_utils import get_multi_minmax_tour_distance
 
 class Miner(BaseMinerNeuron):
     """
@@ -75,6 +75,9 @@ class Miner(BaseMinerNeuron):
             "multi_greedy_solver": MultiGreedySolver(),
             "three_opt_solver": ThreeOptSolver(),
             "random_path_solver": RandomPathSolver(),
+            'multi_large_1': NearestNeighbourMultiSolver(),
+            'multi_large_2': NearestNeighbourMultiSolver2(),
+            'multi_large_3': InsertionMultiSolver()
         }
 
     async def is_alive(self, synapse: IsAlive) -> IsAlive:
@@ -114,19 +117,24 @@ class Miner(BaseMinerNeuron):
         )
 
         if isinstance(synapse.problem, GraphV2Problem):
+            # recreate problem edges for both the GraphV2Problem and GraphV2ProblemMulti which inherits from GraphV2Problem
             synapse.problem.edges = self.recreate_edges(synapse.problem)
 
         bt.logging.info(f"synapse dendrite timeout {synapse.timeout}")
 
         # Conditional assignment of problems to each solver
-        if synapse.problem.n_nodes < 15:
-            # Solves the problem to optimality but is very computationally intensive
-            route = await self.solvers['small'].solve_problem(synapse.problem)
+        if not isinstance(synapse.problem, GraphV2ProblemMulti):
+            if synapse.problem.n_nodes < 15:
+                # Solves the problem to optimality but is very computationally intensive
+                route = await self.solvers['small'].solve_problem(synapse.problem)
+            else:
+                # Simple heuristic that does not guarantee optimality. 
+                route = await self.solvers['large'].solve_problem(synapse.problem)
+            synapse.solution = route
         else:
-            # Simple heuristic that does not guarantee optimality.
-            route = await self.solvers['large'].solve_problem(synapse.problem)
-        synapse.solution = route
 
+            routes = await self.solvers['multi_large'].solve_problem(synapse.problem)
+            synapse.solution = routes
         bt.logging.info(
             f"Miner returned value {synapse.solution} {len(synapse.solution) if isinstance(synapse.solution, list) else synapse.solution}"
         )
@@ -220,17 +228,26 @@ class Miner(BaseMinerNeuron):
 
         print(f"Problem: {synapse.problem}")
         # Conditional assignment of problems to each solver
-        if synapse.problem.n_nodes < 15:
-            # Solves the problem to optimality but is very computationally intensive
-            route = await self.solvers["small"].solve_problem(synapse.problem)
+        if not isinstance(synapse.problem, GraphV2ProblemMulti):
+            route = await self.solvers['large'].solve_problem(synapse.problem)
+            synapse.solution = route
         else:
-            start_time = time.time()
-            # route = await self.solvers["large"].solve_problem(synapse.problem)
-            route = await self.solvers["multi_greedy_solver"].solve_problem(
-                synapse.problem
-            )
-            # route = await self.solvers["random_path_solver"].solve_problem(synapse.problem)
-        synapse.solution = route
+            # run all 3 basic algorithms and return the best scoring solution
+            routes_1 = await self.solvers['multi_large_1'].solve_problem(synapse.problem)
+            synapse.solution = routes_1
+            score_1 = get_multi_minmax_tour_distance(synapse)
+            routes_2 = await self.solvers['multi_large_2'].solve_problem(synapse.problem)
+            synapse.solution = routes_2
+            score_2 = get_multi_minmax_tour_distance(synapse)
+            routes_3 = await self.solvers['multi_large_3'].solve_problem(synapse.problem)
+            synapse.solution = routes_3
+            score_3 = get_multi_minmax_tour_distance(synapse)
+            routes = [routes_1, routes_2, routes_3]
+            scores = [score_1, score_2, score_3]
+            bt.logging.info(f"Selecting algorithm {scores.index(min(scores))}")
+            synapse.solution = routes[scores.index(min(scores))]
+
+        # empty out large distance matrix
         synapse.problem.edges = None
 
         print(

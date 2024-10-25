@@ -7,3 +7,6 @@ from .genetic_solver import GeneticSolver
 from .multi_greedy_solver import MultiGreedySolver
 from .three_opt_solver import ThreeOptSolver
 from .random_path_solver import RandomPathSolver
+from .greedy_solver_multi import NearestNeighbourMultiSolver
+from .greedy_solver_multi_2 import NearestNeighbourMultiSolver2
+from .insertion_solver_multi import InsertionMultiSolver

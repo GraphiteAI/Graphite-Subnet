@@ -76,9 +76,9 @@ class BaseValidatorNeuron(BaseNeuron):
 
         # Set up initial scoring weights for validation
         bt.logging.info("Building validation weights.")
-        self.scores = np.zeros(
-            self.metagraph.n, dtype=np.float32
-        )
+        current_incentive = np.array(self.metagraph.I)
+        self.scores = (current_incentive - np.min(current_incentive))/(np.max(current_incentive)-np.min(current_incentive))
+        bt.logging.info(f"Initiating validator with scores: {self.scores}")
 
         self.uid_query_sets = []
 
