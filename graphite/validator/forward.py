@@ -25,7 +25,7 @@ from graphite.utils.uids import get_available_uids
 
 import time
 
-from graphite.protocol import GraphV2Problem, GraphV2Synapse
+from graphite.protocol import GraphV2Problem, GraphV2ProblemMulti, GraphV2Synapse, MAX_SALESMEN
         
 import numpy as np
 import json
@@ -73,20 +73,34 @@ async def forward(self):
     except:
         api_response_output = []
 
-   
-    # determine the number of nodes to select
-    n_nodes = random.randint(2000, 5000)
+    # target block ~3 days = 
+    # Reference start block
+    ref_start_block = 4138272 # ~ Monday 28/10/2024, 00:00:00 UTC
+    ref_end_block = ref_start_block + 7200 * 3 # 7200 is the estimated number of blocks per day (12s / block)
+
+    # linearly increase the selection probability from 0 to 0.8
+    ref_value = 0.8 * min(max((self.block-ref_start_block),0)/(ref_end_block - ref_start_block),1)
+    bt.logging.info(f"Selecting mTSP with a probability of: {ref_value}")
     # randomly select n_nodes indexes from the selected graph
     prob_select = random.randint(0, len(list(self.loaded_datasets.keys()))-1)
     dataset_ref = list(self.loaded_datasets.keys())[prob_select]
-    bt.logging.info(f"n_nodes V2 {n_nodes}")
-    bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
-    selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
-    test_problem_obj = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
-
+    if random.random() < ref_value:
+        # determine the number of nodes to select
+        n_nodes = random.randint(500, 2000)
+        bt.logging.info(f"n_nodes V2 mTSP {n_nodes}")
+        bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
+        selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
+        m = random.randint(2, 10)
+        test_problem_obj = GraphV2ProblemMulti(problem_type="Metric mTSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref, n_salesmen=m, depots=[0]*m)
+    else:
+        n_nodes = random.randint(2000, 5000)
+        bt.logging.info(f"n_nodes V2 TSP {n_nodes}")
+        bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
+        selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
+        test_problem_obj = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
     try:
         graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
-        bt.logging.info(f"GraphV2Synapse Problem, n_nodes: {graphsynapse_req.problem.n_nodes}")
+        bt.logging.info(f"GraphV2Synapse {graphsynapse_req.problem.problem_type}, n_nodes: {graphsynapse_req.problem.n_nodes}")
     except ValidationError as e:
         bt.logging.debug(f"GraphV2Synapse Validation Error: {e.json()}")
         bt.logging.debug(e.errors())
@@ -129,6 +143,7 @@ async def forward(self):
         # with open("gs_logs.txt", "a") as f:
         #     for hotkey in [self.metagraph.hotkeys[uid] for uid in miner_uids]:
         #         f.write(f"{hotkey}_{self.wallet.hotkey.ss58_address}_{edges.shape}_{time.time()}\n")
+
     for res in responses:
         try:
             if res.axon.status_code != None:
@@ -136,6 +151,7 @@ async def forward(self):
                 # bt.logging.info(f"Received responses axon: {res.axon} {res.solution}")
         except:
             pass
+
     bt.logging.info(f"NUMBER OF RESPONSES: {len(responses)}")
 
     if isinstance(test_problem_obj, GraphV2Problem):
@@ -254,6 +270,11 @@ async def forward(self):
         pass
     try:
         configDict["selected_uids"] = miner_uids
+    except:
+        pass
+    try:
+        configDict["n_salesmen"] = graphsynapse_req.problem.n_salesmen
+        configDict["depots"] = graphsynapse_req.problem.depots
     except:
         pass
 
