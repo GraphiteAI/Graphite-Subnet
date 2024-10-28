@@ -213,10 +213,15 @@ def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem], solution:Li
         if len(solution) != problem.n_salesmen:
             return False
         if problem.to_origin == True:
-            if not (all([path[0]==path[-1] for path in solution if len(path) > 0]) \
-                    and all([len(path)>2 for path in solution if len(path)>0]) \
-                    and all([path[0]==depot for path, depot in zip(solution, problem.depots)])):
-                    return False
+            if not (all([path[0]==path[-1] for path in solution if len(path) > 0]) and all([len(path)>2 for path in solution if len(path)>0])):
+                for index, path in enumerate(solution):
+                    if len(path) > 0:
+                        if len(path) < 3:
+                            # means that we received an invalid non-empty subtour
+                            return False
+                        elif path[0] != problem.depots[index]:
+                            # means that the i-th salesmen did not depart from the i-th depot
+                            return False
         if problem.visit_all == True:
             all_non_depot_nodes = []
             for path in solution:
