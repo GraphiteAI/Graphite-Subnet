@@ -88,7 +88,12 @@ class ScoreResponse:
         # all cost_functions should handle False as an indication that the problem was unsolvable and assign it a value of np.inf
         synapse_copy = self.synapse
         synapse_copy.solution = response.solution
-        path_cost = self.cost_function(synapse_copy)
+        try:
+            path_cost = self.cost_function(synapse_copy)
+        except Exception as e:
+            # AssertionError or ValueError indicating an invalid solution
+            print(e)
+            path_cost = np.inf
         return path_cost
 
     def score_response(self, response: Union[GraphV1Synapse, GraphV2Synapse]):
