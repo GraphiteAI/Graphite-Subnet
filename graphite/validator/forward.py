@@ -145,17 +145,8 @@ async def forward(self):
         #         f.write(f"{hotkey}_{self.wallet.hotkey.ss58_address}_{edges.shape}_{time.time()}\n")
 
     for idx, res in enumerate(responses):
-        bt.logging.info(f"Miner {miner_uids[idx]} status code: {res.dendrite.status_code}, process_time: {res.dendrite.process_time}")
-        # try:
-        #     if res.axon.status_code != None:
-        #         res.axon.process_time = res.dendrite.process_time
-        #         # bt.logging.info(f"Received responses axon: {res.axon} {res.solution}")
-        #     else:
-        #         bt.logging.info(f"setting response time to: {res.dendrite.process_time}")
-        #         res.axon.process_time = res.dendrite.process_time
-        # except:
-        #     pass
-        # if not isinstance(res.dendrite.process_time):
+        # trace log the process times
+        bt.logging.trace(f"Miner {miner_uids[idx]} status code: {res.dendrite.status_code}, process_time: {res.dendrite.process_time}")
         
 
 
