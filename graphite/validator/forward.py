@@ -144,12 +144,15 @@ async def forward(self):
         #     for hotkey in [self.metagraph.hotkeys[uid] for uid in miner_uids]:
         #         f.write(f"{hotkey}_{self.wallet.hotkey.ss58_address}_{edges.shape}_{time.time()}\n")
 
-    for res in responses:
-        bt.logging.info(f"axon status code: {res.axon.status_code}, process_time: {res.axon.process_time}")
+    for idx, res in enumerate(responses):
+        bt.logging.info(f"Miner {miner_uids[idx]} status code: {res.axon.status_code}, process_time: {res.axon.process_time}")
         try:
             if res.axon.status_code != None:
                 res.axon.process_time = res.dendrite.process_time
                 # bt.logging.info(f"Received responses axon: {res.axon} {res.solution}")
+            else:
+                bt.logging.info(f"setting response time to: {res.dendrite.process_time}")
+                res.axon.process_time = res.dendrite.process_time
         except:
             pass
 
