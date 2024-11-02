@@ -144,13 +144,11 @@ async def forward(self):
         #     for hotkey in [self.metagraph.hotkeys[uid] for uid in miner_uids]:
         #         f.write(f"{hotkey}_{self.wallet.hotkey.ss58_address}_{edges.shape}_{time.time()}\n")
 
-    for res in responses:
-        try:
-            if res.axon.status_code != None:
-                res.axon.process_time = res.dendrite.process_time
-                # bt.logging.info(f"Received responses axon: {res.axon} {res.solution}")
-        except:
-            pass
+    for idx, res in enumerate(responses):
+        # trace log the process times
+        bt.logging.trace(f"Miner {miner_uids[idx]} status code: {res.dendrite.status_code}, process_time: {res.dendrite.process_time}")
+        
+
 
     bt.logging.info(f"NUMBER OF RESPONSES: {len(responses)}")
 
@@ -172,7 +170,7 @@ async def forward(self):
         wandb_rewards[uid] = rewards[id]
         wandb_miner_distance[uid] = score_response_obj.score_response(responses[id]) if score_response_obj.score_response(responses[id])!=None else 0
         wandb_miner_solution[uid] = responses[id].solution
-        wandb_axon_elapsed[uid] = responses[id].axon.process_time
+        wandb_axon_elapsed[uid] = responses[id].dendrite.process_time
 
 
     # if len(responses) > 0 and did_organic_task == True:
