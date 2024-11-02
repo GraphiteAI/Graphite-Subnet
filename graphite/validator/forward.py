@@ -145,6 +145,7 @@ async def forward(self):
         #         f.write(f"{hotkey}_{self.wallet.hotkey.ss58_address}_{edges.shape}_{time.time()}\n")
 
     for res in responses:
+        bt.logging.info(f"axon status code: {res.axon.status_code}, process_time: {res.axon.process_time}")
         try:
             if res.axon.status_code != None:
                 res.axon.process_time = res.dendrite.process_time
