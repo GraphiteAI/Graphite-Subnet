@@ -45,11 +45,12 @@ def is_valid_multi_path(paths: List[List[int]], depots: List[int], num_cities)->
     '''
     assert len(paths) == len(depots), ValueError("Received unequal number of paths to depots. Note that if you choose to not use a salesman, you must still return a corresponding empty path.")
     # check that each subpath is valid
+    # print([(path[0], path[-1], depots[i]) for i, path in enumerate(paths)])
     if not all([is_valid_path(path) for path in paths if path != []]):
         return False
 
-    # check if the source nodes match the depots
-    if not all([path[0]==depots[i] for i, path in enumerate(paths) if path != []]):
+    # check if the start and end of each subtour match the depots
+    if not all([(path[0]==depots[i] and path[-1]==depots[i]) for i, path in enumerate(paths) if path != []]):
         return False
         
     # check that each city is only visited once across all salesmen
@@ -58,7 +59,7 @@ def is_valid_multi_path(paths: List[List[int]], depots: List[int], num_cities)->
         if path != []:
             all_non_depot_nodes.extend(path[1:-1])
     assert len(all_non_depot_nodes) == len(set(all_non_depot_nodes)), ValueError("Duplicate Visits")
-    assert set(all_non_depot_nodes) == set(list(range(1,num_cities))), ValueError("Invalid number of cities visited")
+    assert set(all_non_depot_nodes) == set(list(range(num_cities))).difference(set(depots)), ValueError("Invalid number of cities visited")
     return True
 
 def get_tour_distance(synapse:Union[GraphV1Synapse, GraphV2Synapse])->float:
@@ -219,7 +220,7 @@ def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem], solution:Li
                         if len(path) < 3:
                             # means that we received an invalid non-empty subtour
                             return False
-                        elif path[0] != problem.depots[index]:
+                        elif path[0] != problem.depots[index] or path[-1] != problem.depots[index]:
                             # means that the i-th salesmen did not depart from the i-th depot
                             return False
         if problem.visit_all == True:
