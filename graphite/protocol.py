@@ -26,17 +26,18 @@ import math
 import json
 import base64
 import sys
+import os
 import random
 
-is_alive_path = "graphite/is_alive.json"
+is_alive_path = os.path.join(os.path.dirname(__file__), "is_alive.json")
 with open(is_alive_path, "r") as f:
     ISALIVE_SCHEMA = json.load(f)
 
-rel_v1_path = "graphite/schema_v1.json"
+rel_v1_path = os.path.join(os.path.dirname(__file__), "schema_v1.json")
 with open(rel_v1_path, "r") as f:
     MODEL_V1_SCHEMA = json.load(f)
 
-rel_v2_path = "graphite/schema_v2.json"
+rel_v2_path = os.path.join(os.path.dirname(__file__), "schema_v2.json")
 with open(rel_v2_path, "r") as f:
     MODEL_V2_SCHEMA = json.load(f)
 
