@@ -202,8 +202,11 @@ async def forward(self):
     wandb_miner_solution = [[] for _ in range(self.metagraph.n.item())]
     wandb_axon_elapsed = [np.inf for _ in range(self.metagraph.n.item())]
     wandb_rewards = [0 for _ in range(self.metagraph.n.item())]
+    best_solution_uid = 0
     for id, uid in enumerate(miner_uids):
         wandb_rewards[uid] = rewards[id]
+        if wandb_rewards[uid] == 1:
+            best_solution_uid = uid
         wandb_miner_distance[uid] = score_response_obj.score_response(responses[id]) if score_response_obj.score_response(responses[id])!=None else 0
         wandb_miner_solution[uid] = responses[id].solution
         wandb_axon_elapsed[uid] = responses[id].dendrite.process_time
@@ -315,6 +318,11 @@ async def forward(self):
 
     try:
         configDict["time_elapsed"] = wandb_axon_elapsed
+    except:
+        pass
+
+    try:
+        configDict["best_solution"] = wandb_miner_solution[best_solution_uid]
     except:
         pass
     
