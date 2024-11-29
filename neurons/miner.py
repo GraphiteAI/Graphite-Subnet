@@ -211,7 +211,7 @@ class Miner(BaseMinerNeuron):
             synapse.solution = route
         else:
             # further split
-            if synapse.problem.single_depot:
+            if not synapse.problem.single_depot:
                 # run all 3 basic algorithms and return the best scoring solution
                 routes_1 = await self.solvers['multi_large_2'].solve_problem(synapse.problem)
                 synapse.solution = routes_1
@@ -222,6 +222,9 @@ class Miner(BaseMinerNeuron):
                 routes = [routes_1, routes_2]
                 scores = [score_1, score_2]
             else:
+                routes_1 = await self.solvers['multi_large_1'].solve_problem(synapse.problem)
+                synapse.solution = routes_1
+                score_2 = get_multi_minmax_tour_distance(synapse)
                 routes_2 = await self.solvers['multi_large_2'].solve_problem(synapse.problem)
                 synapse.solution = routes_2
                 score_2 = get_multi_minmax_tour_distance(synapse)
