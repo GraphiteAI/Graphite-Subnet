@@ -39,6 +39,30 @@ class NearestNeighbourMultiSolver2(BaseSolver):
     def __init__(self, problem_types:List[GraphV2Problem]=[GraphV2ProblemMulti()]):
         super().__init__(problem_types=problem_types)
     
+    def get_random_valid_start(self, depot_id, distance_matrix, taken_nodes:list[int]=[], selection_range:int=5) -> int:
+        distances = [(city_id, distance) for city_id, distance in enumerate(distance_matrix[depot_id].copy())]
+        # reverse sort the copied list and pop from it
+        assert (selection_range + len(taken_nodes)) < len(distances)
+        distances.sort(reverse=True, key=lambda x: x[1])
+        closest_cities = []
+        while len(closest_cities) < selection_range:
+            selected_city = None
+            while not selected_city:
+                city_id, distance = distances.pop()
+                if city_id not in taken_nodes:
+                    selected_city = city_id
+            closest_cities.append(selected_city)
+        return random.choice(closest_cities)
+        
+    def get_starting_tours(self, depots, distance_matrix):
+        taken_nodes = depots.copy()
+        initial_incomplete_tours = []
+        for depot in depots:
+            first_visit = self.get_random_valid_start(depot, distance_matrix, taken_nodes)
+            initial_incomplete_tours.append([depot, first_visit])
+            taken_nodes.append(first_visit)
+        return initial_incomplete_tours
+    
     async def solve(self, formatted_problem, future_id:int)->List[int]:
         def subtour_distance(distance_matrix, subtour):
             subtour = np.array(subtour)
@@ -50,10 +74,12 @@ class NearestNeighbourMultiSolver2(BaseSolver):
         # construct m tours
         m = formatted_problem.n_salesmen
         distance_matrix = np.array(formatted_problem.edges)
-        unvisited = set(range(1, formatted_problem.n_nodes))
-        initial_next_cities = random.sample(list(unvisited), m)
-        [unvisited.remove(v) for v in initial_next_cities] # remove random chosen start points
-        tours = [[0,v] for v in initial_next_cities] # initialize m random initial subtours
+        unvisited = [city for city in range(len(distance_matrix)) if city not in set(formatted_problem.depots)]
+        tours = self.get_starting_tours(formatted_problem.depots, distance_matrix)
+
+        for _, first_city in tours:
+            unvisited.remove(first_city)
+
         distances = [subtour_distance(distance_matrix, subtour) for subtour in tours]
         while unvisited:
             chosen_index = distances.index(min(distances))
@@ -69,7 +95,7 @@ class NearestNeighbourMultiSolver2(BaseSolver):
             tours[chosen_index] = chosen_subtour + [chosen_city]
             unvisited.remove(chosen_city)
                 
-        return [tour + [0] for tour in tours] # complete each subtour back to source depot
+        return [tour + [depot] for tour, depot in zip(tours, formatted_problem.depots.copy())] # complete each subtour back to source depot
     
     def problem_transformations(self, problem: Union[GraphV2ProblemMulti]):
         return problem

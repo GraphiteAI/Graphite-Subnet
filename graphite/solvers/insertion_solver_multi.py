@@ -21,6 +21,7 @@ from typing import List, Union
 import matplotlib.pyplot as plt
 from graphite.solvers.base_solver import BaseSolver
 from graphite.solvers.greedy_solver_multi import NearestNeighbourMultiSolver
+from graphite.solvers.greedy_solver_multi_2 import NearestNeighbourMultiSolver2
 from graphite.protocol import GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2Synapse
 from graphite.utils.graph_utils import timeout, get_multi_minmax_tour_distance
 from graphite.data.dataset_utils import load_default_dataset
@@ -38,6 +39,30 @@ class InsertionMultiSolver(BaseSolver):
     '''
     def __init__(self, problem_types:List[GraphV2Problem]=[GraphV2ProblemMulti()]):
         super().__init__(problem_types=problem_types)
+
+    def get_random_valid_start(self, depot_id, distance_matrix, taken_nodes:list[int]=[], selection_range:int=5) -> int:
+        distances = [(city_id, distance) for city_id, distance in enumerate(distance_matrix[depot_id].copy())]
+        # reverse sort the copied list and pop from it
+        assert (selection_range + len(taken_nodes)) < len(distances)
+        distances.sort(reverse=True, key=lambda x: x[1])
+        closest_cities = []
+        while len(closest_cities) < selection_range:
+            selected_city = None
+            while not selected_city:
+                city_id, distance = distances.pop()
+                if city_id not in taken_nodes:
+                    selected_city = city_id
+            closest_cities.append(selected_city)
+        return random.choice(closest_cities)
+        
+    def get_starting_tours(self, depots, distance_matrix):
+        taken_nodes = depots.copy()
+        initial_incomplete_tours = []
+        for depot in depots:
+            first_visit = self.get_random_valid_start(depot, distance_matrix, taken_nodes)
+            initial_incomplete_tours.append([depot, first_visit, depot])
+            taken_nodes.append(first_visit)
+        return initial_incomplete_tours
     
     async def solve(self, formatted_problem, future_id:int)->List[int]:
         def get_cheapest_insertion(distance_matrix, original_distance, city, subtour):
@@ -64,15 +89,15 @@ class InsertionMultiSolver(BaseSolver):
         # construct m tours
         m = formatted_problem.n_salesmen
         distance_matrix = np.array(formatted_problem.edges)
-        unvisited = set(range(1, formatted_problem.n_nodes))
-        initial_next_cities = random.sample(list(unvisited), m)
-        [unvisited.remove(v) for v in initial_next_cities] # remove random chosen start points
-        tours = [[0,v,0] for v in initial_next_cities] # initialize m random incomplete tours
+        unvisited = [city for city in range(len(distance_matrix)) if city not in set(formatted_problem.depots)]
+        tours = self.get_starting_tours(formatted_problem.depots, distance_matrix)
+        for _, first_city, _ in tours:
+            unvisited.remove(first_city)
 
         distances = [subtour_distance(distance_matrix, subtour) for subtour in tours]
         while unvisited:
             # Choose a random city to derive the cheapest insertion
-            insertion_city = random.sample(list(unvisited), 1)[0]
+            insertion_city = random.sample(unvisited, 1)[0]
             new_distance_increases = []
             new_cheapest_subtours = []
             for index, subtour in enumerate(tours):
@@ -132,3 +157,22 @@ if __name__=="__main__":
     # print(f"{solver.__class__.__name__} Solution: {route1}")
     print(f"{solver1.__class__.__name__} Time Taken for {n_nodes} Nodes: {time.time()-start_time} and Salesmen: {m}")
     print(f"Insertion scored: {score1} while Multi scored: {score2}")
+    
+    n_nodes = 2000
+    m = 10
+
+    test_problem = GraphV2ProblemMulti(n_nodes=n_nodes, selected_ids=random.sample(list(range(100000)),n_nodes), dataset_ref="Asia_MSB", n_salesmen=m, depots=random.sample(range(n_nodes),m), single_depot=False)
+    test_problem.edges = mock.recreate_edges(test_problem)
+    solver1 = InsertionMultiSolver(problem_types=[test_problem])
+    start_time = time.time()
+    route1 = asyncio.run(solver1.solve_problem(test_problem))
+    test_synapse = GraphV2Synapse(problem = test_problem, solution = route1)
+    score1 = get_multi_minmax_tour_distance(test_synapse)
+    solver2 = NearestNeighbourMultiSolver2(problem_types=[test_problem])
+    route2 = asyncio.run(solver2.solve_problem(test_problem))
+    test_synapse = GraphV2Synapse(problem = test_problem, solution = route2)
+    score2 = get_multi_minmax_tour_distance(test_synapse)
+    # print(f"{solver.__class__.__name__} Solution: {route1}")
+    print(f"{solver1.__class__.__name__} Time Taken for {n_nodes} Nodes: {time.time()-start_time} and Salesmen: {m}")
+    print(f"Insertion scored: {score1} while Multi2 scored: {score2}")
+    
