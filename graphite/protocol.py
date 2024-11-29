@@ -223,6 +223,12 @@ class GraphV2ProblemMulti(GraphV2Problem):
             assert self.objective_function == 'min', ValueError('Subnet currently only supports minimization TSP')
         return self
     
+    @model_validator(mode="after")
+    def assert_depots(self):
+        if self.single_depot:
+            assert all([depot==0 for depot in self.depots]), ValueError('Single depot definition of mTSP requires depots to be an array of 0')
+        return self
+    
     def get_info(self, verbosity: int = 1) -> dict:
         info = {}
         if verbosity == 1:
