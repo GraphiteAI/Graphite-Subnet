@@ -108,7 +108,7 @@ async def forward(self):
                                                    cost_function="Geom", 
                                                    dataset_ref=dataset_ref, 
                                                    n_salesmen=m, 
-                                                   depots=random.sample(list(range(n_nodes))), 
+                                                   depots=random.sample(list(range(n_nodes)), m), 
                                                    single_depot=False)
         else:
             # single depot mTSP
