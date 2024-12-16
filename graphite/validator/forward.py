@@ -205,7 +205,7 @@ async def forward(self):
     best_solution_uid = 0
     for id, uid in enumerate(miner_uids):
         wandb_rewards[uid] = rewards[id]
-        if wandb_rewards[uid] == 1:
+        if wandb_rewards[uid] == rewards.max():
             best_solution_uid = uid
         wandb_miner_distance[uid] = score_response_obj.score_response(responses[id]) if score_response_obj.score_response(responses[id])!=None else 0
         wandb_miner_solution[uid] = responses[id].solution
