@@ -209,7 +209,7 @@ class MetricMTSPV2Generator(DatasetGenerator):
             if single_depot_choices[i]:
                 test_problem = GraphV2ProblemMulti(problem_type="Metric mTSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref, n_salesmen=n_salesmen, depots=[0 for _ in range(n_salesmen)])
             else:
-                test_problem = GraphV2ProblemMulti(problem_type="Metric mTSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref, n_salesmen=n_salesmen, single_depot=False, depots=random.choices(range(n_nodes), k=n_salesmen))
+                test_problem = GraphV2ProblemMulti(problem_type="Metric mTSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref, n_salesmen=n_salesmen, single_depot=False, depots=random.sample(range(n_nodes), k=n_salesmen))
             cls.recreate_edges(test_problem, loaded_datasets)
             problems.append(test_problem)
         return problems, [cls._problem_size(problem) for problem in problems]
@@ -227,7 +227,7 @@ class MetricMTSPV2Generator(DatasetGenerator):
             if single_depot_choices[i]:
                 test_problem = GraphV2ProblemMulti(problem_type="Metric mTSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref, n_salesmen=n_salesmen, depots=[0 for _ in range(n_salesmen)])
             else:
-                test_problem = GraphV2ProblemMulti(problem_type="Metric mTSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref, n_salesmen=n_salesmen, single_depot=False, depots=random.choices(range(n_nodes), k=n_salesmen))
+                test_problem = GraphV2ProblemMulti(problem_type="Metric mTSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref, n_salesmen=n_salesmen, single_depot=False, depots=random.sample(range(n_nodes), k=n_salesmen))
             problems.append(test_problem)
         return problems, [cls._problem_size(problem) for problem in problems]
     
@@ -242,7 +242,7 @@ class MetricMTSPV2Generator(DatasetGenerator):
         if single_depot:
             test_problem = GraphV2ProblemMulti(problem_type="Metric mTSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref, n_salesmen=n_salesmen, depots=[0 for _ in range(n_salesmen)])
         else:
-            test_problem = GraphV2ProblemMulti(problem_type="Metric mTSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref, n_salesmen=n_salesmen, single_depot=False, depots=random.choices(range(n_nodes), k=n_salesmen))
+            test_problem = GraphV2ProblemMulti(problem_type="Metric mTSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref, n_salesmen=n_salesmen, single_depot=False, depots=random.sample(range(n_nodes), k=n_salesmen))
         cls.recreate_edges(test_problem, loaded_datasets)
         return test_problem
 
