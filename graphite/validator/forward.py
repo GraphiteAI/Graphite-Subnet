@@ -136,7 +136,10 @@ async def forward(self):
             f.write(f"{datetime.now().timestamp()} {test_problem_obj.__class__.__name__} {dataset_ref} {n_nodes}")
     try:
         graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
-        bt.logging.info(f"GraphV2Synapse {graphsynapse_req.problem.problem_type}, n_nodes: {graphsynapse_req.problem.n_nodes}\n")
+        if "mTSP" in graphsynapse_req.problem.problem_type:
+            bt.logging.info(f"GraphV2Synapse {graphsynapse_req.problem.problem_type}, n_nodes: {graphsynapse_req.problem.n_nodes}, depots: {graphsynapse_req.problem.depots}\n")
+        else:
+            bt.logging.info(f"GraphV2Synapse {graphsynapse_req.problem.problem_type}, n_nodes: {graphsynapse_req.problem.n_nodes}\n")
     except ValidationError as e:
         bt.logging.debug(f"GraphV2Synapse Validation Error: {e.json()}")
         bt.logging.debug(e.errors())
