@@ -1,6 +1,6 @@
-bittensor==7.1.2
+bittensor==8.5.0
 pydantic==2.8.2
-numpy==2.0.0
+numpy==2.0.1
 pandas==2.2.2
 torch==2.3.1
 matplotlib==3.9.1
