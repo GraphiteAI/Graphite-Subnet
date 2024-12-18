@@ -37,8 +37,6 @@ import requests
 
 from pydantic import ValidationError
 
-# For testing purposes
-
 async def forward(self):
 
     """
@@ -78,9 +76,7 @@ async def forward(self):
 
     # target block ~3 days = 
     # Reference start block
-    # ref_start_block = 4138272 # ~ Monday 28/10/2024, 00:00:00 UTC
-    # ref_end_block = ref_start_block + 7200 * 3 # 7200 is the estimated number of blocks per day (12s / block)
-    ref_start_block = 3326704 - 7200 * 3
+    ref_start_block = 4519943 # ~ Friday 20/12/2024, 03:00:00 UTC
     ref_end_block = ref_start_block + 7200 * 3 # 7200 is the estimated number of blocks per day (12s / block)
 
     # linearly increase the selection probability from 0 to 0.8. TSP selection occupies uniform 0.8-1
