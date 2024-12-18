@@ -38,7 +38,6 @@ import requests
 from pydantic import ValidationError
 
 # For testing purposes
-PROBLEM_SENT_LOG_FILE="problems_sent.txt"
 
 async def forward(self):
 
@@ -124,16 +123,14 @@ async def forward(self):
                                                    dataset_ref=dataset_ref, 
                                                    n_salesmen=m, 
                                                    depots=[0 for _ in range(m)])
-        with open(PROBLEM_SENT_LOG_FILE, "a") as f:
-            f.write(f"{datetime.now().timestamp()} {test_problem_obj.__class__.__name__} {dataset_ref} {n_nodes} {test_problem_obj.single_depot} {test_problem_obj.n_salesmen}\n")
+
     else:
         n_nodes = random.randint(2000, 5000)
         bt.logging.info(f"n_nodes V2 TSP {n_nodes}")
         bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
         selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
         test_problem_obj = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
-        with open(PROBLEM_SENT_LOG_FILE, "a") as f:
-            f.write(f"{datetime.now().timestamp()} {test_problem_obj.__class__.__name__} {dataset_ref} {n_nodes}")
+
     try:
         graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
         if "mTSP" in graphsynapse_req.problem.problem_type:
