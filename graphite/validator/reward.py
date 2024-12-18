@@ -118,7 +118,7 @@ def scaled_rewards(scores, benchmark: float, objective_function:str = 'min'):
         else:
             # proportionally scale rewards based on the relative normalized scores
             assert (not is_approximately_equal(best_score, reference) and not score_worse_than_reference(best_score, reference, objective_function)), ValueError(f"Best score is worse than reference: best-{best_score}, ref-{reference}")
-            return (1 - abs(best_score-score)/abs(best_score-reference))*0.8 + 0.2
+            return ((1 - abs(best_score-score)/abs(best_score-reference))**2)*0.8 + 0.2
     # we find scores that correspond to finite path costs
     # bt.logging.info(f"Miners were scored: {scores}")
     # print(f"Miners were scored: {scores}")

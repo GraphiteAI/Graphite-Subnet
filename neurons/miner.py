@@ -61,8 +61,8 @@ class Miner(BaseMinerNeuron):
             'small': DPSolver(),
             'large': NearestNeighbourSolver(),
             'multi_large_1': NearestNeighbourMultiSolver(),
-            'multi_large_2': NearestNeighbourMultiSolver2(),
-            'multi_large_3': InsertionMultiSolver()
+            'multi_large_2': NearestNeighbourMultiSolver2(), # adapted to handle multi-depot
+            'multi_large_3': InsertionMultiSolver(), # adapted to handle multi-depot
         }
     
     async def is_alive(self, synapse: IsAlive) -> IsAlive:
@@ -210,18 +210,29 @@ class Miner(BaseMinerNeuron):
             route = await self.solvers['large'].solve_problem(synapse.problem)
             synapse.solution = route
         else:
-            # run all 3 basic algorithms and return the best scoring solution
-            routes_1 = await self.solvers['multi_large_1'].solve_problem(synapse.problem)
-            synapse.solution = routes_1
-            score_1 = get_multi_minmax_tour_distance(synapse)
-            routes_2 = await self.solvers['multi_large_2'].solve_problem(synapse.problem)
-            synapse.solution = routes_2
-            score_2 = get_multi_minmax_tour_distance(synapse)
-            routes_3 = await self.solvers['multi_large_3'].solve_problem(synapse.problem)
-            synapse.solution = routes_3
-            score_3 = get_multi_minmax_tour_distance(synapse)
-            routes = [routes_1, routes_2, routes_3]
-            scores = [score_1, score_2, score_3]
+            # further split
+            if not synapse.problem.single_depot:
+                # run all 3 basic algorithms and return the best scoring solution
+                routes_1 = await self.solvers['multi_large_2'].solve_problem(synapse.problem)
+                synapse.solution = routes_1
+                score_1 = get_multi_minmax_tour_distance(synapse)
+                routes_2 = await self.solvers['multi_large_3'].solve_problem(synapse.problem)
+                synapse.solution = routes_2
+                score_2 = get_multi_minmax_tour_distance(synapse)
+                routes = [routes_1, routes_2]
+                scores = [score_1, score_2]
+            else:
+                routes_1 = await self.solvers['multi_large_1'].solve_problem(synapse.problem)
+                synapse.solution = routes_1
+                score_1 = get_multi_minmax_tour_distance(synapse)
+                routes_2 = await self.solvers['multi_large_2'].solve_problem(synapse.problem)
+                synapse.solution = routes_2
+                score_2 = get_multi_minmax_tour_distance(synapse)
+                routes_3 = await self.solvers['multi_large_3'].solve_problem(synapse.problem)
+                synapse.solution = routes_3
+                score_3 = get_multi_minmax_tour_distance(synapse)
+                routes = [routes_1, routes_2, routes_3]
+                scores = [score_1, score_2, score_3]
             bt.logging.info(f"Selecting algorithm {scores.index(min(scores))}")
             synapse.solution = routes[scores.index(min(scores))]
 

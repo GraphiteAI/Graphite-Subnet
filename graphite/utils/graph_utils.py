@@ -33,6 +33,9 @@ def is_valid_path(path:List[int])->bool:
     # a valid path should have at least 3 return values and return to the source
     return (len(path)>=3) and (path[0]==path[-1])
 
+def is_valid_null_path(path:List[int])->bool:
+    # a valid path should have at least 3 return values and return to the source
+    return (len(path)==2) and (path[0]==path[-1])
 
 def is_valid_multi_path(paths: List[List[int]], depots: List[int], num_cities)->bool:
     '''
@@ -43,22 +46,21 @@ def is_valid_multi_path(paths: List[List[int]], depots: List[int], num_cities)->
     Output:
     boolean indicating if the paths are valid or not
     '''
-    assert len(paths) == len(depots), ValueError("Received unequal number of paths to depots. Note that if you choose to not use a salesman, you must still return a corresponding empty path.")
-    # check that each subpath is valid
-    if not all([is_valid_path(path) for path in paths if path != []]):
+    assert len(paths) == len(depots), ValueError("Received unequal number of paths to depots. Note that if you choose to not use a salesman, you must still return a corresponding empty path: [depot, depot].")
+    # check that each subpath is valid --> "empty" paths must be represented as [depot, depot]
+    if not all([is_valid_path(path) or is_valid_null_path(path) for path in paths]):
         return False
 
-    # check if the source nodes match the depots
-    if not all([path[0]==depots[i] for i, path in enumerate(paths) if path != []]):
+    # check if the start and end of each subtour match the depots
+    if not all([(path[0]==depots[i] and path[-1]==depots[i]) for i, path in enumerate(paths)]):
         return False
         
     # check that each city is only visited once across all salesmen
     all_non_depot_nodes = []
     for path in paths:
-        if path != []:
-            all_non_depot_nodes.extend(path[1:-1])
+        all_non_depot_nodes.extend(path[1:-1])
     assert len(all_non_depot_nodes) == len(set(all_non_depot_nodes)), ValueError("Duplicate Visits")
-    assert set(all_non_depot_nodes) == set(list(range(1,num_cities))), ValueError("Invalid number of cities visited")
+    assert set(all_non_depot_nodes) == set(list(range(num_cities))).difference(set(depots)), ValueError("Invalid number of cities visited")
     return True
 
 def get_tour_distance(synapse:Union[GraphV1Synapse, GraphV2Synapse])->float:
@@ -94,14 +96,17 @@ def get_tour_distance(synapse:Union[GraphV1Synapse, GraphV2Synapse])->float:
         path=synapse.solution
         
         if isinstance(path,list):
-            assert is_valid_path(path), ValueError('Provided path is invalid')
-            assert len(path) == problem.n_nodes+1, ValueError('An invalid number of cities are contained within the provided path')
-
-            # sort cities into pairs
-            pairs = [(path[i], path[i+1]) for i in range(len(path)-1)]
-            distance = 0
-            for pair in pairs:
-                distance += math.hypot(coordinates[pair[0]][0] - coordinates[pair[1]][0], coordinates[pair[0]][1] - coordinates[pair[1]][1])
+            try:
+                path_is_valid = is_valid_path(path)
+            except AssertionError as e:
+                bt.logging.trace(f"Error while validating solution: {e}")
+            # assert len(path) == problem.n_nodes+1, ValueError('An invalid number of cities are contained within the provided path')
+            if path_is_valid:
+                # sort cities into pairs
+                pairs = [(path[i], path[i+1]) for i in range(len(path)-1)]
+                distance = 0
+                for pair in pairs:
+                    distance += math.hypot(coordinates[pair[0]][0] - coordinates[pair[1]][0], coordinates[pair[0]][1] - coordinates[pair[1]][1])
     return distance if not np.isnan(distance) else np.inf
 
 def get_multi_minmax_tour_distance(synapse: GraphV2Synapse)->float:
@@ -125,16 +130,22 @@ def get_multi_minmax_tour_distance(synapse: GraphV2Synapse)->float:
     depots=problem.depots
 
     if isinstance(paths,list):
-        assert is_valid_multi_path(paths, depots, problem.n_nodes), ValueError('Provided path is invalid')
-        # assert len(path) == problem.n_nodes+1, ValueError('An invalid number of cities are contained within the provided path')
-        distances = []
-        for path in paths:
-            distance = 0
-            for i, source in enumerate(path[:-1]):
-                destination = path[i+1]
-                distance += edges[source][destination]
-            distances.append(distance)
-        max_distance = max(distances)
+        paths_are_valid =  is_valid_multi_path(paths, depots, problem.n_nodes)
+        if paths_are_valid:
+            # assert len(path) == problem.n_nodes+1, ValueError('An invalid number of cities are contained within the provided path')
+            distances = []
+            for path in paths:
+                distance = 0
+                for i, source in enumerate(path[:-1]):
+                    destination = path[i+1]
+                    try:
+                        distance += edges[source][destination]
+                    except IndexError as e:
+                        print(f"IndexError with source: {source}, destination: {destination}, distance_mat_shape: {np.array(edges).shape}")
+                distances.append(distance)
+            max_distance = max(distances)
+        else:
+            bt.logging.trace(f"Received invalid paths: {paths}")
     return max_distance if not np.isnan(distance) else np.inf
 
 def normalize_coordinates(coordinates:List[List[Union[int,float]]]):
@@ -201,48 +212,65 @@ def check_nodes(solution:List[int], n_cities:int):
 def start_and_end(solution:List[int]):
     return solution[0] == solution[-1]
 
-def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem], solution:List[int]):
-    if solution == None:
-        return False
-    if isinstance(solution, bool):
-        return False
-    
-    if "mTSP" in problem.problem_type:
-        # This is an mTSP
-        # check if there are as many paths as salesmen
-        if len(solution) != problem.n_salesmen:
-            return False
-        if problem.to_origin == True:
-            if not (all([path[0]==path[-1] for path in solution if len(path) > 0]) and all([len(path)>2 for path in solution if len(path)>0])):
-                for index, path in enumerate(solution):
-                    if len(path) > 0:
-                        if len(path) < 3:
-                            # means that we received an invalid non-empty subtour
-                            return False
-                        elif path[0] != problem.depots[index]:
-                            # means that the i-th salesmen did not depart from the i-th depot
-                            return False
-        if problem.visit_all == True:
-            all_non_depot_nodes = []
-            for path in solution:
-                if path != []:
-                    all_non_depot_nodes.extend(path[1:-1])
-            # check if every node has been visited; This is a valid check for single-depot formulation
-            if not (len(all_non_depot_nodes) == len(set(all_non_depot_nodes)) \
-                and set(all_non_depot_nodes) == set(list(range(1,problem.n_nodes)))):
+def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem], solution:Union[List[List[int]],List[int]]):
+    # nested function to validate solution type
+    def is_valid_solution_type(solution, problem_type):
+        try:
+            assert isinstance(solution, list)
+            if "mTSP" in problem_type:
+                assert all(isinstance(row, list) and all(isinstance(x, int) for x in row) for row in solution)
+            elif "TSP" in problem_type:
+                assert all(isinstance(row, int) for row in solution)
+            else:
+                # received invalid problem type
                 return False
+        except AssertionError as e:
+            # invalid solution format
+            return False
         return True
-    else:
-        if problem.to_origin == True:
-            if problem.visit_all == True:
-                return check_nodes(solution, problem.n_nodes) and start_and_end(solution)
+
+    if is_valid_solution_type(solution, problem.problem_type):
+        if "mTSP" in problem.problem_type:
+            # This is an mTSP
+            # check if there are as many paths as salesmen
+            if len(solution) != problem.n_salesmen:
+                return False
+            if not all([len(path)>=1 for path in solution]):
+                # disallow empty list. If salesman not assigned city, return [depot, depot]
+                return False
+            if all([path[0]==problem.depots[i] for i, path in enumerate(solution)]):
+                if problem.to_origin == True:
+                    if not all([path[0]==path[-1] and len(path)>=2 for path in solution]):
+                        return False
             else:
-                return start_and_end(solution)
+                # not all paths start and end at their respective depots
+                return False
+            
+            if problem.visit_all == True: 
+                all_non_depot_nodes = []
+                for path in solution:
+                    # path[1:-1] is an empty list for [depot, depot]
+                    all_non_depot_nodes.extend(path[1:-1])
+
+                # check if every node has been visited exactly once;
+                if not (len(all_non_depot_nodes) == len(set(all_non_depot_nodes)) \
+                    and set(all_non_depot_nodes) == set(range(problem.n_nodes)).difference(problem.depots)):
+                    return False
+            return True
+        
         else:
-            if problem.visit_all == True:
-                return check_nodes(solution, problem.n_nodes)
+            if problem.to_origin == True:
+                if problem.visit_all == True:
+                    return check_nodes(solution, problem.n_nodes) and start_and_end(solution)
+                else:
+                    return start_and_end(solution)
             else:
-                return True
+                if problem.visit_all == True:
+                    return check_nodes(solution, problem.n_nodes)
+                else:
+                    return True
+    else:
+        return False
 
 def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem])->bool:
     if problem.problem_type == 'Metric TSP':

@@ -24,6 +24,7 @@ from graphite.validator.reward import get_rewards, ScoreResponse
 from graphite.utils.uids import get_available_uids
 
 import time
+from datetime import datetime
 
 from graphite.protocol import GraphV2Problem, GraphV2ProblemMulti, GraphV2Synapse, MAX_SALESMEN
         
@@ -35,6 +36,8 @@ import random
 import requests
 
 from pydantic import ValidationError
+
+# For testing purposes
 
 async def forward(self):
 
@@ -75,32 +78,65 @@ async def forward(self):
 
     # target block ~3 days = 
     # Reference start block
-    ref_start_block = 4138272 # ~ Monday 28/10/2024, 00:00:00 UTC
+    # ref_start_block = 4138272 # ~ Monday 28/10/2024, 00:00:00 UTC
+    # ref_end_block = ref_start_block + 7200 * 3 # 7200 is the estimated number of blocks per day (12s / block)
+    ref_start_block = 3326704 - 7200 * 3
     ref_end_block = ref_start_block + 7200 * 3 # 7200 is the estimated number of blocks per day (12s / block)
 
-    # linearly increase the selection probability from 0 to 0.8
-    ref_value = 0.8 * min(max((self.block-ref_start_block),0)/(ref_end_block - ref_start_block),1)
-    bt.logging.info(f"Selecting mTSP with a probability of: {ref_value}")
+    # linearly increase the selection probability from 0 to 0.8. TSP selection occupies uniform 0.8-1
+    ref_tsp_value = 0.8 * min(max((self.block-ref_start_block),0)/(ref_end_block - ref_start_block),1)
+    # md-mTSP occupies uniform 0-0.4
+    ref_mdmtsp_value = 0.4 * min(max((self.block-ref_start_block),0)/(ref_end_block - ref_start_block),1)
+
+    bt.logging.info(f"Selecting mTSP with a probability of: {ref_tsp_value}")
     # randomly select n_nodes indexes from the selected graph
     prob_select = random.randint(0, len(list(self.loaded_datasets.keys()))-1)
     dataset_ref = list(self.loaded_datasets.keys())[prob_select]
-    if random.random() < ref_value:
-        # determine the number of nodes to select
-        n_nodes = random.randint(500, 2000)
-        bt.logging.info(f"n_nodes V2 mTSP {n_nodes}")
-        bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
-        selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
-        m = random.randint(2, 10)
-        test_problem_obj = GraphV2ProblemMulti(problem_type="Metric mTSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref, n_salesmen=m, depots=[0]*m)
+    selected_problem_type_prob = random.random()
+    if selected_problem_type_prob < ref_tsp_value:
+        if selected_problem_type_prob < ref_mdmtsp_value:
+            # determine the number of nodes to select
+            n_nodes = random.randint(500, 2000)
+            bt.logging.info(f"n_nodes V2 mTSP {n_nodes}")
+            bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
+            selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
+            m = random.randint(2, 10)
+            test_problem_obj = GraphV2ProblemMulti(problem_type="Metric mTSP", 
+                                                   n_nodes=n_nodes, 
+                                                   selected_ids=selected_node_idxs, 
+                                                   cost_function="Geom", 
+                                                   dataset_ref=dataset_ref, 
+                                                   n_salesmen=m, 
+                                                   depots=sorted(random.sample(list(range(n_nodes)), k=m)), 
+                                                   single_depot=False)
+        else:
+            # single depot mTSP
+            n_nodes = random.randint(500, 2000)
+            bt.logging.info(f"n_nodes V2 mTSP {n_nodes}")
+            bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
+            selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
+            m = random.randint(2, 10)
+            test_problem_obj = GraphV2ProblemMulti(problem_type="Metric mTSP", 
+                                                   n_nodes=n_nodes, 
+                                                   selected_ids=selected_node_idxs, 
+                                                   cost_function="Geom", 
+                                                   dataset_ref=dataset_ref, 
+                                                   n_salesmen=m, 
+                                                   depots=[0 for _ in range(m)])
+
     else:
         n_nodes = random.randint(2000, 5000)
         bt.logging.info(f"n_nodes V2 TSP {n_nodes}")
         bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
         selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
         test_problem_obj = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
+
     try:
         graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
-        bt.logging.info(f"GraphV2Synapse {graphsynapse_req.problem.problem_type}, n_nodes: {graphsynapse_req.problem.n_nodes}")
+        if "mTSP" in graphsynapse_req.problem.problem_type:
+            bt.logging.info(f"GraphV2Synapse {graphsynapse_req.problem.problem_type}, n_nodes: {graphsynapse_req.problem.n_nodes}, depots: {graphsynapse_req.problem.depots}\n")
+        else:
+            bt.logging.info(f"GraphV2Synapse {graphsynapse_req.problem.problem_type}, n_nodes: {graphsynapse_req.problem.n_nodes}\n")
     except ValidationError as e:
         bt.logging.debug(f"GraphV2Synapse Validation Error: {e.json()}")
         bt.logging.debug(e.errors())
@@ -166,8 +202,11 @@ async def forward(self):
     wandb_miner_solution = [[] for _ in range(self.metagraph.n.item())]
     wandb_axon_elapsed = [np.inf for _ in range(self.metagraph.n.item())]
     wandb_rewards = [0 for _ in range(self.metagraph.n.item())]
+    best_solution_uid = 0
     for id, uid in enumerate(miner_uids):
         wandb_rewards[uid] = rewards[id]
+        if wandb_rewards[uid] == rewards.max():
+            best_solution_uid = uid
         wandb_miner_distance[uid] = score_response_obj.score_response(responses[id]) if score_response_obj.score_response(responses[id])!=None else 0
         wandb_miner_solution[uid] = responses[id].solution
         wandb_axon_elapsed[uid] = responses[id].dendrite.process_time
@@ -279,6 +318,11 @@ async def forward(self):
 
     try:
         configDict["time_elapsed"] = wandb_axon_elapsed
+    except:
+        pass
+
+    try:
+        configDict["best_solution"] = wandb_miner_solution[best_solution_uid]
     except:
         pass
     
