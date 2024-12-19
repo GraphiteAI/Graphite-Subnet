@@ -80,7 +80,7 @@ async def forward(self):
     ref_end_block = ref_start_block + 7200 * 3 # 7200 is the estimated number of blocks per day (12s / block)
 
     # linearly increase the selection probability from 0 to 0.8. TSP selection occupies uniform 0.8-1
-    ref_tsp_value = 0.8 * min(max((self.block-ref_start_block),0)/(ref_end_block - ref_start_block),1)
+    ref_tsp_value = 0.8
     # md-mTSP occupies uniform 0-0.4
     ref_mdmtsp_value = 0.4 * min(max((self.block-ref_start_block),0)/(ref_end_block - ref_start_block),1)
 
