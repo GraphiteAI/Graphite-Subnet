@@ -552,7 +552,7 @@ class BaseValidatorNeuron(BaseNeuron):
         else:
             # self.step = 0 # already set in BaseNeuron init
             current_incentive = np.array(self.metagraph.I)
-            self.scores = self.scores = (current_incentive - np.min(current_incentive))/(np.max(current_incentive)-np.min(current_incentive))
+            self.scores = (current_incentive - np.min(current_incentive))/(np.max(current_incentive)-np.min(current_incentive))
             self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
         
         # call resync metagraph to make appropriate updates from saved state
