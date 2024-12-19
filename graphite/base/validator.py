@@ -63,7 +63,8 @@ class BaseValidatorNeuron(BaseNeuron):
         super().__init__(config=config)
 
         # Save a copy of the hotkeys to local memory.
-        self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
+        ## |__ Moved to load_state() which implicitly sets hotkeys
+        self.load_state()
         # instantiate wandb
         self.instantiate_wandb()
 
@@ -76,8 +77,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
         # Set up initial scoring weights for validation
         bt.logging.info("Building validation weights.")
-        current_incentive = np.array(self.metagraph.I)
-        self.scores = (current_incentive - np.min(current_incentive))/(np.max(current_incentive)-np.min(current_incentive))
+        
         bt.logging.info(f"Initiating validator with scores: {self.scores}")
 
         self.uid_query_sets = []
@@ -333,11 +333,12 @@ class BaseValidatorNeuron(BaseNeuron):
                 if self.should_exit:
                     break
 
-                # Sync metagraph and potentially set weights.
+                # Sync metagraph and set weights if 1 epoch (300 blocks) has passed.
                 time.sleep(12)
                 bt.logging.info(f"METAGRAPH UPDATE {time.time()}")
                 self.sync()
 
+                # increment step each block and update view on the metagraph
                 self.step += 1
 
         # If someone intentionally stops the validator, it'll safely terminate operations.
@@ -539,8 +540,20 @@ class BaseValidatorNeuron(BaseNeuron):
         """Loads the state of the validator from a file."""
         bt.logging.info("Loading validator state.")
 
-        # Load the state of the validator from file.
-        state = np.load(self.config.neuron.full_path + "/state.npz")
-        self.step = state["step"]
-        self.scores = state["scores"]
-        self.hotkeys = state["hotkeys"]
+        # Load the state of the validator from file. --> Check if state exists if not initiate using default values
+
+        if os.path.exists(self.config.neuron.full_path + "/state.npz"):
+            # load in state
+            state = np.load(self.config.neuron.full_path + "/state.npz")
+            self.step = state["step"]
+            self.scores = state["scores"]
+            self.hotkeys = state["hotkeys"]
+
+        else:
+            # self.step = 0 # already set in BaseNeuron init
+            current_incentive = np.array(self.metagraph.I)
+            self.scores = self.scores = (current_incentive - np.min(current_incentive))/(np.max(current_incentive)-np.min(current_incentive))
+            self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
+        
+        # call resync metagraph to make appropriate updates from saved state
+        self.resync_metagraph()
