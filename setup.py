@@ -72,6 +72,11 @@ setup(
     author="Graphite Team; ", 
     packages=find_packages(),
     include_package_data=True,
+    package_data={
+        'graphite': [
+            '*.json'
+        ]
+    },
     author_email="team@graphite-ai.net",
     license="MIT",
     python_requires=">=3.10",
