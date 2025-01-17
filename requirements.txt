@@ -1,4 +1,5 @@
-bittensor==8.5.1
+bittensor==8.5.1rc6
+bittensor-cli==8.2.0rc10
 pydantic==2.8.2
 numpy==2.0.1
 pandas==2.2.2
