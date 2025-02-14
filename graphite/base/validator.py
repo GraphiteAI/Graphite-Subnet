@@ -538,6 +538,11 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def load_state(self):
         """Loads the state of the validator from a file."""
+        def merge_state(saved: np.ndarray, current: np.ndarray):
+            result = current.copy()
+            result[:len(saved)] = saved
+            return result
+        
         bt.logging.info("Loading validator state.")
 
         # Load the state of the validator from file. --> Check if state exists if not initiate using default values
@@ -545,10 +550,12 @@ class BaseValidatorNeuron(BaseNeuron):
         if os.path.exists(self.config.neuron.full_path + "/state.npz"):
             # load in state
             try:
+                # merge saved state with current metagraph
                 state = np.load(self.config.neuron.full_path + "/state.npz")
                 self.step = state["step"]
-                self.scores = state["scores"]
-                self.hotkeys = state["hotkeys"]
+                current_incentive = np.array(self.metagraph.I)
+                self.scores = merge_state(state["scores"], (current_incentive - np.min(current_incentive))/(np.max(current_incentive)-np.min(current_incentive)))
+                self.hotkeys = self.metagraph.hotkeys
             except EOFError:
                 current_incentive = np.array(self.metagraph.I)
                 self.scores = (current_incentive - np.min(current_incentive))/(np.max(current_incentive)-np.min(current_incentive))
