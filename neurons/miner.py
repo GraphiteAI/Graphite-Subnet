@@ -29,7 +29,7 @@ from graphite.base.miner import BaseMinerNeuron
 from graphite.protocol import IsAlive
 
 from graphite.solvers import NearestNeighbourSolver, DPSolver, NearestNeighbourMultiSolver, NearestNeighbourMultiSolver2, InsertionMultiSolver
-from graphite.protocol import GraphV2Problem, GraphV1Synapse, GraphV2Synapse, GraphV2ProblemMulti
+from graphite.protocol import GraphV2Problem, GraphV1Synapse, GraphV2Synapse, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained
 from graphite.utils.graph_utils import get_multi_minmax_tour_distance
 
 class Miner(BaseMinerNeuron):

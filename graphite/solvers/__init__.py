@@ -5,4 +5,5 @@ from .greedy_solver import NearestNeighbourSolver
 from .hpn_solver import HPNSolver
 from .greedy_solver_multi import NearestNeighbourMultiSolver
 from .greedy_solver_multi_2 import NearestNeighbourMultiSolver2
+from .greedy_solver_multi_3 import NearestNeighbourMultiSolver3
 from .insertion_solver_multi import InsertionMultiSolver

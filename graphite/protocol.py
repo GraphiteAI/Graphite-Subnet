@@ -252,11 +252,63 @@ class GraphV2ProblemMulti(GraphV2Problem):
         return info
 
 
+class GraphV2ProblemMultiConstrained(GraphV2ProblemMulti):
+    problem_type: Literal['Metric cmTSP', 'General cmTSP'] = Field('Metric cmTSP', description="Problem Type")
+    demand: List[int] = Field([1, 1], description="Demand of each node, we are starting with 1")
+    constraint: List[int] = Field([100, 100], description="Constaint of each salesmen/delivery vehicle")
+    single_depot: bool = Field(False, description="Whether problem is a single or multi depot formulation")
+    
+    @model_validator(mode='after')
+    def assert_salesmen_depot(self):
+        assert len(self.depots) == self.n_salesmen, ValueError('Number of salesmen must match number of depots')
+        return self
+
+    @model_validator(mode='after')
+    def force_obj_function(self):
+        if self.problem_type in ['Metric cmTSP', 'General cmTSP']:
+            assert self.objective_function == 'min', ValueError('Subnet currently only supports minimization TSP')
+        return self
+    
+    @model_validator(mode="after")
+    def assert_depots(self):
+        if self.single_depot:
+            assert all([depot==0 for depot in self.depots]), ValueError('Single depot definition of cmTSP requires depots to be an array of 0')
+        return self
+    
+    @model_validator(mode="after")
+    def assert_fulfilment(self):
+        assert sum(self.demand) <= sum(self.constraint), ValueError('Single depot definition of cmTSP requires depots to be an array of 0')
+        return self
+    
+    def get_info(self, verbosity: int = 1) -> dict:
+        info = {}
+        if verbosity == 1:
+            info["Problem Type"] = self.problem_type
+        elif verbosity == 2:
+            info["Problem Type"] = self.problem_type
+            info["Objective Function"] = self.objective_function
+            info["To Visit All Nodes"] = self.visit_all
+            info["To Return to Origin"] = self.to_origin
+            info["Number of Nodes"] = self.n_nodes
+            info["Directed"] = self.directed
+            info["Simple"] = self.simple
+            info["Weighted"] = self.weighted
+            info["Repeating"] = self.repeating
+            info["Demands"] = self.demand
+            info["Constraints"] = self.constraint
+        elif verbosity == 3:
+            for field in self.model_fields:
+                description = self.model_fields[field].description
+                value = getattr(self, field)
+                info[description] = value
+        return info
+
+
 class GraphV2Synapse(bt.Synapse):
     '''
     Implement necessary serialization and deserialization checks
     '''
-    problem: Union[GraphV2Problem, GraphV2ProblemMulti]
+    problem: Union[GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained]
     solution: Optional[Union[List[List[int]], List[int], bool]] = None
 
     def to_headers(self) -> dict:

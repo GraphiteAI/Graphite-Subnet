@@ -17,21 +17,25 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-from graphite.solvers import NearestNeighbourSolver, NearestNeighbourMultiSolver, BeamSearchSolver, HPNSolver, DPSolver, NearestNeighbourMultiSolver2
+from graphite.solvers import NearestNeighbourSolver, NearestNeighbourMultiSolver, BeamSearchSolver, HPNSolver, DPSolver, NearestNeighbourMultiSolver2, NearestNeighbourMultiSolver3
 from graphite.utils.graph_utils import get_tour_distance, get_multi_minmax_tour_distance
 
 BENCHMARK_SOLUTIONS = {
     'Metric TSP': NearestNeighbourSolver,
     'General TSP': NearestNeighbourSolver,
     'Metric mTSP': NearestNeighbourMultiSolver2,
-    'General mTSP': NearestNeighbourMultiSolver2
+    'General mTSP': NearestNeighbourMultiSolver2,
+    'Metric cmTSP': NearestNeighbourMultiSolver3,
+    'General cmTSP': NearestNeighbourMultiSolver3
 } # mapping benchmark solvers to each problem
 
 COST_FUNCTIONS = {
     'Metric TSP': get_tour_distance,
     'General TSP': get_tour_distance,
     'Metric mTSP': get_multi_minmax_tour_distance,
-    'General mTSP': get_multi_minmax_tour_distance
+    'General mTSP': get_multi_minmax_tour_distance,
+    'Metric cmTSP': get_multi_minmax_tour_distance,
+    'General cmTSP': get_multi_minmax_tour_distance
 }
 
 HEURISTIC_SOLVERS = [NearestNeighbourSolver, BeamSearchSolver, HPNSolver]

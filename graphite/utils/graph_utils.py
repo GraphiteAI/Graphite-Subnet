@@ -20,7 +20,7 @@
 import math
 from typing import List, Union
 import numpy as np
-from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse, GraphV2ProblemMulti
+from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained
 from functools import wraps, partial
 import bittensor as bt
 import asyncio
@@ -212,7 +212,7 @@ def check_nodes(solution:List[int], n_cities:int):
 def start_and_end(solution:List[int]):
     return solution[0] == solution[-1]
 
-def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem], solution:Union[List[List[int]],List[int]]):
+def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained], solution:Union[List[List[int]],List[int]]):
     # nested function to validate solution type
     def is_valid_solution_type(solution, problem_type):
         try:
@@ -230,7 +230,40 @@ def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem], solution:Un
         return True
 
     if is_valid_solution_type(solution, problem.problem_type):
-        if "mTSP" in problem.problem_type:
+        if "cmTSP" in problem.problem_type:
+            # This is an cmTSP
+            # check if there are as many paths as salesmen
+            if len(solution) != problem.n_salesmen:
+                return False
+            if not all([len(path)>=1 for path in solution]):
+                # disallow empty list. If salesman not assigned city, return [depot, depot]
+                return False
+            for idx, path in enumerate(solution):
+                if len(path) - 2 > problem.constraint[idx]:
+                    return False
+            if not all([len(path)>=1 for path in solution]):
+                # disallow empty list. If salesman not assigned city, return [depot, depot]
+                return False
+            if all([path[0]==problem.depots[i] for i, path in enumerate(solution)]):
+                if problem.to_origin == True:
+                    if not all([path[0]==path[-1] and len(path)>=2 for path in solution]):
+                        return False
+            else:
+                # not all paths start and end at their respective depots
+                return False
+            
+            if problem.visit_all == True: 
+                all_non_depot_nodes = []
+                for path in solution:
+                    # path[1:-1] is an empty list for [depot, depot]
+                    all_non_depot_nodes.extend(path[1:-1])
+
+                # check if every node has been visited exactly once;
+                if not (len(all_non_depot_nodes) == len(set(all_non_depot_nodes)) \
+                    and set(all_non_depot_nodes) == set(range(problem.n_nodes)).difference(problem.depots)):
+                    return False
+            return True
+        elif "mTSP" in problem.problem_type:
             # This is an mTSP
             # check if there are as many paths as salesmen
             if len(solution) != problem.n_salesmen:
@@ -324,6 +357,47 @@ def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem])->bool:
             bt.logging.info(problem.get_info(verbosity=2))
             return False
 
+    elif problem.problem_type == 'Metric cmTSP':
+        if (problem.directed==False) \
+            and (problem.visit_all==True) \
+            and (problem.to_origin==True) \
+            and (problem.objective_function=='min') \
+            and (problem.n_salesmen > 1) \
+            and (len(problem.depots)==problem.n_salesmen) \
+            and (len(problem.demand) == problem.n_nodes) \
+            and (len(problem.constraint) == problem.n_salesmen) \
+            and (sum(problem.demand) <= sum(problem.constraint)):
+            if problem.single_depot == True:
+                # assert that all the depots be at source city #0
+                return True if all([depot==0 for depot in problem.depots]) else False
+            else:
+                # assert that all depots are different
+                return True if len(set(problem.depots)) == len(problem.depots) else False
+        else:
+            bt.logging.info(f"Received an invalid Metric mTSP problem")
+            bt.logging.info(problem.get_info(verbosity=2))
+            return False
+    elif problem.problem_type == 'General cmTSP':
+        if (problem.directed==True) \
+            and (problem.visit_all==True) \
+            and (problem.to_origin==True) \
+            and (problem.objective_function=='min') \
+            and (problem.n_salesmen > 1) \
+            and (len(problem.depots)==problem.n_salesmen) \
+            and (len(problem.demand) == problem.n_nodes) \
+            and (len(problem.constraint) == problem.n_salesmen) \
+            and (sum(problem.demand) <= sum(problem.constraint)):
+            if problem.single_depot == True:
+                # assert that all the depots be at source city #0
+                return True if all([depot==0 for depot in problem.depots]) else False
+            else:
+                # assert that all depots are different
+                return True if len(set(problem.depots)) == len(problem.depots) else False
+        else:
+            bt.logging.info(f"Received an invalid General mTSP problem")
+            bt.logging.info(problem.get_info(verbosity=2))
+            return False
+        
 def timeout(seconds=30, error_message="Solver timed out"):
     '''
     basic implementation of async function timeout.
