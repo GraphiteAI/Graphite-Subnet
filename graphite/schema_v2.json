@@ -57,7 +57,7 @@
         "dataset_ref": {
           "default": "Asia_MSB",
           "description": "Dataset reference file",
-          "enum": ["Asia_MSB", "World_TSP"],
+          "enum": ["Asia_MSB", "World_TSP", "USA_POI"],
           "title": "Dataset Ref",
           "type": "string"
         },
@@ -186,7 +186,7 @@
         "dataset_ref": {
           "default": "Asia_MSB",
           "description": "Dataset reference file",
-          "enum": ["Asia_MSB", "World_TSP"],
+          "enum": ["Asia_MSB", "World_TSP", "USA_POI"],
           "title": "Dataset Ref",
           "type": "string"
         },
@@ -336,7 +336,7 @@
         "dataset_ref": {
           "default": "Asia_MSB",
           "description": "Dataset reference file",
-          "enum": ["Asia_MSB", "World_TSP"],
+          "enum": ["Asia_MSB", "World_TSP", "USA_POI"],
           "title": "Dataset Ref",
           "type": "string"
         },
