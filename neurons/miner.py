@@ -28,7 +28,7 @@ import graphite
 from graphite.base.miner import BaseMinerNeuron
 from graphite.protocol import IsAlive
 
-from graphite.solvers import NearestNeighbourSolver, DPSolver, NearestNeighbourMultiSolver, NearestNeighbourMultiSolver2, InsertionMultiSolver
+from graphite.solvers import NearestNeighbourSolver, DPSolver, NearestNeighbourMultiSolver, NearestNeighbourMultiSolver2, NearestNeighbourMultiSolver3, InsertionMultiSolver
 from graphite.protocol import GraphV2Problem, GraphV1Synapse, GraphV2Synapse, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained
 from graphite.utils.graph_utils import get_multi_minmax_tour_distance
 
@@ -63,6 +63,7 @@ class Miner(BaseMinerNeuron):
             'multi_large_1': NearestNeighbourMultiSolver(),
             'multi_large_2': NearestNeighbourMultiSolver2(), # adapted to handle multi-depot
             'multi_large_3': InsertionMultiSolver(), # adapted to handle multi-depot
+            'multi_constrained': NearestNeighbourMultiSolver3(),
         }
     
     async def is_alive(self, synapse: IsAlive) -> IsAlive:
@@ -209,7 +210,7 @@ class Miner(BaseMinerNeuron):
         if not isinstance(synapse.problem, GraphV2ProblemMulti):
             route = await self.solvers['large'].solve_problem(synapse.problem)
             synapse.solution = route
-        else:
+        elif not isinstance(synapse.problem, GraphV2ProblemMultiConstrained):
             # further split
             if not synapse.problem.single_depot:
                 # run all 3 basic algorithms and return the best scoring solution
@@ -233,6 +234,14 @@ class Miner(BaseMinerNeuron):
                 score_3 = get_multi_minmax_tour_distance(synapse)
                 routes = [routes_1, routes_2, routes_3]
                 scores = [score_1, score_2, score_3]
+            bt.logging.info(f"Selecting algorithm {scores.index(min(scores))}")
+            synapse.solution = routes[scores.index(min(scores))]
+        else:
+            routes_1 = await self.solvers['multi_constrained'].solve_problem(synapse.problem)
+            synapse.solution = routes_1
+            score_1 = get_multi_minmax_tour_distance(synapse)
+            routes = [routes_1]
+            scores = [score_1]
             bt.logging.info(f"Selecting algorithm {scores.index(min(scores))}")
             synapse.solution = routes[scores.index(min(scores))]
 
