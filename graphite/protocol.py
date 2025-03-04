@@ -135,7 +135,7 @@ class GraphV2Problem(BaseModel):
     n_nodes: conint(ge=2000, le=5000) = Field(2000, description="Number of Nodes (must be between 2000 and 5000)")
     selected_ids: List[int] = Field(default_factory=list, description="List of selected node positional indexes")
     cost_function: Literal['Geom', 'Euclidean2D', 'Manhatten2D', 'Euclidean3D', 'Manhatten3D'] = Field('Geom', description="Cost function")
-    dataset_ref: Literal['Asia_MSB', 'World_TSP'] = Field('Asia_MSB', description="Dataset reference file")
+    dataset_ref: Literal['Asia_MSB', 'World_TSP', 'USA_POI'] = Field('Asia_MSB', description="Dataset reference file")
     nodes: Union[List[List[Union[conint(ge=0), confloat(ge=0)]]], Iterable, None] = Field(default_factory=list, description="Node Coordinates")  # If not none, nodes represent the coordinates of the cities
     edges: Union[List[List[Union[conint(ge=0), confloat(ge=0)]]], Iterable, None] = Field(default_factory=list, description="Edge Weights")  # If not none, this represents a square matrix of edges where edges[source;row][destination;col] is the cost of a given edge
     directed: bool = Field(False, description="Directed Graph")  # boolean for whether the graph is directed or undirected / Symmetric or Asymmetric
@@ -196,7 +196,7 @@ class GraphV2ProblemMulti(GraphV2Problem):
     # Note that in this initial problem formulation, we will start with a single depot structure
     single_depot: bool = Field(True, description="Whether problem is a single or multi depot formulation")
     depots: List[int] = Field([0,0], description="List of selected 'city' indices for which the respective salesmen paths begin")
-    dataset_ref: Literal['Asia_MSB', 'World_TSP'] = Field('Asia_MSB', description="Dataset reference file")
+    dataset_ref: Literal['Asia_MSB', 'World_TSP', 'USA_POI'] = Field('Asia_MSB', description="Dataset reference file")
 
     ### Expensive check only needed for organic requests
     # @model_validator(mode='after')
