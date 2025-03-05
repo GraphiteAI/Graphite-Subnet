@@ -387,7 +387,7 @@ async def forward(self):
             if rewards[i] != 0.2:
                 new_rewards.append([0])
                 new_miner_uids.append(miner_uids[i])
-        new_rewards = new_rewards.numpy(force=True)
+        new_rewards = np.array(new_rewards)  # Creates (N,)
         self.update_scores(new_rewards, new_miner_uids)
         time.sleep(16) # for each block, limit 1 request per block
 
