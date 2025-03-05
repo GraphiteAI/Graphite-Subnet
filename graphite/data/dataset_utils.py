@@ -19,7 +19,7 @@ import bittensor as bt
 from huggingface_hub import hf_hub_download
 
 import time
-from graphite.data.constants import ASIA_MSB_DETAILS, WORLD_TSP_DETAILS
+from graphite.data.constants import ASIA_MSB_DETAILS, WORLD_TSP_DETAILS, USA_POI_DETAILS
 
 DATASET_DIR = Path(__file__).resolve().parent.parent.parent.joinpath("dataset")
 
@@ -217,9 +217,24 @@ def check_and_get_wtsp():
             except HTTPError as e:
                 bt.logging.error(f"Error fetching data from endpoint: {e}")
 
+def check_and_get_usa_poi():
+    fp = get_file_path(USA_POI_DETAILS['ref_id'])
+    if fp.exists():
+        # we have already downloaded and processed the data
+        bt.logging.info(f"{USA_POI_DETAILS['ref_id']} already downloaded")
+        return
+    else:
+        try:
+            create_directory_if_not_exists(DATASET_DIR)
+            bt.logging.info(f"Downloading {USA_POI_DETAILS['ref_id']} data from huggingface")
+            hf_hub_download(repo_id="Graphite-AI/coordinate_data", filename="USA_POI.npz", repo_type="dataset", local_dir=DATASET_DIR)
+        except:
+            bt.logging.error(f"Error downloading {USA_POI_DETAILS['ref_id']} data from huggingface")
+
 def download_default_datasets():
     check_and_get_msb()
     check_and_get_wtsp()
+    check_and_get_usa_poi()
 
 def load_default_dataset(neuron):
     '''
@@ -232,7 +247,8 @@ def load_default_dataset(neuron):
     # set the neuron dataset attribute
     neuron.loaded_datasets = {
         ASIA_MSB_DETAILS['ref_id']: load_dataset(ASIA_MSB_DETAILS['ref_id']),
-        WORLD_TSP_DETAILS['ref_id']: load_dataset(WORLD_TSP_DETAILS['ref_id'])
+        WORLD_TSP_DETAILS['ref_id']: load_dataset(WORLD_TSP_DETAILS['ref_id']),
+        USA_POI_DETAILS['ref_id']: load_dataset(USA_POI_DETAILS['ref_id'])
     }
 
 #_________________________________________#
@@ -307,3 +323,4 @@ if __name__=="__main__":
     print(DATASET_DIR)
     check_and_get_wtsp()
     check_and_get_msb()
+    check_and_get_usa_poi()

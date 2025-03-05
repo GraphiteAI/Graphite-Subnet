@@ -26,7 +26,7 @@ from graphite.utils.uids import get_available_uids
 import time
 from datetime import datetime
 
-from graphite.protocol import GraphV2Problem, GraphV2ProblemMulti, GraphV2Synapse, MAX_SALESMEN
+from graphite.protocol import GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2Synapse, MAX_SALESMEN
         
 import numpy as np
 import json
@@ -34,6 +34,7 @@ import wandb
 import os
 import random
 import requests
+import math
 
 from pydantic import ValidationError
 
@@ -74,15 +75,11 @@ async def forward(self):
     except:
         api_response_output = []
 
-    # target block ~3 days = 
-    # Reference start block
-    ref_start_block = 4519943 # ~ Friday 20/12/2024, 03:00:00 UTC
-    ref_end_block = ref_start_block + 7200 * 3 # 7200 is the estimated number of blocks per day (12s / block)
-
-    # linearly increase the selection probability from 0 to 0.8. TSP selection occupies uniform 0.8-1
-    ref_tsp_value = 0.8
-    # md-mTSP occupies uniform 0-0.4
-    ref_mdmtsp_value = 0.6 # * min(max((self.block-ref_start_block),0)/(ref_end_block - ref_start_block),1)
+    # problem weights
+    ref_tsp_value = 0.1
+    ref_mtsp_value = 0.1
+    ref_mdmtsp_value = 0.1 
+    ref_cmdmtsp_value = 0.7
 
     bt.logging.info(f"Selecting mTSP with a probability of: {ref_tsp_value}")
     # randomly select n_nodes indexes from the selected graph
@@ -90,43 +87,65 @@ async def forward(self):
     dataset_ref = list(self.loaded_datasets.keys())[prob_select]
     selected_problem_type_prob = random.random()
     if selected_problem_type_prob < ref_tsp_value:
-        if selected_problem_type_prob < ref_mdmtsp_value:
-            # determine the number of nodes to select
-            n_nodes = random.randint(500, 2000)
-            bt.logging.info(f"n_nodes V2 mTSP {n_nodes}")
-            bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
-            selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
-            m = random.randint(2, 10)
-            test_problem_obj = GraphV2ProblemMulti(problem_type="Metric mTSP", 
-                                                   n_nodes=n_nodes, 
-                                                   selected_ids=selected_node_idxs, 
-                                                   cost_function="Geom", 
-                                                   dataset_ref=dataset_ref, 
-                                                   n_salesmen=m, 
-                                                   depots=sorted(random.sample(list(range(n_nodes)), k=m)), 
-                                                   single_depot=False)
-        else:
-            # single depot mTSP
-            n_nodes = random.randint(500, 2000)
-            bt.logging.info(f"n_nodes V2 mTSP {n_nodes}")
-            bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
-            selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
-            m = random.randint(2, 10)
-            test_problem_obj = GraphV2ProblemMulti(problem_type="Metric mTSP", 
-                                                   n_nodes=n_nodes, 
-                                                   selected_ids=selected_node_idxs, 
-                                                   cost_function="Geom", 
-                                                   dataset_ref=dataset_ref, 
-                                                   n_salesmen=m, 
-                                                   depots=[0 for _ in range(m)])
-
-    else:
         n_nodes = random.randint(2000, 5000)
         bt.logging.info(f"n_nodes V2 TSP {n_nodes}")
         bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
         selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
         test_problem_obj = GraphV2Problem(problem_type="Metric TSP", n_nodes=n_nodes, selected_ids=selected_node_idxs, cost_function="Geom", dataset_ref=dataset_ref)
-
+    elif selected_problem_type_prob < ref_tsp_value + ref_mtsp_value:
+        # single depot mTSP
+        n_nodes = random.randint(500, 2000)
+        bt.logging.info(f"n_nodes V2 mTSP {n_nodes}")
+        bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
+        selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
+        m = random.randint(2, 10)
+        test_problem_obj = GraphV2ProblemMulti(problem_type="Metric mTSP", 
+                                                n_nodes=n_nodes, 
+                                                selected_ids=selected_node_idxs, 
+                                                cost_function="Geom", 
+                                                dataset_ref=dataset_ref, 
+                                                n_salesmen=m, 
+                                                depots=[0 for _ in range(m)])
+    elif selected_problem_type_prob < ref_tsp_value + ref_mtsp_value + ref_mdmtsp_value:
+        # multi depot mTSP
+        n_nodes = random.randint(500, 2000)
+        bt.logging.info(f"n_nodes V2 mTSP {n_nodes}")
+        bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
+        selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
+        m = random.randint(2, 10)
+        test_problem_obj = GraphV2ProblemMulti(problem_type="Metric mTSP", 
+                                                n_nodes=n_nodes, 
+                                                selected_ids=selected_node_idxs, 
+                                                cost_function="Geom", 
+                                                dataset_ref=dataset_ref, 
+                                                n_salesmen=m, 
+                                                depots=sorted(random.sample(list(range(n_nodes)), k=m)), 
+                                                single_depot=False)
+    else:
+        # constrained multi depot mTSP
+        n_nodes = random.randint(500, 2000)
+        bt.logging.info(f"n_nodes V2 cmTSP {n_nodes}")
+        bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
+        selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
+        m = random.randint(2, 10)
+        constraint = []
+        depots = sorted(random.sample(list(range(n_nodes)), k=m))
+        demand = [1]*n_nodes
+        for depot in depots:
+            demand[depot] = 0
+        constraint = [(math.ceil(n_nodes/m) + random.randint(0, int(n_nodes/m * 0.3)) - random.randint(0, int(n_nodes/m * 0.2))) for _ in range(m-1)]
+        constraint += [(math.ceil(n_nodes/m) + random.randint(0, int(n_nodes/m * 0.3)) - random.randint(0, int(n_nodes/m * 0.2)))] if sum(constraint) > n_nodes - (math.ceil(n_nodes/m) - random.randint(0, int(n_nodes/m * 0.2))) else [(n_nodes - sum(constraint) + random.randint(int(n_nodes/m * 0.2), int(n_nodes/m * 0.3)))]
+        test_problem_obj = GraphV2ProblemMultiConstrained(problem_type="Metric cmTSP", 
+                                                n_nodes=n_nodes, 
+                                                selected_ids=selected_node_idxs, 
+                                                cost_function="Geom", 
+                                                dataset_ref=dataset_ref, 
+                                                n_salesmen=m, 
+                                                depots=depots, 
+                                                single_depot=False,
+                                                demand=demand,
+                                                constraint=constraint)
+    
     try:
         graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
         if "mTSP" in graphsynapse_req.problem.problem_type:
@@ -169,7 +188,6 @@ async def forward(self):
         timeout = 30 + reconstruct_edge_time, # 30s + time to reconstruct, can scale with problem types in the future
     )
 
-
     if isinstance(test_problem_obj, GraphV2Problem):
         test_problem_obj.edges = edges
         # with open("gs_logs.txt", "a") as f:
@@ -179,8 +197,6 @@ async def forward(self):
     for idx, res in enumerate(responses):
         # trace log the process times
         bt.logging.trace(f"Miner {miner_uids[idx]} status code: {res.dendrite.status_code}, process_time: {res.dendrite.process_time}")
-        
-
 
     bt.logging.info(f"NUMBER OF RESPONSES: {len(responses)}")
 
@@ -310,7 +326,11 @@ async def forward(self):
         configDict["depots"] = graphsynapse_req.problem.depots
     except:
         pass
-
+    try:
+        configDict["demand"] = graphsynapse_req.problem.demand
+        configDict["constraint"] = graphsynapse_req.problem.constraint
+    except:
+        pass
 
     try:
         configDict["time_elapsed"] = wandb_axon_elapsed

@@ -31,7 +31,7 @@ from graphite import __spec_version__ as spec_version
 from graphite.mock import MockSubtensor, MockMetagraph
 from graphite.data.dataset_utils import load_default_dataset
 
-from graphite.protocol import GraphV2Problem, GraphV2ProblemMulti
+from graphite.protocol import GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained
 from graphite.data.distance import geom_edges, man_2d_edges, euc_2d_edges
 import numpy as np
 
@@ -145,7 +145,7 @@ class BaseNeuron(ABC):
         # Always save state.
         self.save_state()
 
-    def recreate_edges(self, problem: Union[GraphV2Problem, GraphV2ProblemMulti]):
+    def recreate_edges(self, problem: Union[GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained]):
         node_coords_np = self.loaded_datasets[problem.dataset_ref]["data"]
         node_coords = np.array([node_coords_np[i][1:] for i in problem.selected_ids])
         if problem.cost_function == "Geom":
