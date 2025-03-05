@@ -380,3 +380,13 @@ async def forward(self):
     if len(rewards) > 0 and max(rewards) == 1:
         self.update_scores(rewards, miner_uids)
         time.sleep(16) # for each block, limit 1 request per block
+    elif max(rewards) == 0.2:
+        new_rewards = []
+        new_miner_uids = []
+        for i in range(len(rewards)):
+            if rewards[i] != 0.2:
+                new_rewards.append([0])
+                new_miner_uids.append(miner_uids[i])
+        self.update_scores(new_rewards, new_miner_uids)
+        time.sleep(16) # for each block, limit 1 request per block
+
