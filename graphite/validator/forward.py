@@ -205,7 +205,14 @@ async def forward(self):
         score_response_obj = ScoreResponse(graphsynapse_req_updated)
 
     score_response_obj.current_num_concurrent_forwards = self.current_num_concurrent_forwards
-    await score_response_obj.get_benchmark()
+
+    try:
+        await score_response_obj.get_benchmark()
+    except:
+        try:
+            await score_response_obj.get_benchmark()
+        except:
+            await score_response_obj.get_benchmark()
 
     rewards = get_rewards(self, score_handler=score_response_obj, responses=responses)
     rewards = rewards.numpy(force=True)
@@ -391,4 +398,3 @@ async def forward(self):
         if len(new_miner_uids) > 0:
             self.update_scores(new_rewards, new_miner_uids)
             time.sleep(16) # for each block, limit 1 request per block
-
