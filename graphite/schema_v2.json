@@ -412,19 +412,6 @@
           "title": "N Salesmen",
           "type": "integer"
         },
-        "single_depot": {
-          "default": false,
-          "description": "Whether problem is a single or multi depot formulation",
-          "title": "Single Depot",
-          "type": "boolean"
-        },
-        "depots": {
-          "default": [0, 0],
-          "description": "List of selected 'city' indices for which the respective salesmen paths begin",
-          "items": { "type": "integer" },
-          "title": "Depots",
-          "type": "array"
-        },
         "demand": {
           "default": [1, 1],
           "description": "Demand of each node, we are starting with 1",
@@ -437,6 +424,19 @@
           "description": "Constaint of each salesmen/delivery vehicle",
           "items": { "type": "integer" },
           "title": "Constraint",
+          "type": "array"
+        },
+        "single_depot": {
+          "default": false,
+          "description": "Whether problem is a single or multi depot formulation",
+          "title": "Single Depot",
+          "type": "boolean"
+        },
+        "depots": {
+          "default": [0, 0],
+          "description": "List of selected 'city' indices for which the respective salesmen paths begin",
+          "items": { "type": "integer" },
+          "title": "Depots",
           "type": "array"
         }
       },
