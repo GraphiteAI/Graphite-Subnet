@@ -542,23 +542,23 @@ class BaseValidatorNeuron(BaseNeuron):
 
         # Load the state of the validator from file. --> Check if state exists if not initiate using default values
 
-        if os.path.exists(self.config.neuron.full_path + "/state.npz"):
-            # load in state
-            try:
-                state = np.load(self.config.neuron.full_path + "/state.npz")
-                self.step = state["step"]
-                self.scores = state["scores"]
-                self.hotkeys = state["hotkeys"]
-            except EOFError:
-                current_incentive = np.array(self.metagraph.I)
-                self.scores = (current_incentive - np.min(current_incentive))/(np.max(current_incentive)-np.min(current_incentive))
-                self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
+        # if os.path.exists(self.config.neuron.full_path + "/state.npz"):
+        #     # load in state
+        #     try:
+        #         state = np.load(self.config.neuron.full_path + "/state.npz")
+        #         self.step = state["step"]
+        #         self.scores = state["scores"]
+        #         self.hotkeys = state["hotkeys"]
+        #     except EOFError:
+        #         current_incentive = np.array(self.metagraph.I)
+        #         self.scores = (current_incentive - np.min(current_incentive))/(np.max(current_incentive)-np.min(current_incentive))
+        #         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
 
-        else:
+        # else:
             # self.step = 0 # already set in BaseNeuron init
-            current_incentive = np.array(self.metagraph.I)
-            self.scores = (current_incentive - np.min(current_incentive))/(np.max(current_incentive)-np.min(current_incentive))
-            self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
+        current_incentive = np.array(self.metagraph.I)
+        self.scores = (current_incentive - np.min(current_incentive))/(np.max(current_incentive)-np.min(current_incentive))
+        self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
         
         # call resync metagraph to make appropriate updates from saved state
         self.resync_metagraph()

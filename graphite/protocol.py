@@ -261,6 +261,7 @@ class GraphV2ProblemMultiConstrained(GraphV2Problem):
     constraint: List[int] = Field([100, 100], description="Constaint of each salesmen/delivery vehicle")
     single_depot: bool = Field(False, description="Whether problem is a single or multi depot formulation")
     depots: List[int] = Field([0,0], description="List of selected 'city' indices for which the respective salesmen paths begin")
+
     
     @model_validator(mode='after')
     def assert_salesmen_depot(self):
@@ -281,7 +282,7 @@ class GraphV2ProblemMultiConstrained(GraphV2Problem):
     
     @model_validator(mode="after")
     def assert_fulfilment(self):
-        assert sum(self.demand) <= sum(self.constraint), ValueError('Single depot definition of cmTSP requires depots to be an array of 0')
+        assert sum(self.demand) <= sum(self.constraint), ValueError('Demand exceeds constraint for cmTSP')
         return self
     
     def get_info(self, verbosity: int = 1) -> dict:

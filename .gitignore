@@ -170,3 +170,6 @@ tests/evaluation_results/solver_run_times.csv
 tests/evaluation_results/solver_scores.csv
 tests/evaluation_results/relative_score.png
 tests/evaluation_results_multi/*
+graphite/base/validator copy.py
+.gitignore
+graphite/validator/forward copy.py

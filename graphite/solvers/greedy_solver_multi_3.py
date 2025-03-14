@@ -96,9 +96,10 @@ class NearestNeighbourMultiSolver3(BaseSolver):
                 if new_distance < min_distance:
                     chosen_city = city
                     min_distance = new_distance
-            distances[chosen_index] = min_distance
-            tours[chosen_index] = chosen_subtour + [chosen_city]
-            unvisited.remove(chosen_city)
+            if chosen_city is not None and chosen_city in unvisited:
+                distances[chosen_index] = min_distance
+                tours[chosen_index] = chosen_subtour + [chosen_city]
+                unvisited.remove(chosen_city)
 
             # Ensure we do not exceed constraint
             if len(tours[chosen_index]) - 1 >= constraints[chosen_index]:  # Exclude depot
