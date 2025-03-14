@@ -207,7 +207,7 @@ class Miner(BaseMinerNeuron):
         bt.logging.info(f"synapse dendrite timeout {synapse.timeout}")
 
         # Conditional assignment of problems to each solver
-        if not isinstance(synapse.problem, GraphV2ProblemMulti):
+        if not isinstance(synapse.problem, GraphV2ProblemMulti) and not isinstance(synapse.problem, GraphV2ProblemMultiConstrained):
             route = await self.solvers['large'].solve_problem(synapse.problem)
             synapse.solution = route
         elif not isinstance(synapse.problem, GraphV2ProblemMultiConstrained):

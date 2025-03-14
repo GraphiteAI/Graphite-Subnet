@@ -122,7 +122,7 @@ def get_multi_minmax_tour_distance(synapse: GraphV2Synapse)->float:
     if not synapse.solution:
         return np.inf
     distance=np.nan
-    assert isinstance(problem, GraphV2ProblemMulti), ValueError(f"Attempting to use multi-path function for problem of type: {type(problem)}")
+    assert isinstance(problem, GraphV2ProblemMulti) or isinstance(problem, GraphV2ProblemMultiConstrained), ValueError(f"Attempting to use multi-path function for problem of type: {type(problem)}")
     
     assert len(problem.edges) == len(problem.edges[0]) and len(problem.edges)==problem.n_nodes, ValueError(f"Wrong distance matrix shape of: ({len(problem.edges[0])}, {len(problem.edges)}) for problem of n_nodes: {problem.n_nodes}")
     edges=problem.edges
