@@ -148,6 +148,13 @@ async def forward(self):
                                                         single_depot=False,
                                                         demand=demand,
                                                         constraint=constraint)
+            
+            except ValidationError as e:
+                # Handle validation errors
+                bt.logging.debug(f"Error in cmTSP: {e}")
+                # reset the test_problem_obj to None to reinstantiate a new problem
+                test_problem_obj = None
+    
             except Exception as e:
                 bt.logging.debug(f"Error in cmTSP: {e}")
                 # reset the test_problem_obj to None to reinstantiate a new problem
