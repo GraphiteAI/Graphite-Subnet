@@ -123,28 +123,36 @@ async def forward(self):
                                                 single_depot=False)
     else:
         # constrained multi depot mTSP
-        n_nodes = random.randint(500, 2000)
-        bt.logging.info(f"n_nodes V2 cmTSP {n_nodes}")
-        bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
-        selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
-        m = random.randint(2, 10)
-        constraint = []
-        depots = sorted(random.sample(list(range(n_nodes)), k=m))
-        demand = [1]*n_nodes
-        for depot in depots:
-            demand[depot] = 0
-        constraint = [(math.ceil(n_nodes/m) + random.randint(0, int(n_nodes/m * 0.3)) - random.randint(0, int(n_nodes/m * 0.2))) for _ in range(m-1)]
-        constraint += [(math.ceil(n_nodes/m) + random.randint(0, int(n_nodes/m * 0.3)) - random.randint(0, int(n_nodes/m * 0.2)))] if sum(constraint) > n_nodes - (math.ceil(n_nodes/m) - random.randint(0, int(n_nodes/m * 0.2))) else [(n_nodes - sum(constraint) + random.randint(int(n_nodes/m * 0.2), int(n_nodes/m * 0.3)))]
-        test_problem_obj = GraphV2ProblemMultiConstrained(problem_type="Metric cmTSP", 
-                                                n_nodes=n_nodes, 
-                                                selected_ids=selected_node_idxs, 
-                                                cost_function="Geom", 
-                                                dataset_ref=dataset_ref, 
-                                                n_salesmen=m, 
-                                                depots=depots, 
-                                                single_depot=False,
-                                                demand=demand,
-                                                constraint=constraint)
+        test_problem_obj = None
+        while test_problem_obj is None:
+            try:
+                n_nodes = random.randint(500, 2000)
+                bt.logging.info(f"n_nodes V2 cmTSP {n_nodes}")
+                bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
+                selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
+                m = random.randint(2, 10)
+                constraint = []
+                depots = sorted(random.sample(list(range(n_nodes)), k=m))
+                demand = [1]*n_nodes
+                for depot in depots:
+                    demand[depot] = 0
+                constraint = [(math.ceil(n_nodes/m) + random.randint(0, int(n_nodes/m * 0.3)) - random.randint(0, int(n_nodes/m * 0.2))) for _ in range(m-1)]
+                constraint += [(math.ceil(n_nodes/m) + random.randint(0, int(n_nodes/m * 0.3)) - random.randint(0, int(n_nodes/m * 0.2)))] if sum(constraint) > n_nodes - (math.ceil(n_nodes/m) - random.randint(0, int(n_nodes/m * 0.2))) else [(n_nodes - sum(constraint) + random.randint(int(n_nodes/m * 0.2), int(n_nodes/m * 0.3)))]
+                test_problem_obj = GraphV2ProblemMultiConstrained(problem_type="Metric cmTSP", 
+                                                        n_nodes=n_nodes, 
+                                                        selected_ids=selected_node_idxs, 
+                                                        cost_function="Geom", 
+                                                        dataset_ref=dataset_ref, 
+                                                        n_salesmen=m, 
+                                                        depots=depots, 
+                                                        single_depot=False,
+                                                        demand=demand,
+                                                        constraint=constraint)
+            except Exception as e:
+                bt.logging.debug(f"Error in cmTSP: {e}")
+                # reset the test_problem_obj to None to reinstantiate a new problem
+                test_problem_obj = None
+        
     
     try:
         graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
