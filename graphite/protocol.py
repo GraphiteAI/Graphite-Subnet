@@ -260,6 +260,7 @@ class GraphV2ProblemMultiConstrained(GraphV2Problem):
     demand: List[int] = Field([1, 1], description="Demand of each node, we are starting with 1")
     constraint: List[int] = Field([100, 100], description="Constaint of each salesmen/delivery vehicle")
     single_depot: bool = Field(default=False, description="Whether problem is a single or multi depot formulation")
+    depots: List[int] = Field([0,0], description="List of selected 'city' indices for which the respective salesmen paths begin")
     
     @model_validator(mode='after')
     def assert_salesmen_depot(self):
