@@ -274,6 +274,7 @@ class GraphV2ProblemMultiConstrained(GraphV2Problem):
     
     @model_validator(mode="after")
     def assert_depots(self):
+        bt.logging.debug(f"Logging for cmTSP: single_depot: {self.single_depot}, depots: {self.depots}")
         if self.single_depot:
             assert all([depot==0 for depot in self.depots]), ValueError('Single depot definition of cmTSP requires depots to be an array of 0')
         return self
