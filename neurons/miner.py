@@ -28,7 +28,7 @@ import graphite
 from graphite.base.miner import BaseMinerNeuron
 from graphite.protocol import IsAlive
 
-from graphite.solvers import NearestNeighbourSolver, DPSolver, NearestNeighbourMultiSolver, NearestNeighbourMultiSolver2, NearestNeighbourMultiSolver3, InsertionMultiSolver
+from graphite.solvers import NearestNeighbourSolver, DPSolver, NearestNeighbourMultiSolver, NearestNeighbourMultiSolver2, NearestNeighbourMultiSolver4, InsertionMultiSolver
 from graphite.protocol import GraphV2Problem, GraphV1Synapse, GraphV2Synapse, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained
 from graphite.utils.graph_utils import get_multi_minmax_tour_distance
 
@@ -63,7 +63,7 @@ class Miner(BaseMinerNeuron):
             'multi_large_1': NearestNeighbourMultiSolver(),
             'multi_large_2': NearestNeighbourMultiSolver2(), # adapted to handle multi-depot
             'multi_large_3': InsertionMultiSolver(), # adapted to handle multi-depot
-            'multi_constrained': NearestNeighbourMultiSolver3(),
+            'multi_constrained': NearestNeighbourMultiSolver4(),
         }
     
     async def is_alive(self, synapse: IsAlive) -> IsAlive:

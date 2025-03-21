@@ -17,7 +17,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-from graphite.solvers import NearestNeighbourSolver, NearestNeighbourMultiSolver, BeamSearchSolver, HPNSolver, DPSolver, NearestNeighbourMultiSolver2, NearestNeighbourMultiSolver3
+from graphite.solvers import NearestNeighbourSolver, NearestNeighbourMultiSolver, BeamSearchSolver, HPNSolver, DPSolver, NearestNeighbourMultiSolver2, NearestNeighbourMultiSolver4
 from graphite.utils.graph_utils import get_tour_distance, get_multi_minmax_tour_distance
 
 BENCHMARK_SOLUTIONS = {
@@ -25,8 +25,8 @@ BENCHMARK_SOLUTIONS = {
     'General TSP': NearestNeighbourSolver,
     'Metric mTSP': NearestNeighbourMultiSolver2,
     'General mTSP': NearestNeighbourMultiSolver2,
-    'Metric cmTSP': NearestNeighbourMultiSolver3,
-    'General cmTSP': NearestNeighbourMultiSolver3
+    'Metric cmTSP': NearestNeighbourMultiSolver4,
+    'General cmTSP': NearestNeighbourMultiSolver4,
 } # mapping benchmark solvers to each problem
 
 COST_FUNCTIONS = {
