@@ -82,7 +82,6 @@ async def forward(self):
     ref_mdmtsp_value = 0.1 
     ref_cmdmtsp_value = 0.7
 
-    bt.logging.info(f"Selecting mTSP with a probability of: {ref_tsp_value}")
     # randomly select n_nodes indexes from the selected graph
     prob_select = random.randint(0, len(list(self.loaded_datasets.keys()))-1)
     dataset_ref = list(self.loaded_datasets.keys())[prob_select]
@@ -176,14 +175,14 @@ async def forward(self):
                 
                 ## Run greedy to make sure there is a valid solution before we send out the problem
                 solver1 = NearestNeighbourMultiSolver4(problem_types=[test_problem_obj])
-                async def main(timeout):
+                async def main(timeout, test_problem_obj):
                     try:
-                        route1 = await asyncio.wait_for(solver1.solve_problem(test_problem), timeout=timeout)
+                        route1 = await asyncio.wait_for(solver1.solve_problem(test_problem_obj), timeout=timeout)
                         return route1
                     except asyncio.TimeoutError:
                         print(f"Solver1 timed out after {timeout} seconds")
                         return None  # Handle timeout case as needed
-                route1 = await main(10)
+                route1 = await main(10, test_problem_obj)
                 if route1 != None:
                     solution_found = True
             bt.logging.info(f"Posted: n_nodes V2 randomized-demand cmTSP {n_nodes}")
