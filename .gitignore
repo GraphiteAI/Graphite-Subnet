@@ -161,15 +161,17 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+.gitignore
+
 malaysia_singapore_brunei_node_coordinates_NP.npz
 malaysia-singapore-brunei-latest.osm.pbf
 dataset/Asia_MSB.npz
 dataset/World_TSP.npz
+dataset/USA_POI.npz
 tests/evaluation_results/solver_relative_scores.csv
 tests/evaluation_results/solver_run_times.csv
 tests/evaluation_results/solver_scores.csv
 tests/evaluation_results/relative_score.png
 tests/evaluation_results_multi/*
 graphite/base/validator copy.py
-.gitignore
 graphite/validator/forward copy.py
