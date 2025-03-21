@@ -183,7 +183,7 @@ async def forward(self):
                     except asyncio.TimeoutError:
                         print(f"Solver1 timed out after {timeout} seconds")
                         return None  # Handle timeout case as needed
-                route1 = asyncio.run(main(10)) 
+                route1 = await main(10)
                 if route1 != None:
                     solution_found = True
             bt.logging.info(f"Posted: n_nodes V2 randomized-demand cmTSP {n_nodes}")
