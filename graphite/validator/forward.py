@@ -27,7 +27,7 @@ import time
 from datetime import datetime
 
 from graphite.protocol import GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2Synapse, MAX_SALESMEN
-        
+from graphite.solvers.greedy_solver_multi_4 import NearestNeighbourMultiSolver4
 import numpy as np
 import json
 import wandb
@@ -37,6 +37,7 @@ import requests
 import math
 
 from pydantic import ValidationError
+import asyncio
 
 async def forward(self):
 
@@ -81,7 +82,6 @@ async def forward(self):
     ref_mdmtsp_value = 0.1 
     ref_cmdmtsp_value = 0.7
 
-    bt.logging.info(f"Selecting mTSP with a probability of: {ref_tsp_value}")
     # randomly select n_nodes indexes from the selected graph
     prob_select = random.randint(0, len(list(self.loaded_datasets.keys()))-1)
     dataset_ref = list(self.loaded_datasets.keys())[prob_select]
@@ -122,12 +122,36 @@ async def forward(self):
                                                 depots=sorted(random.sample(list(range(n_nodes)), k=m)), 
                                                 single_depot=False)
     else:
+        non_uniform_demand_prob = random.random()
         # constrained multi depot mTSP
-        test_problem_obj = None
-        while test_problem_obj is None:
-            try:
+        if non_uniform_demand_prob < 0.5:
+            n_nodes = random.randint(500, 2000)
+            bt.logging.info(f"n_nodes V2 cmTSP {n_nodes}")
+            bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
+            selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
+            m = random.randint(2, 10)
+            constraint = []
+            depots = sorted(random.sample(list(range(n_nodes)), k=m))
+            demand = [1]*n_nodes
+            for depot in depots:
+                demand[depot] = 0
+            constraint = [(math.ceil(n_nodes/m) + random.randint(0, int(n_nodes/m * 0.3)) - random.randint(0, int(n_nodes/m * 0.2))) for _ in range(m-1)]
+            constraint += [(math.ceil(n_nodes/m) + random.randint(0, int(n_nodes/m * 0.3)) - random.randint(0, int(n_nodes/m * 0.2)))] if sum(constraint) > n_nodes - (math.ceil(n_nodes/m) - random.randint(0, int(n_nodes/m * 0.2))) else [(n_nodes - sum(constraint) + random.randint(int(n_nodes/m * 0.2), int(n_nodes/m * 0.3)))]
+            test_problem_obj = GraphV2ProblemMultiConstrained(problem_type="Metric cmTSP", 
+                                                    n_nodes=n_nodes, 
+                                                    selected_ids=selected_node_idxs, 
+                                                    cost_function="Geom", 
+                                                    dataset_ref=dataset_ref, 
+                                                    n_salesmen=m, 
+                                                    depots=depots, 
+                                                    single_depot=False,
+                                                    demand=demand,
+                                                    constraint=constraint)
+        else:
+            solution_found = False
+            while not solution_found:
                 n_nodes = random.randint(500, 2000)
-                bt.logging.info(f"n_nodes V2 cmTSP {n_nodes}")
+                bt.logging.info(f"n_nodes V2 randomized-demand cmTSP {n_nodes}")
                 bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
                 selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
                 m = random.randint(2, 10)
@@ -148,19 +172,21 @@ async def forward(self):
                                                         single_depot=False,
                                                         demand=demand,
                                                         constraint=constraint)
-            
-            except ValidationError as e:
-                # Handle validation errors
-                bt.logging.debug(f"Error in cmTSP: {e}")
-                # reset the test_problem_obj to None to reinstantiate a new problem
-                test_problem_obj = None
-    
-            except Exception as e:
-                bt.logging.debug(f"Error in cmTSP: {e}")
-                # reset the test_problem_obj to None to reinstantiate a new problem
-                test_problem_obj = None
-        
-    
+                
+                ## Run greedy to make sure there is a valid solution before we send out the problem
+                solver1 = NearestNeighbourMultiSolver4(problem_types=[test_problem_obj])
+                async def main(timeout, test_problem_obj):
+                    try:
+                        route1 = await asyncio.wait_for(solver1.solve_problem(test_problem_obj), timeout=timeout)
+                        return route1
+                    except asyncio.TimeoutError:
+                        print(f"Solver1 timed out after {timeout} seconds")
+                        return None  # Handle timeout case as needed
+                route1 = await main(10, test_problem_obj)
+                if route1 != None:
+                    solution_found = True
+            bt.logging.info(f"Posted: n_nodes V2 randomized-demand cmTSP {n_nodes}")
+
     try:
         graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
         if "mTSP" in graphsynapse_req.problem.problem_type:
@@ -173,8 +199,6 @@ async def forward(self):
         bt.logging.debug(e)
 
 
-    # prob_select = random.randint(1, 2)
-    
     # available_uids = await self.get_available_uids()
     
     if len(api_response_output) > 0:

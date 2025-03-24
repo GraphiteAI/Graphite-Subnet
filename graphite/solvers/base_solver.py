@@ -78,19 +78,18 @@ class BaseSolver(ABC):
             
             loop = asyncio.get_running_loop()
             start_time = time.time()
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                # Submit the asynchronous task to the executor
-                future = loop.run_in_executor(executor, lambda: asyncio.run(self.solve(transformed_problem,future_id)))
-                try:
-                    result = await asyncio.wait_for(future, timeout)
-                    return result
-                except asyncio.TimeoutError:
-                    print(f"Task {future_id} timed out after: {time.time() - start_time}, with timeout set to {timeout}")
-                    self.future_tracker[future_id] = True
-                    return False
-                except Exception as exc:
-                    print(f"Task generated an exception: {exc}")
-                    return False
+            try:
+                # Run the solve method directly with timeout
+                result = await asyncio.wait_for(self.solve(transformed_problem, future_id), timeout)
+                return result
+            except asyncio.TimeoutError:
+                print(f"Task {future_id} timed out after: {time.time() - start_time}, with timeout set to {timeout}")
+                self.future_tracker[future_id] = True
+                return False
+            except Exception as exc:
+                print(f"Task generated an exception: {exc}")
+                return False
+
         else:
             bt.logging.error(f"current solver: {self.__class__.__name__} cannot handle received problem: {problem.problem_type}")
             return False

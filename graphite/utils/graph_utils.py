@@ -239,11 +239,8 @@ def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2Probl
                 # disallow empty list. If salesman not assigned city, return [depot, depot]
                 return False
             for idx, path in enumerate(solution):
-                if len(path) - 2 > problem.constraint[idx]:
+                if sum([problem.demand[i] for i in path]) > problem.constraint[idx]:
                     return False
-            if not all([len(path)>=1 for path in solution]):
-                # disallow empty list. If salesman not assigned city, return [depot, depot]
-                return False
             if all([path[0]==problem.depots[i] for i, path in enumerate(solution)]):
                 if problem.to_origin == True:
                     if not all([path[0]==path[-1] and len(path)>=2 for path in solution]):
