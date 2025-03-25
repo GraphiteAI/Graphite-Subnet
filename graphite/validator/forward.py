@@ -85,7 +85,7 @@ async def forward(self):
     # randomly select n_nodes indexes from the selected graph
     prob_select = random.randint(0, len(list(self.loaded_datasets.keys()))-1)
     dataset_ref = list(self.loaded_datasets.keys())[prob_select]
-    selected_problem_type_prob = 0.5 # random.random()
+    selected_problem_type_prob = random.random()
     if selected_problem_type_prob < ref_tsp_value:
         n_nodes = random.randint(2000, 5000)
         bt.logging.info(f"n_nodes V2 TSP {n_nodes}")
@@ -122,7 +122,7 @@ async def forward(self):
                                                 depots=sorted(random.sample(list(range(n_nodes)), k=m)), 
                                                 single_depot=False)
     else:
-        non_uniform_demand_prob = 0.6 # random.random()
+        non_uniform_demand_prob = random.random()
         # constrained multi depot mTSP
         if non_uniform_demand_prob < 0.5:
             n_nodes = random.randint(500, 2000)
