@@ -175,6 +175,7 @@ async def forward(self):
                                                         constraint=constraint)
                 
                 ## Run greedy to make sure there is a valid solution before we send out the problem
+                test_problem_obj.edges = self.recreate_edges(test_problem_obj)
                 solver1 = NearestNeighbourMultiSolver4(problem_types=[test_problem_obj])
                 async def main(timeout, test_problem_obj):
                     try:
@@ -186,6 +187,7 @@ async def forward(self):
                 route1 = await main(10, test_problem_obj)
                 if route1 != None:
                     solution_found = True
+                    test_problem_obj.edges = None
             bt.logging.info(f"Posted: n_nodes V2 randomized-demand cmTSP {n_nodes}")
 
     try:
