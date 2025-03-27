@@ -135,8 +135,9 @@ async def forward(self):
             demand = [1]*n_nodes
             for depot in depots:
                 demand[depot] = 0
-            constraint = [(math.ceil(n_nodes/m) + random.randint(0, int(n_nodes/m * 0.3)) - random.randint(0, int(n_nodes/m * 0.2))) for _ in range(m-1)]
-            constraint += [(math.ceil(n_nodes/m) + random.randint(0, int(n_nodes/m * 0.3)) - random.randint(0, int(n_nodes/m * 0.2)))] if sum(constraint) > n_nodes - (math.ceil(n_nodes/m) - random.randint(0, int(n_nodes/m * 0.2))) else [(n_nodes - sum(constraint) + random.randint(int(n_nodes/m * 0.2), int(n_nodes/m * 0.3)))]
+            while sum(demand) > sum(constraint):
+                constraint = [(math.ceil(n_nodes/m) + random.randint(0, int(n_nodes/m * 0.3)) - random.randint(0, int(n_nodes/m * 0.2))) for _ in range(m-1)]
+                constraint += [(math.ceil(n_nodes/m) + random.randint(0, int(n_nodes/m * 0.3)) - random.randint(0, int(n_nodes/m * 0.2)))] if sum(constraint) > n_nodes - (math.ceil(n_nodes/m) - int(n_nodes/m * 0.2)) else [(n_nodes - sum(constraint) + random.randint(int(n_nodes/m * 0.2), int(n_nodes/m * 0.3)))]
             test_problem_obj = GraphV2ProblemMultiConstrained(problem_type="Metric cmTSP", 
                                                     n_nodes=n_nodes, 
                                                     selected_ids=selected_node_idxs, 
@@ -160,9 +161,10 @@ async def forward(self):
                 demand = [random.randint(1, 9) for _ in range(n_nodes)]
                 for depot in depots:
                     demand[depot] = 0
-                total_demand_padded = sum(demand) + 9*m # padded to prevent invalid knap-sack problem conditions
-                constraint = [(math.ceil(total_demand_padded/m) + random.randint(0, int(total_demand_padded/m * 0.3)) - random.randint(0, int(total_demand_padded/m * 0.2))) for _ in range(m-1)]
-                constraint += [(math.ceil(total_demand_padded/m) + random.randint(0, int(total_demand_padded/m * 0.3)) - random.randint(0, int(total_demand_padded/m * 0.2)))] if sum(constraint) > total_demand_padded - (math.ceil(total_demand_padded/m) - random.randint(0, int(total_demand_padded/m * 0.2))) else [(total_demand_padded - sum(constraint) + random.randint(int(total_demand_padded/m * 0.2), int(total_demand_padded/m * 0.3)))]
+                while sum(demand) > sum(constraint):
+                    total_demand_padded = sum(demand) + 9*m # padded to prevent invalid knap-sack problem conditions
+                    constraint = [(math.ceil(total_demand_padded/m) + random.randint(0, int(total_demand_padded/m * 0.3)) - random.randint(0, int(total_demand_padded/m * 0.2))) for _ in range(m-1)]
+                    constraint += [(math.ceil(total_demand_padded/m) + random.randint(0, int(total_demand_padded/m * 0.3)) - random.randint(0, int(total_demand_padded/m * 0.2)))] if sum(constraint) > total_demand_padded - (math.ceil(total_demand_padded/m) - int(total_demand_padded/m * 0.2)) else [(total_demand_padded - sum(constraint) + random.randint(int(total_demand_padded/m * 0.2), int(total_demand_padded/m * 0.3)))]
                 test_problem_obj = GraphV2ProblemMultiConstrained(problem_type="Metric cmTSP", 
                                                         n_nodes=n_nodes, 
                                                         selected_ids=selected_node_idxs, 
