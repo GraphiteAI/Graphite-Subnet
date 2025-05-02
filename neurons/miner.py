@@ -82,8 +82,8 @@ class Miner(BaseMinerNeuron):
         return False, "NaN"
 
     async def forward(
-        self, synapse: Union[GraphV1Synapse, GraphV2Synapse]
-    ) ->  Union[GraphV1Synapse, GraphV2Synapse]:
+        self, synapse: Union[GraphV1Synapse, GraphV2Synapse, GraphV1PortfolioSynapse]
+    ) ->  Union[GraphV1Synapse, GraphV2Synapse, GraphV1PortfolioSynapse]:
         """
         Processes the incoming 'Dummy' synapse by performing a predefined operation on the input data.
         This method should be replaced with actual logic relevant to the miner's purpose.
@@ -175,8 +175,8 @@ class Miner(BaseMinerNeuron):
         return synapse
 
     async def forwardV2(
-        self, synapse: GraphV2Synapse
-    ) ->  GraphV2Synapse:
+        self, synapse: Union[GraphV2Synapse, GraphV1PortfolioSynapse]
+    ) ->  Union[GraphV2Synapse, GraphV1PortfolioSynapse]:
         """
         Processes the incoming 'Dummy' synapse by performing a predefined operation on the input data.
         This method should be replaced with actual logic relevant to the miner's purpose.
