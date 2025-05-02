@@ -294,7 +294,7 @@ def check_nodes(solution:List[int], n_cities:int):
 def start_and_end(solution:List[int]):
     return solution[0] == solution[-1]
 
-def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained], solution:Union[List[List[int]],List[int]]):
+def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained], solution:Union[List[List[Union[float, int]]],List[int]]):
     # nested function to validate solution type
     def is_valid_solution_type(solution, problem_type):
         try:

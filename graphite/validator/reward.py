@@ -21,7 +21,7 @@ import torch
 import numpy as np
 from typing import List, Union
 from graphite.utils.constants import BENCHMARK_SOLUTIONS, COST_FUNCTIONS
-from graphite.utils.graph_utils import is_valid_solution
+from graphite.utils.graph_utils import is_valid_solution, get_portfolio_distribution_similarity
 from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse, GraphV1PortfolioSynapse
 from graphite.solvers import NearestNeighbourSolver, BeamSearchSolver, DPSolver, HPNSolver
 from graphite.solvers.greedy_solver_vali import NearestNeighbourSolverVali
@@ -29,6 +29,7 @@ import bittensor as bt
 
 import asyncio
 import time
+from copy import deepcopy
 
 def is_approximately_equal(value1, value2, tolerance_percentage=0.00001):
     # Handle infinite values explicitly
@@ -184,7 +185,7 @@ def scaled_rewards(scores, benchmark: float, objective_function:str = 'min'):
     else:
         return [score_gap(score, best_score, benchmark) for score in scores]
 
-def scaled_portfolio_rewards(scores, benchmark: float, objective_function:str = 'min'):
+def scaled_portfolio_rewards(scores, benchmark: any, objective_function:str = 'max'):
     def score_gap(score, best_score, reference):
         if is_approximately_equal(score, reference):
             return 0.2 # matched the benchmark so assign a floor score
@@ -283,8 +284,9 @@ def get_portfolio_rewards(
     # Get all the reward results by iteratively calling your reward() function.
     miner_scores = [score_handler.score_response(response) for response in responses]
 
-    # Compute rewards
-    rewards = scaled_portfolio_rewards(miner_scores, score_handler.score_response(score_handler.benchmark))
+    benchmark_response = deepcopy(responses[0])
+    benchmark_response.solution = score_handler.benchmark
+    rewards = scaled_portfolio_rewards(miner_scores, get_portfolio_distribution_similarity(benchmark_response))
 
     return torch.FloatTensor(
         rewards
