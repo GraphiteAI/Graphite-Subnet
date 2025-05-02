@@ -149,9 +149,9 @@ def get_multi_minmax_tour_distance(synapse: GraphV2Synapse)->float:
             bt.logging.trace(f"Received invalid paths: {paths}")
     return max_distance if not np.isnan(distance) else np.inf
 
-def get_portfolio_distribution_similarity(synapse: GraphV1PortfolioSynapse)->float:
+def get_portfolio_distribution_similarity(synapse: GraphV1PortfolioSynapse):
     '''
-    Returns the maximum tour distance across salesmen for the mTSP as a float.
+    Returns the number of swaps and objective score
 
     Takes a synapse as its only argument
     '''
@@ -159,14 +159,14 @@ def get_portfolio_distribution_similarity(synapse: GraphV1PortfolioSynapse)->flo
 
     if not synapse.solution:
         print("Solution not found")
-        return 100000, 0
+        return 1000000, 0
     
     swaps = synapse.solution
     initial_portfolio_np = np.array(problem.initialPortfolios)
     
     if not all([len(swap)==4 for swap in swaps]):
         print("Incorrect swap length")
-        return 100000, 0
+        return 1000000, 0
 
     def instantiate_pools(problem: Union[GraphV1PortfolioProblem]):
         current_pools: List[SubnetPool] = []
@@ -194,7 +194,7 @@ def get_portfolio_distribution_similarity(synapse: GraphV1PortfolioSynapse)->flo
         else:
             print(swap, initial_portfolio_np[portfolio_idx, from_subnet_idx], from_num_alpha_tokens)
             print("Not enough alpha")
-            return 100000, 0
+            return 1000000, 0
 
     ### calculate the new distribution of tao
     total_tokens_in_each_subnet_in_portfolios = initial_portfolio_np.sum(axis=0)
@@ -213,19 +213,19 @@ def get_portfolio_distribution_similarity(synapse: GraphV1PortfolioSynapse)->flo
             if final_tao_distribution[netuid] < constraintValue:
                 if constraintValue - final_tao_distribution[netuid] > 0.5: # 0.5% deviation threshold
                     deviation = constraintValue - final_tao_distribution[netuid]
-                    return 100000, 0
+                    return 1000000, 0
                 objective_score -= (constraintValue - final_tao_distribution[netuid])**2
         elif constraintType == "eq":
             if final_tao_distribution[netuid] != constraintValue:
                 if abs(constraintValue - final_tao_distribution[netuid]) > 0.5: # 0.5% deviation threshold
                     deviation = constraintValue - final_tao_distribution[netuid]
-                    return 100000, 0
+                    return 1000000, 0
                 objective_score -= abs(constraintValue - final_tao_distribution[netuid])**2
         elif constraintType == "le":
             if final_tao_distribution[netuid] > constraintValue:
                 if final_tao_distribution[netuid] - constraintValue > 0.5: # 0.5% deviation threshold
                     deviation = constraintValue - final_tao_distribution[netuid]
-                    return 100000, 0
+                    return 1000000, 0
                 objective_score -= (final_tao_distribution[netuid] - constraintValue)**2
     
     return len(swaps), max(0, objective_score)**3
@@ -294,7 +294,7 @@ def check_nodes(solution:List[int], n_cities:int):
 def start_and_end(solution:List[int]):
     return solution[0] == solution[-1]
 
-def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained], solution:Union[List[List[Union[float, int]]],List[int]]):
+def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV1PortfolioProblem], solution:Union[List[List[Union[float, int]]],List[int]]):
     # nested function to validate solution type
     def is_valid_solution_type(solution, problem_type):
         try:
@@ -303,6 +303,12 @@ def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2Probl
                 assert all(isinstance(row, list) and all(isinstance(x, int) for x in row) for row in solution)
             elif "TSP" in problem_type:
                 assert all(isinstance(row, int) for row in solution)
+            elif "PortfolioReallocation" in problem_type:
+                assert all(isinstance(row[0], int) for row in solution)
+                assert all(isinstance(row[1], int) for row in solution)
+                assert all(isinstance(row[2], int) for row in solution)
+                assert all(isinstance(row[3], int) or isinstance(row[3], float) for row in solution)
+                assert all(len(row)==4 for row in solution)
             else:
                 # received invalid problem type
                 return False
@@ -369,7 +375,8 @@ def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2Probl
                     and set(all_non_depot_nodes) == set(range(problem.n_nodes)).difference(problem.depots)):
                     return False
             return True
-        
+        elif "PortfolioReallocation" in problem.problem_type:
+            return True
         else:
             if problem.to_origin == True:
                 if problem.visit_all == True:
@@ -493,7 +500,6 @@ def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem, GraphV1Portfolio
             return False
         
     elif problem.problem_type == 'PortfolioReallocation':
-        print("asserting")
         def assert_portfolio_count(problem):
             if not len(problem.initialPortfolios) == problem.n_portfolio:
                 return False
@@ -563,12 +569,6 @@ def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem, GraphV1Portfolio
             and assert_constraintTypes_type_count(problem) \
             and assert_pool_type_count(problem) \
             and assert_feasible_constraint(problem)):
-            print(assert_portfolio_count(problem),
-                assert_portfolio_subnet_count(problem),
-                assert_constraintValues_type_count(problem),
-                assert_constraintTypes_type_count(problem),
-                assert_pool_type_count(problem),
-                assert_feasible_constraint(problem))
             return True
         else:
             return False

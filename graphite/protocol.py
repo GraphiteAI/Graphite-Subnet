@@ -192,10 +192,6 @@ class GraphV1PortfolioProblem(BaseModel):
                 min_total = sum(t if c in ("eq", "ge") else 0 for c, t in zip(types, values))
                 max_total = sum(t if c in ("eq", "le") else 100 for c, t in zip(types, values))
 
-                print("eq_total", round(eq_total, 2))
-                print("min_total", round(min_total, 2))
-                print("max_total", round(max_total, 2))
-
                 return (
                     round(eq_total, 2) <= 100 and
                     round(min_total, 2) <= 100 and

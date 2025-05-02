@@ -140,7 +140,7 @@ class ScorePortfolioResponse:
             print(e)
             return 1000000, 0
 
-    def score_response(self, response: Union[GraphV1Synapse, GraphV2Synapse]):
+    def score_response(self, response: Union[GraphV1PortfolioSynapse]):
         if is_valid_solution(self.problem, response.solution):
             swaps, objective_score = self.get_score(response)
             # check if the response beats greedy algorithm: return 0 if it performs poorer than greedy
@@ -197,7 +197,7 @@ def scaled_portfolio_rewards(scores, benchmark: any, objective_function:str = 'm
             return ((1 - abs(best_score-score)/abs(best_score-reference))**2)*0.8 + 0.2
     
 
-    swap_values = [1/score[0] for score in scores if score[0] != 1000000 and score[1] != 0] + [benchmark[0]]
+    swap_values = [1/score[0] for score in scores if score[0] != 1000000 and score[1] != 0] + [1/benchmark[0]]
     objective_score_values = [score[1] for score in scores if score[0] != 1000000 and score[1] != 0] + [benchmark[1]]
 
     def normalize(values):
@@ -213,15 +213,8 @@ def scaled_portfolio_rewards(scores, benchmark: any, objective_function:str = 'm
     for score in normalized_data:
         weighted_scores.append(score[0]*0.5 + score[1]*0.5)
 
-    benchmark_score = [len(weighted_scores)-1]
+    benchmark_score = weighted_scores[len(weighted_scores)-1]
     weighted_scores = weighted_scores[:-1]
-
-    if weighted_scores:
-        best_score = max(weighted_scores) 
-        worst_score = min(weighted_scores) 
-    else:
-        # this means that no valid score was found
-        return [0 for score in scores]
 
     final_scores = []
     i = 0  
@@ -231,13 +224,20 @@ def scaled_portfolio_rewards(scores, benchmark: any, objective_function:str = 'm
         else:
             final_scores.append(weighted_scores[i])
             i += 1
-            
-    if benchmark_score == np.inf:
-        return [score_gap(score, best_score, worst_score) for score in scores]
-    elif not score_worse_than_reference(worst_score, benchmark_score, 'max'):
-        return [score_gap(score, best_score, worst_score) for score in scores]
+
+    if final_scores:
+        best_score = max(final_scores) 
+        worst_score = min(final_scores) 
     else:
-        return [score_gap(score, best_score, benchmark_score) for score in scores]
+        # this means that no valid score was found
+        return [0 for score in scores]
+
+    if benchmark_score == np.inf:
+        return [score_gap(score, best_score, worst_score) for score in final_scores]
+    elif not score_worse_than_reference(worst_score, benchmark_score, 'max'):
+        return [score_gap(score, best_score, worst_score) for score in final_scores]
+    else:
+        return [score_gap(score, best_score, benchmark_score) for score in final_scores]
 
 def get_rewards(
     self,
@@ -293,41 +293,162 @@ def get_portfolio_rewards(
     ).to(self.device)
 
 if __name__=='__main__':
-    # simulate solvers and responses
-    test_problem = GraphV1Problem(n_nodes=10, directed=True)
-    # print(test_problem.get_info(verbosity=3))
+    # # simulate solvers and responses
+    # test_problem = GraphV1Problem(n_nodes=10, directed=True)
+    # # print(test_problem.get_info(verbosity=3))
 
-    # test miner synapse
-    miner_1_synapse = GraphV1Synapse(problem=test_problem)
-    miner_1_solver = NearestNeighbourSolver()
-    route_1 = asyncio.run(miner_1_solver.solve_problem(miner_1_synapse.problem))
-    miner_1_synapse.solution = route_1
+    # # test miner synapse
+    # miner_1_synapse = GraphV1Synapse(problem=test_problem)
+    # miner_1_solver = NearestNeighbourSolver()
+    # route_1 = asyncio.run(miner_1_solver.solve_problem(miner_1_synapse.problem))
+    # miner_1_synapse.solution = route_1
     
-    miner_2_synapse = GraphV1Synapse(problem=test_problem)
-    miner_2_solver = DPSolver()
-    route_2 = asyncio.run(miner_2_solver.solve_problem(miner_2_synapse.problem))
-    miner_2_synapse.solution = route_2
+    # miner_2_synapse = GraphV1Synapse(problem=test_problem)
+    # miner_2_solver = DPSolver()
+    # route_2 = asyncio.run(miner_2_solver.solve_problem(miner_2_synapse.problem))
+    # miner_2_synapse.solution = route_2
 
-    miner_3_synapse = GraphV1Synapse(problem=test_problem)
-    miner_3_solver = HPNSolver()
-    route_3 = asyncio.run(miner_3_solver.solve_problem(miner_3_synapse.problem))
-    miner_3_synapse.solution = route_3
+    # miner_3_synapse = GraphV1Synapse(problem=test_problem)
+    # miner_3_solver = HPNSolver()
+    # route_3 = asyncio.run(miner_3_solver.solve_problem(miner_3_synapse.problem))
+    # miner_3_synapse.solution = route_3
 
-    miner_4_synapse = GraphV1Synapse(problem=test_problem)
-    miner_4_solver = BeamSearchSolver()
-    route_4 = asyncio.run(miner_4_solver.solve_problem(miner_4_synapse.problem))
-    miner_4_synapse.solution = route_4
-    # print(f"reconstructing graph synapse: {GraphV1Synapse.from_headers(miner_1_synapse.to_headers())}")
-    responses = [miner_1_synapse, miner_2_synapse, miner_3_synapse, miner_4_synapse]
+    # miner_4_synapse = GraphV1Synapse(problem=test_problem)
+    # miner_4_solver = BeamSearchSolver()
+    # route_4 = asyncio.run(miner_4_solver.solve_problem(miner_4_synapse.problem))
+    # miner_4_synapse.solution = route_4
+    # # print(f"reconstructing graph synapse: {GraphV1Synapse.from_headers(miner_1_synapse.to_headers())}")
+    # responses = [miner_1_synapse, miner_2_synapse, miner_3_synapse, miner_4_synapse]
 
-    score_handler = ScoreResponse(mock_synapse=GraphV1Synapse(problem=test_problem))
-    asyncio.run(score_handler.get_benchmark())
-    # Get all the reward results by iteratively calling your reward() function.
+    # score_handler = ScoreResponse(mock_synapse=GraphV1Synapse(problem=test_problem))
+    # asyncio.run(score_handler.get_benchmark())
+    # # Get all the reward results by iteratively calling your reward() function.
+    # miner_scores = [score_handler.score_response(response) for response in responses]
+    # # print(miner_scores)
+
+    # # Compute rewards
+    # # rewards = scaled_rewards(masked_scores,score_handler.benchmark_score)
+    # rewards = scaled_rewards(miner_scores,score_handler.benchmark_score)
+    # # print(f"Rewards: {rewards}")
+    
+
+
+
+
+    # Portfolio V1 
+    import random
+    from graphite.solvers.greedy_portfolio_solver import GreedyPortfolioSolver
+    from graphite.protocol import GraphV1PortfolioProblem
+
+    num_portfolio = random.randint(50, 200)
+    subtensor = bt.Subtensor("finney")
+    subnets_info = subtensor.all_subnets()
+    pools = [[subnet_info.tao_in.tao, subnet_info.alpha_in.tao] for subnet_info in subnets_info]
+    num_subnets = len(pools)
+    avail_alphas = [subnet_info.alpha_out.tao for subnet_info in subnets_info]
+
+    # Create initialPortfolios: random non-negative token allocations
+    initialPortfolios: List[List[Union[float, int]]] = []
+    for _ in range(num_portfolio):
+        portfolio = [random.uniform(0, avail_alpha//(2*num_portfolio)) if netuid != 0 else random.uniform(0, 10000/num_portfolio) for netuid, avail_alpha in enumerate(avail_alphas)]  # up to 100k tao and random amounts of alpha_out tokens
+        initialPortfolios.append(portfolio)
+
+    # Create constraintTypes: mix of 'eq', 'ge', 'le'
+    constraintTypes: List[str] = []
+    for _ in range(num_subnets):
+        constraintTypes.append(random.choice(["eq", "ge", "le", "ge", "le"])) # eq : ge : le = 1 : 2 : 2
+
+    # Create constraintValues: match the types
+    constraintValues: List[Union[float, int]] = []
+    for ctype in constraintTypes:
+        # ge 0 / le 100 = unconstrained subnet
+        if ctype == "eq":
+            constraintValues.append(random.uniform(0.5, 3.0))  # small fixed value
+        elif ctype == "ge":
+            constraintValues.append(random.uniform(0.0, 5.0))   # lower bound
+        elif ctype == "le":
+            constraintValues.append(random.uniform(10.0, 100.0))  # upper bound
+
+    ### Adjust constraintValues in-place to make sure feasibility is satisfied.
+    eq_total = sum(val for typ, val in zip(constraintTypes, constraintValues) if typ == "eq")
+    min_total = sum(val for typ, val in zip(constraintTypes, constraintValues) if typ in ("eq", "ge"))
+    max_total = sum(val if typ in ("eq", "le") else 100 for typ, val in zip(constraintTypes, constraintValues))
+
+    # If eq_total > 100, need to scale down eq constraints
+    if eq_total > 100:
+        scale = 100 / eq_total
+        for i, typ in enumerate(constraintTypes):
+            if typ == "eq":
+                constraintValues[i] *= scale
+
+    # After fixing eq, recompute min and max
+    min_total = sum(val for typ, val in zip(constraintTypes, constraintValues) if typ in ("eq", "ge"))
+    max_total = sum(val if typ in ("eq", "le") else 100 for typ, val in zip(constraintTypes, constraintValues))
+
+    # If min_total > 100, reduce some "ge" constraints
+    if min_total > 100:
+        ge_indices = [i for i, typ in enumerate(constraintTypes) if typ == "ge"]
+        excess = min_total - 100
+        if ge_indices:
+            for idx in ge_indices[::-1]:
+                if constraintValues[idx] > 0:
+                    reduction = min(constraintValues[idx], excess)
+                    constraintValues[idx] -= reduction
+                    excess -= reduction
+                    if excess <= 0:
+                        break
+
+    # If max_total < 100, increase some "le" constraints
+    if max_total < 100:
+        le_indices = [i for i, typ in enumerate(constraintTypes) if typ == "le"]
+        shortage = 100 - max_total
+        if le_indices:
+            for idx in le_indices:
+                if constraintValues[idx] < 100:
+                    increment = min(100-constraintValues[idx], shortage)
+                    constraintValues[idx] += increment
+                    shortage -= increment
+                    if shortage <= 0:
+                        break
+    
+    # Final clip: make sure no negatives
+    for i in range(len(constraintValues)):
+        constraintValues[i] = max(0, constraintValues[i])
+
+    test_problem = GraphV1PortfolioProblem(problem_type="PortfolioReallocation", 
+                                    n_portfolio=num_portfolio, 
+                                    initialPortfolios=initialPortfolios, 
+                                    constraintValues=constraintValues,
+                                    constraintTypes=constraintTypes,
+                                    pools=pools)
+
+    solver1 = GreedyPortfolioSolver(problem_types=[test_problem])
+
+    async def main(timeout):
+        try:
+            route1 = await asyncio.wait_for(solver1.solve_problem(test_problem), timeout=timeout)
+            return route1
+        except asyncio.TimeoutError:
+            print(f"Solver1 timed out after {timeout} seconds")
+            return None  # Handle timeout case as needed
+
+    start_time = time.time()
+    swaps = asyncio.run(main(10)) 
+    print("Swaps:", len(swaps), "\nNum portfolios:", test_problem.n_portfolio, "\nSubnets:", len(test_problem.constraintTypes), "\nTime Taken:", time.time()-start_time)
+
+    # swaps = swaps[:-1]
+    # print("initialPortfolios", test_problem.initialPortfolios)
+    test_synapse = GraphV1PortfolioSynapse(problem = test_problem, solution = swaps)
+    test_synapse2 = GraphV1PortfolioSynapse(problem = test_problem, solution = swaps[:-150])
+
+    responses = [test_synapse, test_synapse2]
+
+    score_handler = ScorePortfolioResponse(mock_synapse=GraphV1PortfolioSynapse(problem=test_problem), solution=swaps[:-150])
+
     miner_scores = [score_handler.score_response(response) for response in responses]
-    # print(miner_scores)
 
-    # Compute rewards
-    # rewards = scaled_rewards(masked_scores,score_handler.benchmark_score)
-    rewards = scaled_rewards(miner_scores,score_handler.benchmark_score)
-    # print(f"Rewards: {rewards}")
-    
+    benchmark_response = deepcopy(responses[0])
+    benchmark_response.solution = score_handler.benchmark
+    # print(miner_scores, get_portfolio_distribution_similarity(benchmark_response))
+    rewards = scaled_portfolio_rewards(miner_scores, get_portfolio_distribution_similarity(benchmark_response))
+    print(rewards)
