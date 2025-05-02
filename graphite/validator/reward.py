@@ -211,7 +211,7 @@ def scaled_portfolio_rewards(scores, benchmark: any, objective_function:str = 'm
 
     weighted_scores = []
     for score in normalized_data:
-        weighted_scores.append(score[0]*0.5 + score[1]*0.5)
+        weighted_scores.append(score[0]*0.6 + score[1]*0.4)
 
     benchmark_score = weighted_scores[len(weighted_scores)-1]
     weighted_scores = weighted_scores[:-1]
@@ -282,6 +282,16 @@ def get_portfolio_rewards(
     - torch.FloatTensor: A tensor of rewards for the given query and responses.
     """
     # Get all the reward results by iteratively calling your reward() function.
+    for response in responses:
+        # cast the indices to int
+        try:
+            if isinstance(response.solution, list) and isinstance(response.solution[0], list):
+                response.solution = [[int(swap[0]), int(swap[1]), int(swap[2]), swap[3]] for swap in response.solution]
+        except IndexError:
+            pass
+        except TypeError:
+            # indicates the solution is not a list of list of Union[int, float]
+            pass
     miner_scores = [score_handler.score_response(response) for response in responses]
 
     benchmark_response = deepcopy(responses[0])
