@@ -138,7 +138,7 @@ class ScorePortfolioResponse:
         except Exception as e:
             # AssertionError or ValueError indicating an invalid solution
             print(e)
-            return 100000, 0
+            return 1000000, 0
 
     def score_response(self, response: Union[GraphV1Synapse, GraphV2Synapse]):
         if is_valid_solution(self.problem, response.solution):
@@ -146,10 +146,10 @@ class ScorePortfolioResponse:
             # check if the response beats greedy algorithm: return 0 if it performs poorer than greedy
             return swaps, objective_score
         elif response.solution == False:
-            return 100000, 0
+            return 1000000, 0
         else:
             # the miner's response is invalid, return 0
-            return 100000, 0
+            return 1000000, 0
     
 # we let scores range from 0.2 to 1 based on min_max_scaling w.r.t benchmark and best scores
 # if no score is better than benchmark, scores that fail the benchmark (already set to None) are given a reward of 0 and the rest that match the benchmark get 1.0
@@ -197,8 +197,8 @@ def scaled_portfolio_rewards(scores, benchmark: any, objective_function:str = 'm
             return ((1 - abs(best_score-score)/abs(best_score-reference))**2)*0.8 + 0.2
     
 
-    swap_values = [1/score[0] for score in scores if score[0] != 100000 and score[1] != 0] + [benchmark[0]]
-    objective_score_values = [score[1] for score in scores if score[0] != 100000 and score[1] != 0] + [benchmark[1]]
+    swap_values = [1/score[0] for score in scores if score[0] != 1000000 and score[1] != 0] + [benchmark[0]]
+    objective_score_values = [score[1] for score in scores if score[0] != 1000000 and score[1] != 0] + [benchmark[1]]
 
     def normalize(values):
         min_val = min(values)
@@ -226,7 +226,7 @@ def scaled_portfolio_rewards(scores, benchmark: any, objective_function:str = 'm
     final_scores = []
     i = 0  
     for score in scores:
-        if score[0] == 100000 or score[1] == 0:
+        if score[0] == 1000000 or score[1] == 0:
             final_scores.append(0)
         else:
             final_scores.append(weighted_scores[i])

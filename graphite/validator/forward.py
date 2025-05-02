@@ -37,6 +37,7 @@ import random
 import requests
 import math
 
+from graphite.utils.graph_utils import get_portfolio_distribution_similarity
 from typing import List, Union
 from pydantic import ValidationError
 import asyncio
@@ -289,11 +290,15 @@ async def forward(self):
                     print(f"Solver1 timed out after {timeout} seconds")
                     return None  # Handle timeout case as needed
             swaps = await main(10, test_problem_obj)
+
+            test_synapse = GraphV1PortfolioSynapse(problem = test_problem_obj, solution = swaps)
+            swap_count, objective_score = get_portfolio_distribution_similarity(test_synapse)
+            
             if swaps != None:
                 if swaps != False:
-                    if len(swaps) > 0:
+                    if len(swaps) > 0 and swap_count != 1000000 and objective_score != 0:
                         solution_found = True
-        bt.logging.info(f"Posted: n_nodes V1 portfolio_allocation {num_portfolio * num_subnets}")
+        bt.logging.info(f"Posted: V1 portfolio_allocation ports: {num_portfolio}, subnets: {num_subnets}")
             
     try:
         if isinstance(test_problem_obj, GraphV1PortfolioProblem):
@@ -549,10 +554,6 @@ async def forward(self):
         except:
             pass
         try:
-            configDict["n_portfolio"] = graphsynapse_req.problem.n_portfolio
-        except:
-            pass
-        try:
             configDict["initialPortfolios"] = graphsynapse_req.problem.initialPortfolios
         except:
             pass
@@ -572,7 +573,7 @@ async def forward(self):
                     project="graphite-testnet",
                     config=configDict,
                     name=json.dumps({
-                        "n_nodes": graphsynapse_req.problem.n_nodes,
+                        "n_portfolio": graphsynapse_req.problem.n_portfolio,
                         "time": time.time(),
                         "validator": self.wallet.hotkey.ss58_address,
                         }),
@@ -583,7 +584,7 @@ async def forward(self):
                     project="Graphite-Subnet-V2",
                     config=configDict,
                     name=json.dumps({
-                        "n_nodes": graphsynapse_req.problem.n_nodes,
+                        "n_portfolio": graphsynapse_req.problem.n_portfolio,
                         "time": time.time(),
                         "validator": self.wallet.hotkey.ss58_address,
                         }),
