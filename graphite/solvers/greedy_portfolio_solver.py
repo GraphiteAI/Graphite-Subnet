@@ -108,7 +108,7 @@ class GreedyPortfolioSolver(BaseSolver):
                     for idx in range(len(portfolio_tao)):
                         tao_to_swap = min(portfolio_tao[idx], tao_required)
                         alpha_emitted = start_pools[netuid].swap_tao_to_alpha(tao_to_swap)
-                        portfolio_swaps.append([idx, 0, netuid, (tao_to_swap//0.01/100)])
+                        portfolio_swaps.append([idx, 0, netuid, (tao_to_swap//0.01/100 - 0.01)])
                         tao_required -= tao_to_swap
                         portfolio_tao[idx] -= tao_to_swap
 
