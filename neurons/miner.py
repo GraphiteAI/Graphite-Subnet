@@ -48,6 +48,10 @@ class Miner(BaseMinerNeuron):
             forward_fn=self.is_alive,
             blacklist_fn=self.blacklist_is_alive,
         ).attach(
+            forward_fn=self.forwardV1Portfolio,
+            blacklist_fn=self.blacklistV2,
+            priority_fn=self.priorityV2,
+        ).attach(
             forward_fn=self.forwardV2,
             blacklist_fn=self.blacklistV2,
             priority_fn=self.priorityV2,
@@ -175,8 +179,95 @@ class Miner(BaseMinerNeuron):
         return synapse
 
     async def forwardV2(
-        self, synapse: Union[GraphV2Synapse, GraphV1PortfolioSynapse]
-    ) ->  Union[GraphV2Synapse, GraphV1PortfolioSynapse]:
+        self, synapse: GraphV2Synapse
+    ) ->  GraphV2Synapse:
+        """
+        Processes the incoming 'Dummy' synapse by performing a predefined operation on the input data.
+        This method should be replaced with actual logic relevant to the miner's purpose.
+
+        Args:
+            synapse (template.protocol.Dummy): The synapse object containing the 'dummy_input' data.
+
+        Returns:
+            template.protocol.Dummy: The synapse object with the 'dummy_output' field set to twice the 'dummy_input' value.
+
+        The 'forward' function is a placeholder and should be overridden with logic that is appropriate for
+        the miner's intended operation. This method demonstrates a basic transformation of input data.
+        """
+        bt.logging.info(f"received synapse with problem: {synapse.problem.get_info(verbosity=2)}")
+
+        # hotkey = self.wallet.hotkey.ss58_address
+        # dend_hotkey = synapse.dendrite.hotkey
+        # log_line = f"{hotkey[:5]}_{dend_hotkey[:5]}_{synapse.problem.n_nodes}_{time.time()}\n"
+        # with open("gs_logs.txt","a") as f:
+        #     f.write(log_line)
+        
+        bt.logging.info(
+            f"Miner received input to solve {synapse.problem.n_nodes}"
+        )
+
+        if isinstance(synapse.problem, GraphV2Problem):
+            synapse.problem.edges = self.recreate_edges(synapse.problem)
+        
+        bt.logging.info(f"synapse dendrite timeout {synapse.timeout}")
+
+        # Conditional assignment of problems to each solver
+        if not isinstance(synapse.problem, GraphV2ProblemMulti) and not isinstance(synapse.problem, GraphV2ProblemMultiConstrained):
+            route = await self.solvers['large'].solve_problem(synapse.problem)
+            synapse.solution = route
+        elif not isinstance(synapse.problem, GraphV2ProblemMultiConstrained):
+            # further split
+            if not synapse.problem.single_depot:
+                # run all 3 basic algorithms and return the best scoring solution
+                routes_1 = await self.solvers['multi_large_2'].solve_problem(synapse.problem)
+                synapse.solution = routes_1
+                score_1 = get_multi_minmax_tour_distance(synapse)
+                routes_2 = await self.solvers['multi_large_3'].solve_problem(synapse.problem)
+                synapse.solution = routes_2
+                score_2 = get_multi_minmax_tour_distance(synapse)
+                routes = [routes_1, routes_2]
+                scores = [score_1, score_2]
+            else:
+                routes_1 = await self.solvers['multi_large_1'].solve_problem(synapse.problem)
+                synapse.solution = routes_1
+                score_1 = get_multi_minmax_tour_distance(synapse)
+                routes_2 = await self.solvers['multi_large_2'].solve_problem(synapse.problem)
+                synapse.solution = routes_2
+                score_2 = get_multi_minmax_tour_distance(synapse)
+                routes_3 = await self.solvers['multi_large_3'].solve_problem(synapse.problem)
+                synapse.solution = routes_3
+                score_3 = get_multi_minmax_tour_distance(synapse)
+                routes = [routes_1, routes_2, routes_3]
+                scores = [score_1, score_2, score_3]
+            bt.logging.info(f"Selecting algorithm {scores.index(min(scores))}")
+            synapse.solution = routes[scores.index(min(scores))]
+        elif isinstance(synapse.problem, GraphV2ProblemMultiConstrained):
+            routes_1 = await self.solvers['multi_constrained'].solve_problem(synapse.problem)
+            synapse.solution = routes_1
+            score_1 = get_multi_minmax_tour_distance(synapse)
+            routes = [routes_1]
+            scores = [score_1]
+            bt.logging.info(f"Selecting algorithm {scores.index(min(scores))}")
+            synapse.solution = routes[scores.index(min(scores))]
+        elif isinstance(synapse.problem, GraphV1PortfolioProblem):
+            n_swaps, objective_score = None, None
+            while n_swaps is None or objective_score == 0:
+                swaps_1 = await self.solvers['portfolio_v1'].solve_problem(synapse.problem)
+                synapse.solution = swaps_1
+                n_swaps, objective_score = get_portfolio_distribution_similarity(synapse)
+        
+        # empty out large distance matrix
+        if hasattr(synapse.problem, 'edges'):
+            synapse.problem.edges = None
+        
+        bt.logging.info(
+            f"Miner returned value {synapse.solution} {len(synapse.solution) if isinstance(synapse.solution, list) else synapse.solution}"
+        )
+        return synapse
+    
+    async def forwardV1Portfolio(
+        self, synapse: GraphV1PortfolioSynapse
+    ) ->  GraphV1PortfolioSynapse:
         """
         Processes the incoming 'Dummy' synapse by performing a predefined operation on the input data.
         This method should be replaced with actual logic relevant to the miner's purpose.
