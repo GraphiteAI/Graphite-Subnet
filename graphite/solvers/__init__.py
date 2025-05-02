@@ -8,3 +8,4 @@ from .greedy_solver_multi_2 import NearestNeighbourMultiSolver2
 from .greedy_solver_multi_3 import NearestNeighbourMultiSolver3
 from .greedy_solver_multi_4 import NearestNeighbourMultiSolver4
 from .insertion_solver_multi import InsertionMultiSolver
+from .greedy_portfolio_solver import GreedyPortfolioSolver

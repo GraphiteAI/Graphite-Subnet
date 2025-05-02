@@ -20,14 +20,15 @@
 import bittensor as bt
 from bittensor import axon, dendrite
 
-from graphite.validator.reward import get_rewards, ScoreResponse
+from graphite.validator.reward import get_rewards, ScoreResponse, ScorePortfolioResponse, get_portfolio_rewards
 from graphite.utils.uids import get_available_uids
 
 import time
 from datetime import datetime
 
-from graphite.protocol import GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2Synapse, MAX_SALESMEN
+from graphite.protocol import GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2Synapse, MAX_SALESMEN, GraphV1PortfolioProblem, GraphV1PortfolioSynapse
 from graphite.solvers.greedy_solver_multi_4 import NearestNeighbourMultiSolver4
+from graphite.solvers.greedy_portfolio_solver import GreedyPortfolioSolver
 import numpy as np
 import json
 import wandb
@@ -36,6 +37,7 @@ import random
 import requests
 import math
 
+from typing import List, Union
 from pydantic import ValidationError
 import asyncio
 
@@ -79,8 +81,9 @@ async def forward(self):
     # problem weights
     ref_tsp_value = 0.1
     ref_mtsp_value = 0.1
-    ref_mdmtsp_value = 0.1 
-    ref_cmdmtsp_value = 0.7
+    ref_mdmtsp_value = 0.2 
+    ref_cmdmtsp_value = 0.4
+    ref_portfolioV1_value = 0.2
 
     # randomly select n_nodes indexes from the selected graph
     prob_select = random.randint(0, len(list(self.loaded_datasets.keys()))-1)
@@ -121,7 +124,7 @@ async def forward(self):
                                                 n_salesmen=m, 
                                                 depots=sorted(random.sample(list(range(n_nodes)), k=m)), 
                                                 single_depot=False)
-    else:
+    elif selected_problem_type_prob < ref_tsp_value + ref_mtsp_value + ref_mdmtsp_value + ref_cmdmtsp_value:
         non_uniform_demand_prob = random.random()
         # constrained multi depot mTSP
         if non_uniform_demand_prob < 0.5:
@@ -191,13 +194,117 @@ async def forward(self):
                     solution_found = True
                     test_problem_obj.edges = None
             bt.logging.info(f"Posted: n_nodes V2 randomized-demand cmTSP {n_nodes}")
+    else:
+        solution_found = False
+        while not solution_found:
 
+            num_portfolio = random.randint(50, 200)
+            subtensor = bt.Subtensor("finney")
+            subnets_info = subtensor.all_subnets()
+            pools = [[subnet_info.tao_in.tao, subnet_info.alpha_in.tao] for subnet_info in subnets_info]
+            num_subnets = len(pools)
+            avail_alphas = [subnet_info.alpha_out.tao for subnet_info in subnets_info]
+
+            # Create initialPortfolios: random non-negative token allocations
+            initialPortfolios: List[List[Union[float, int]]] = []
+            for _ in range(num_portfolio):
+                portfolio = [random.uniform(0, avail_alpha//2) if netuid != 0 else random.uniform(0, 1000) for netuid, avail_alpha in enumerate(avail_alphas)]  # up to 1000 tao and random amounts of alpha_out tokens
+                initialPortfolios.append(portfolio)
+
+            # Create constraintTypes: mix of 'eq', 'ge', 'le'
+            constraintTypes: List[str] = []
+            for _ in range(num_subnets):
+                constraintTypes.append(random.choice(["eq", "ge", "le", "ge", "le"])) # eq : ge : le = 1 : 2 : 2
+
+            # Create constraintValues: match the types
+            constraintValues: List[Union[float, int]] = []
+            for ctype in constraintTypes:
+                # ge 0 / le 100 = unconstrained subnet
+                if ctype == "eq":
+                    constraintValues.append(random.uniform(0.5, 3.0))  # small fixed value
+                elif ctype == "ge":
+                    constraintValues.append(random.uniform(0.0, 5.0))   # lower bound
+                elif ctype == "le":
+                    constraintValues.append(random.uniform(10.0, 100.0))  # upper bound
+
+            ### Adjust constraintValues in-place to make sure feasibility is satisfied.
+            eq_total = sum(val for typ, val in zip(constraintTypes, constraintValues) if typ == "eq")
+            min_total = sum(val for typ, val in zip(constraintTypes, constraintValues) if typ in ("eq", "ge"))
+            max_total = sum(val if typ in ("eq", "le") else 100 for typ, val in zip(constraintTypes, constraintValues))
+
+            # If eq_total > 100, need to scale down eq constraints
+            if eq_total > 100:
+                scale = 100 / eq_total
+                for i, typ in enumerate(constraintTypes):
+                    if typ == "eq":
+                        constraintValues[i] *= scale
+
+            # After fixing eq, recompute min and max
+            min_total = sum(val for typ, val in zip(constraintTypes, constraintValues) if typ in ("eq", "ge"))
+            max_total = sum(val if typ in ("eq", "le") else 100 for typ, val in zip(constraintTypes, constraintValues))
+
+            # If min_total > 100, reduce some "ge" constraints
+            if min_total > 100:
+                ge_indices = [i for i, typ in enumerate(constraintTypes) if typ == "ge"]
+                excess = min_total - 100
+                if ge_indices:
+                    for idx in ge_indices:
+                        if constraintValues[idx] > 0:
+                            reduction = min(constraintValues[idx], excess)
+                            constraintValues[idx] -= reduction
+                            excess -= reduction
+                            if excess <= 0:
+                                break
+
+            # If max_total < 100, increase some "le" constraints
+            if max_total < 100:
+                le_indices = [i for i, typ in enumerate(constraintTypes) if typ == "le"]
+                shortage = 100 - max_total
+                if le_indices:
+                    for idx in le_indices:
+                        if constraintValues[idx] < 100:
+                            increment = min(100-constraintValues[idx], shortage)
+                            constraintValues[idx] += increment
+                            shortage -= increment
+                            if shortage <= 0:
+                                break
+            
+            # Final clip: make sure no negatives
+            for i in range(len(constraintValues)):
+                constraintValues[i] = max(0, constraintValues[i])
+
+            test_problem_obj = GraphV1PortfolioProblem(problem_type="PortfolioReallocation", 
+                                            n_portfolio=num_portfolio, 
+                                            initialPortfolios=initialPortfolios, # [[50, 200, 0], [50, 0, 300]], 
+                                            constraintValues=constraintValues, #[50, 25, 25], 
+                                            constraintTypes=constraintTypes, #["eq", "eq", "eq"], 
+                                            pools=pools)
+            
+            solver1 = GreedyPortfolioSolver(problem_types=[test_problem_obj])
+            async def main(timeout, test_problem_obj):
+                try:
+                    swaps = await asyncio.wait_for(solver1.solve_problem(test_problem_obj), timeout=timeout)
+                    return swaps
+                except asyncio.TimeoutError:
+                    print(f"Solver1 timed out after {timeout} seconds")
+                    return None  # Handle timeout case as needed
+            swaps = await main(10, test_problem_obj)
+            if swaps != None:
+                if swaps != False:
+                    if len(swaps) > 0:
+                        solution_found = True
+        bt.logging.info(f"Posted: n_nodes V1 portfolio_allocation {num_portfolio * num_subnets}")
+            
     try:
-        graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
-        if "mTSP" in graphsynapse_req.problem.problem_type:
-            bt.logging.info(f"GraphV2Synapse {graphsynapse_req.problem.problem_type}, n_nodes: {graphsynapse_req.problem.n_nodes}, depots: {graphsynapse_req.problem.depots}\n")
+        if isinstance(test_problem_obj, GraphV1PortfolioProblem):
+            graphsynapse_req = GraphV1PortfolioSynapse(problem=test_problem_obj)
+            bt.logging.info(f"GraphV1PortfolioSynapse {graphsynapse_req.problem.problem_type}, num_portfolio: {graphsynapse_req.problem.n_portfolio}\n")
         else:
-            bt.logging.info(f"GraphV2Synapse {graphsynapse_req.problem.problem_type}, n_nodes: {graphsynapse_req.problem.n_nodes}\n")
+            graphsynapse_req = GraphV2Synapse(problem=test_problem_obj)
+            if "mTSP" in graphsynapse_req.problem.problem_type:
+                bt.logging.info(f"GraphV2Synapse {graphsynapse_req.problem.problem_type}, n_nodes: {graphsynapse_req.problem.n_nodes}, depots: {graphsynapse_req.problem.depots}\n")
+            else:
+                bt.logging.info(f"GraphV2Synapse {graphsynapse_req.problem.problem_type}, n_nodes: {graphsynapse_req.problem.n_nodes}\n")
     except ValidationError as e:
         bt.logging.debug(f"GraphV2Synapse Validation Error: {e.json()}")
         bt.logging.debug(e.errors())
@@ -217,26 +324,30 @@ async def forward(self):
     miner_uids = list(selected_uids.keys())
     bt.logging.info(f"Selected UIDS: {miner_uids}")
 
-    reconstruct_edge_start_time = time.time()
+
     if isinstance(test_problem_obj, GraphV2Problem):
+        reconstruct_edge_start_time = time.time()
         edges = self.recreate_edges(test_problem_obj)
+        reconstruct_edge_time = time.time() - reconstruct_edge_start_time
 
-    reconstruct_edge_time = time.time() - reconstruct_edge_start_time
+        bt.logging.info(f"synapse type {type(graphsynapse_req)}")
+        # The dendrite client queries the network.
+        responses = await self.dendrite(
+            axons=[self.metagraph.axons[uid] for uid in miner_uids], #miner_uids
+            synapse=graphsynapse_req,
+            deserialize=True,
+            timeout = 30 + reconstruct_edge_time, # 30s + time to reconstruct, can scale with problem types in the future
+        )
 
-    bt.logging.info(f"synapse type {type(graphsynapse_req)}")
-    # The dendrite client queries the network.
-    responses = await self.dendrite(
-        axons=[self.metagraph.axons[uid] for uid in miner_uids], #miner_uids
-        synapse=graphsynapse_req,
-        deserialize=True,
-        timeout = 30 + reconstruct_edge_time, # 30s + time to reconstruct, can scale with problem types in the future
-    )
-
-    if isinstance(test_problem_obj, GraphV2Problem):
         test_problem_obj.edges = edges
-        # with open("gs_logs.txt", "a") as f:
-        #     for hotkey in [self.metagraph.hotkeys[uid] for uid in miner_uids]:
-        #         f.write(f"{hotkey}_{self.wallet.hotkey.ss58_address}_{edges.shape}_{time.time()}\n")
+    else:
+        # portfolio problem
+        responses = await self.dendrite(
+            axons=[self.metagraph.axons[uid] for uid in miner_uids], #miner_uids
+            synapse=graphsynapse_req,
+            deserialize=True,
+            timeout = 0.0005 * test_problem_obj.n_portfolio * len(test_problem_obj.constraintTypes),
+        )
 
     for idx, res in enumerate(responses):
         # trace log the process times
@@ -248,18 +359,27 @@ async def forward(self):
         graphsynapse_req_updated = GraphV2Synapse(problem=test_problem_obj) # reconstruct with edges
         score_response_obj = ScoreResponse(graphsynapse_req_updated)
 
-    score_response_obj.current_num_concurrent_forwards = self.current_num_concurrent_forwards
+        score_response_obj.current_num_concurrent_forwards = self.current_num_concurrent_forwards
 
-    try:
-        await score_response_obj.get_benchmark()
-    except:
         try:
             await score_response_obj.get_benchmark()
         except:
-            await score_response_obj.get_benchmark()
+            try:
+                await score_response_obj.get_benchmark()
+            except:
+                await score_response_obj.get_benchmark()
 
-    rewards = get_rewards(self, score_handler=score_response_obj, responses=responses)
-    rewards = rewards.numpy(force=True)
+        rewards = get_rewards(self, score_handler=score_response_obj, responses=responses)
+        rewards = rewards.numpy(force=True)
+    else:
+        graphsynapse_req_updated = GraphV1PortfolioSynapse(problem=test_problem_obj)
+        ## to be continued
+        score_response_obj = ScorePortfolioResponse(graphsynapse_req_updated, swaps)
+
+        score_response_obj.current_num_concurrent_forwards = self.current_num_concurrent_forwards
+
+        rewards = get_portfolio_rewards(self, score_handler=score_response_obj, responses=responses)
+        rewards = rewards.numpy(force=True)
 
     wandb_miner_distance = [np.inf for _ in range(self.metagraph.n.item())]
     wandb_miner_solution = [[] for _ in range(self.metagraph.n.item())]
@@ -310,90 +430,141 @@ async def forward(self):
                     "log_model": False,
                     "sync_tensorboard": False,
                 }
-    try:
-        configDict["problem_type"] = graphsynapse_req.problem.problem_type
-    except:
-        pass
-    try:
-        configDict["objective_function"] = graphsynapse_req.problem.objective_function
-    except:
-        pass
-    try:
-        configDict["visit_all"] = graphsynapse_req.problem.visit_all
-    except:
-        pass
-    try:
-        configDict["to_origin"] = graphsynapse_req.problem.to_origin
-    except:
-        pass
-    try:
-        configDict["n_nodes"] = graphsynapse_req.problem.n_nodes
-    except:
-        pass
-    try:
-        configDict["nodes"] = graphsynapse_req.problem.nodes
-    except:
-        pass
-    try:
-        configDict["edges"] = []
-    except:
-        pass
-    try:
-        configDict["directed"] = graphsynapse_req.problem.directed
-    except:
-        pass
-    try:
-        configDict["simple"] = graphsynapse_req.problem.simple
-    except:
-        pass
-    try:
-        configDict["weighted"] = graphsynapse_req.problem.weighted
-    except:
-        pass
-    try:
-        configDict["repeating"] = graphsynapse_req.problem.repeating
-    except:
-        pass
-
-
-    try:
-        configDict["selected_ids"] = graphsynapse_req.problem.selected_ids
-    except:
-        pass
-    try:
-        configDict["cost_function"] = graphsynapse_req.problem.cost_function
-    except:
-        pass
-    try:
-        configDict["dataset_ref"] = graphsynapse_req.problem.dataset_ref
-    except:
-        pass
-    try:
-        configDict["selected_uids"] = miner_uids
-    except:
-        pass
-    try:
-        configDict["n_salesmen"] = graphsynapse_req.problem.n_salesmen
-        configDict["depots"] = graphsynapse_req.problem.depots
-    except:
-        pass
-    try:
-        configDict["demand"] = graphsynapse_req.problem.demand
-        configDict["constraint"] = graphsynapse_req.problem.constraint
-    except:
-        pass
-
-    try:
-        configDict["time_elapsed"] = wandb_axon_elapsed
-    except:
-        pass
-
-    try:
-        configDict["best_solution"] = wandb_miner_solution[best_solution_uid]
-    except:
-        pass
+    
     
     if isinstance(test_problem_obj, GraphV2Problem):
+        try:
+            configDict["problem_type"] = graphsynapse_req.problem.problem_type
+        except:
+            pass
+        try:
+            configDict["objective_function"] = graphsynapse_req.problem.objective_function
+        except:
+            pass
+        try:
+            configDict["visit_all"] = graphsynapse_req.problem.visit_all
+        except:
+            pass
+        try:
+            configDict["to_origin"] = graphsynapse_req.problem.to_origin
+        except:
+            pass
+        try:
+            configDict["n_nodes"] = graphsynapse_req.problem.n_nodes
+        except:
+            pass
+        try:
+            configDict["nodes"] = graphsynapse_req.problem.nodes
+        except:
+            pass
+        try:
+            configDict["edges"] = []
+        except:
+            pass
+        try:
+            configDict["directed"] = graphsynapse_req.problem.directed
+        except:
+            pass
+        try:
+            configDict["simple"] = graphsynapse_req.problem.simple
+        except:
+            pass
+        try:
+            configDict["weighted"] = graphsynapse_req.problem.weighted
+        except:
+            pass
+        try:
+            configDict["repeating"] = graphsynapse_req.problem.repeating
+        except:
+            pass
+        try:
+            configDict["selected_ids"] = graphsynapse_req.problem.selected_ids
+        except:
+            pass
+        try:
+            configDict["cost_function"] = graphsynapse_req.problem.cost_function
+        except:
+            pass
+        try:
+            configDict["dataset_ref"] = graphsynapse_req.problem.dataset_ref
+        except:
+            pass
+        try:
+            configDict["selected_uids"] = miner_uids
+        except:
+            pass
+        try:
+            configDict["n_salesmen"] = graphsynapse_req.problem.n_salesmen
+            configDict["depots"] = graphsynapse_req.problem.depots
+        except:
+            pass
+        try:
+            configDict["demand"] = graphsynapse_req.problem.demand
+            configDict["constraint"] = graphsynapse_req.problem.constraint
+        except:
+            pass
+
+        try:
+            configDict["time_elapsed"] = wandb_axon_elapsed
+        except:
+            pass
+
+        try:
+            configDict["best_solution"] = wandb_miner_solution[best_solution_uid]
+        except:
+            pass
+        
+        try:
+            if self.subtensor.network == "test":
+                wandb.init(
+                    entity='graphite-subnet',
+                    project="graphite-testnet",
+                    config=configDict,
+                    name=json.dumps({
+                        "n_nodes": graphsynapse_req.problem.n_nodes,
+                        "time": time.time(),
+                        "validator": self.wallet.hotkey.ss58_address,
+                        }),
+                )
+            else:
+                wandb.init(
+                    entity='graphite-ai',
+                    project="Graphite-Subnet-V2",
+                    config=configDict,
+                    name=json.dumps({
+                        "n_nodes": graphsynapse_req.problem.n_nodes,
+                        "time": time.time(),
+                        "validator": self.wallet.hotkey.ss58_address,
+                        }),
+                )
+            for rewIdx in range(self.metagraph.n.item()):
+                wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}": wandb_rewards[rewIdx], f"distance-{self.wallet.hotkey.ss58_address}": wandb_miner_distance[rewIdx]}, step=int(rewIdx))
+
+            self.cleanup_wandb(wandb)
+        except Exception as e:
+            print(f"Error initializing W&B: {e}")
+    else:
+        try:
+            configDict["problem_type"] = graphsynapse_req.problem.problem_type
+        except:
+            pass
+        try:
+            configDict["n_portfolio"] = graphsynapse_req.problem.n_portfolio
+        except:
+            pass
+        try:
+            configDict["initialPortfolios"] = graphsynapse_req.problem.initialPortfolios
+        except:
+            pass
+        try:
+            configDict["constraintValues"] = graphsynapse_req.problem.constraintValues
+        except:
+            pass
+        try:
+            configDict["constraintTypes"] = graphsynapse_req.problem.constraintTypes
+        except:
+            pass
+       
         try:
             if self.subtensor.network == "test":
                 wandb.init(

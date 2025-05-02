@@ -41,6 +41,10 @@ rel_v2_path = os.path.join(os.path.dirname(__file__), "schema_v2.json")
 with open(rel_v2_path, "r") as f:
     MODEL_V2_SCHEMA = json.load(f)
 
+rel_v3_path = os.path.join(os.path.dirname(__file__), "schema_v3.json")
+with open(rel_v3_path, "r") as f:
+    MODEL_V3_SCHEMA = json.load(f)
+
 class IsAlive(bt.Synapse):
     answer: Optional[str] = None
     completion: str = Field(
@@ -126,6 +130,183 @@ class IsAlive(bt.Synapse):
         headers["computed_body_hash"] = self.body_hash
 
         return headers
+
+
+class GraphV1PortfolioProblem(BaseModel):
+    problem_type: Literal['PortfolioReallocation'] = Field('PortfolioReallocation', description="Problem Type")
+    n_portfolio: int = Field(3, description="Number of Portfolios")
+    initialPortfolios: List[List[Union[float, int]]] = Field([[0]*100]*3, description="Number of tokens in each subnet for each of the n_portfolio eg. 3 portfolios with 0 tokens in any of the 100 subnets")
+    constraintValues: List[Union[float, int]] = Field([1.0]*100, description="Overall Percentage for each subnet in equivalent TAO after taking the sum of all portfolios; they do not need to add up to 100%")
+    constraintTypes: List[str] = Field(["ge"]*100, description="eq = equal to, ge = greater or equals to, le = lesser or equals to - the value provided in constraintValues")
+    pools: List[List[Union[float, int]]] = Field([[1.0, 1.0]]*100, description="Snapshot of current AMM pool states of all subnets when problem is issued, list idx = netuid, [num_tao_tokens, num_alpha_tokens]")
+
+    @model_validator(mode='after')
+    def assert_portfolio_count(self):
+        assert len(self.initialPortfolios) == self.n_portfolio, ValueError('Number of portfolio must match n_portfolio')
+        return self
+    
+    @model_validator(mode='after')
+    def assert_portfolio_subnet_count(self):
+        subnetsCount = len(self.initialPortfolios[0])
+        assert all([len(portfolio)==subnetsCount for portfolio in self.initialPortfolios]), ValueError(f'Portfolio with a different subnet count than {subnetsCount} found in initialPortfolios')
+        assert all([[subnetToken>=0 for subnetToken in portfolio] for portfolio in self.initialPortfolios]), ValueError(f'Negative Subnet token value found in initialPortfolios')
+        assert all([[type(subnetToken)==float or type(subnetToken)==int for subnetToken in portfolio] for portfolio in self.initialPortfolios]), ValueError(f'Non-int and Non-float value was found in initialPortfolios')
+        return self
+    
+    @model_validator(mode="after")
+    def assert_constraintValues_type_count(self):
+        if self.constraintValues:
+            assert len(self.constraintValues) == len(self.initialPortfolios[0]), ValueError('Number of constraint values must match number of subnets in portfolio')
+            assert all([type(constraintValue)==float or type(constraintValue)==int for constraintValue in self.constraintValues]), ValueError('Non-int and Non-float value was found in constraintValues')
+            assert all([constraintValue>=0 for constraintValue in self.constraintValues]), ValueError('Negative value was found in constraintValues')
+        return self
+    
+    @model_validator(mode="after")
+    def assert_constraintTypes_type_count(self):
+        if self.constraintTypes:
+            assert len(self.constraintTypes) == len(self.initialPortfolios[0]), ValueError('Number of constraint types must match number of subnets in portfolio')
+            assert all([constraintType=="eq" or constraintType=="ge" or constraintType=="le" for constraintType in self.constraintTypes]), ValueError('value other than eq:str, ge:str, or le:str was found in constraintTypes')
+        return self
+    
+    @model_validator(mode="after")
+    def assert_pool_type_count(self):
+        if self.pools:
+            assert len(self.pools) == len(self.initialPortfolios[0]), ValueError('Number of pools must match number of subnets in portfolio')
+            assert all([len(pool)==2 for pool in self.pools]), ValueError('Length of each pool must be 2, [num_tao_tokens, num_alpha_tokens]')
+            assert all([(type(pool[0])==float or type(pool[0])==int) and (type(pool[1])==float or type(pool[1])==int) for pool in self.pools]), ValueError('Non-int and Non-float value was found in pools')
+            assert all([pool[0]>=0 and pool[1]>=0 for pool in self.pools]), ValueError('Negative value was found in pools')
+        return self
+    
+    @model_validator(mode="after")
+    def assert_feasible_constraint(self):
+        if self.constraintTypes and self.constraintValues:
+
+            def check_constraints_feasibility(types, values):
+                """
+                types: list of 10 strings, each one of 'eq', 'ge', 'le'
+                values: list of 10 numbers (floats or ints), each representing a percentage
+                Returns True if types are feasible (some valid assignment can total 100%), False otherwise
+                """
+
+                eq_total = sum(t for c, t in zip(types, values) if c == "eq")
+                min_total = sum(t if c in ("eq", "ge") else 0 for c, t in zip(types, values))
+                max_total = sum(t if c in ("eq", "le") else 100 for c, t in zip(types, values))
+
+                print("eq_total", round(eq_total, 2))
+                print("min_total", round(min_total, 2))
+                print("max_total", round(max_total, 2))
+
+                return (
+                    round(eq_total, 2) <= 100 and
+                    round(min_total, 2) <= 100 and
+                    round(max_total, 2) >= 100
+                )
+            
+            assert check_constraints_feasibility(self.constraintTypes, self.constraintValues) == True, ValueError('Constraints type and values cannot result in a feasible solution')
+
+        return self
+    
+    def get_info(self, verbosity: int = 1) -> dict:
+        info = {}
+        if verbosity == 1:
+            info["Problem Type"] = self.problem_type
+        elif verbosity == 2:
+            info["Problem Type"] = self.problem_type
+            info["Num Portfolios"] = self.n_portfolio
+            info["Initial Portfolios"] = self.initialPortfolios
+            info["Constraint Values"] = self.constraintValues
+            info["Constraint Types"] = self.constraintTypes
+            info["Pools"] = self.pools
+        elif verbosity == 3:
+            for field in self.model_fields:
+                description = self.model_fields[field].description
+                value = getattr(self, field)
+                info[description] = value
+        return info
+
+class GraphV1PortfolioSynapse(bt.Synapse):
+    '''
+    Implement necessary serialization and deserialization checks
+    '''
+    problem: Union[GraphV1PortfolioProblem]
+    solution: Optional[Union[List[List[Union[int, float]]], bool]] = None  #[ [portfolio_idx, from_subnet_idx, to_subnet_idx, from_num_alpha_tokens], ... ]
+
+    def to_headers(self) -> dict:
+        """
+        Converts the state of a Synapse instance into a dictionary of HTTP headers.
+
+        This method is essential for
+        packaging Synapse data for network transmission in the Bittensor framework, ensuring that each key aspect of
+        the Synapse is represented in a format suitable for HTTP communication.
+
+        Process:
+
+        1. Basic Information: It starts by including the ``name`` and ``timeout`` of the Synapse, which are fundamental for identifying the query and managing its lifespan on the network.
+        2. Complex Objects: The method serializes the ``axon`` and ``dendrite`` objects, if present, into strings. This serialization is crucial for preserving the state and structure of these objects over the network.
+        3. Encoding: Non-optional complex objects are serialized and encoded in base64, making them safe for HTTP transport.
+        4. Size Metrics: The method calculates and adds the size of headers and the total object size, providing valuable information for network bandwidth management.
+
+        Example Usage::
+
+            synapse = Synapse(name="ExampleSynapse", timeout=30)
+            headers = synapse.to_headers()
+            # headers now contains a dictionary representing the Synapse instance
+
+        Returns:
+            dict: A dictionary containing key-value pairs representing the Synapse's properties, suitable for HTTP communication.
+        """
+        # Initializing headers with 'name' and 'timeout'
+        headers = {"name": self.name, "timeout": str(self.timeout)}
+
+        # Adding headers for 'axon' and 'dendrite' if they are not None
+        if self.axon:
+            headers.update(
+                {
+                    f"bt_header_axon_{k}": str(v)
+                    for k, v in self.axon.model_dump().items()
+                    if v is not None
+                }
+            )
+        if self.dendrite:
+            headers.update(
+                {
+                    f"bt_header_dendrite_{k}": str(v)
+                    for k, v in self.dendrite.model_dump().items()
+                    if v is not None
+                }
+            )
+
+        # Getting the fields of the instance
+        instance_fields = self.model_dump()
+        required = MODEL_V3_SCHEMA.get("required", [])
+        # Iterating over the fields of the instance
+        for field, value in instance_fields.items():
+            # If the object is not optional, serializing it, encoding it, and adding it to the headers
+
+            # Skipping the field if it's already in the headers or its value is None
+            if field in headers or value is None:
+                continue
+
+            elif required and field in required:
+                try:
+                    # create an empty (dummy) instance of type(value) to pass pydantic validation on the axon side
+                    serialized_value = json.dumps(value.__class__.__call__())
+                    encoded_value = base64.b64encode(serialized_value.encode()).decode(
+                        "utf-8"
+                    )
+                    headers[f"bt_header_input_obj_{field}"] = encoded_value
+                except TypeError as e:
+                    raise ValueError(
+                        f"Error serializing {field} with value {value}. Objects must be json serializable."
+                    ) from e
+
+        # Adding the size of the headers and the total size to the headers
+        headers["header_size"] = str(sys.getsizeof(headers))
+        headers["total_size"] = str(self.get_total_size())
+        headers["computed_body_hash"] = self.body_hash
+
+        return headers
+
 
 class GraphV2Problem(BaseModel):
     problem_type: Literal['Metric TSP', 'General TSP'] = Field('Metric TSP', description="Problem Type")
@@ -251,7 +432,6 @@ class GraphV2ProblemMulti(GraphV2Problem):
                 info[description] = value
         return info
 
-
 # We avoid nested inheritance with duplicated validation
 class GraphV2ProblemMultiConstrained(GraphV2Problem):
     problem_type: Literal['Metric cmTSP', 'General cmTSP'] = Field('Metric cmTSP', description="Problem Type")
@@ -307,7 +487,6 @@ class GraphV2ProblemMultiConstrained(GraphV2Problem):
                 value = getattr(self, field)
                 info[description] = value
         return info
-
 
 class GraphV2Synapse(bt.Synapse):
     '''
@@ -391,6 +570,7 @@ class GraphV2Synapse(bt.Synapse):
         headers["computed_body_hash"] = self.body_hash
 
         return headers
+
 
 class GraphV1Problem(BaseModel):
     problem_type: Literal['Metric TSP', 'General TSP'] = Field('Metric TSP', description="Problem Type")

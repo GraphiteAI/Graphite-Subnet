@@ -28,8 +28,8 @@ import graphite
 from graphite.base.miner import BaseMinerNeuron
 from graphite.protocol import IsAlive
 
-from graphite.solvers import NearestNeighbourSolver, DPSolver, NearestNeighbourMultiSolver, NearestNeighbourMultiSolver2, NearestNeighbourMultiSolver4, InsertionMultiSolver
-from graphite.protocol import GraphV2Problem, GraphV1Synapse, GraphV2Synapse, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained
+from graphite.solvers import NearestNeighbourSolver, DPSolver, NearestNeighbourMultiSolver, NearestNeighbourMultiSolver2, NearestNeighbourMultiSolver4, InsertionMultiSolver, GreedyPortfolioSolver
+from graphite.protocol import GraphV2Problem, GraphV1Synapse, GraphV2Synapse, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV1PortfolioProblem, GraphV1PortfolioSynapse
 from graphite.utils.graph_utils import get_multi_minmax_tour_distance
 
 class Miner(BaseMinerNeuron):
@@ -64,6 +64,7 @@ class Miner(BaseMinerNeuron):
             'multi_large_2': NearestNeighbourMultiSolver2(), # adapted to handle multi-depot
             'multi_large_3': InsertionMultiSolver(), # adapted to handle multi-depot
             'multi_constrained': NearestNeighbourMultiSolver4(),
+            'portfolio_v1': GreedyPortfolioSolver()
         }
     
     async def is_alive(self, synapse: IsAlive) -> IsAlive:
@@ -236,7 +237,7 @@ class Miner(BaseMinerNeuron):
                 scores = [score_1, score_2, score_3]
             bt.logging.info(f"Selecting algorithm {scores.index(min(scores))}")
             synapse.solution = routes[scores.index(min(scores))]
-        else:
+        elif isinstance(synapse.problem, GraphV2ProblemMultiConstrained):
             routes_1 = await self.solvers['multi_constrained'].solve_problem(synapse.problem)
             synapse.solution = routes_1
             score_1 = get_multi_minmax_tour_distance(synapse)
@@ -244,6 +245,9 @@ class Miner(BaseMinerNeuron):
             scores = [score_1]
             bt.logging.info(f"Selecting algorithm {scores.index(min(scores))}")
             synapse.solution = routes[scores.index(min(scores))]
+        elif isinstance(synapse.problem, GraphV1PortfolioProblem):
+            swaps_1 = await self.solvers['portfolio_v1'].solve_problem(synapse.problem)
+            synapse.solution = swaps_1
 
         # empty out large distance matrix
         synapse.problem.edges = None

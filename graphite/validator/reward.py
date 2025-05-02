@@ -22,7 +22,7 @@ import numpy as np
 from typing import List, Union
 from graphite.utils.constants import BENCHMARK_SOLUTIONS, COST_FUNCTIONS
 from graphite.utils.graph_utils import is_valid_solution
-from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse
+from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse, GraphV1PortfolioSynapse
 from graphite.solvers import NearestNeighbourSolver, BeamSearchSolver, DPSolver, HPNSolver
 from graphite.solvers.greedy_solver_vali import NearestNeighbourSolverVali
 import bittensor as bt
@@ -77,7 +77,7 @@ class ScoreResponse:
             self.benchmark_path =  await self.solver.solve(self.solver.problem_transformations(self.problem), self._current_num_concurrent_forwards)
         else:
             # solver is unable to solve the given problem
-            bt.logging.error(f"current solver: {self.__class__.__name__} cannot handle received problem: {self.problem.problem_type}")
+            bt.logging.error(f"reward _ current solver: {self.__class__.__name__} cannot handle received problem: {self.problem.problem_type}")
             return False
         self.synapse.solution = self.benchmark_path
         bt.logging.info(f"Validator found solution: {self.benchmark_path}")
@@ -107,6 +107,49 @@ class ScoreResponse:
             # the miner's response is invalid, return 0
             return np.inf
 
+class ScorePortfolioResponse:
+    def __init__(self, mock_synapse: Union[GraphV1PortfolioSynapse], solution):
+        self.synapse = mock_synapse
+        self.problem = self.synapse.problem
+        # internally, validators apply a 30s timeout as the benchmark solution
+        # self.solver = NearestNeighbourSolverVali() # create instance of benchmark solver
+        self.solver = BENCHMARK_SOLUTIONS[self.problem.problem_type]() # create instance of benchmark solver
+        self.cost_function = COST_FUNCTIONS[self.problem.problem_type] # default cost function is "get_tour_distance" or "get_multi_minmax_tour_distance"
+        # asyncio.create_task(self.get_benchmark())
+        self._current_num_concurrent_forwards = 1
+        self.benchmark = solution
+
+    @property
+    def current_num_concurrent_forwards(self):
+        return self._current_num_concurrent_forwards
+    
+    @current_num_concurrent_forwards.setter
+    def current_num_concurrent_forwards(self, value):
+        self._current_num_concurrent_forwards = value
+
+    def get_score(self, response: Union[GraphV1Synapse, GraphV2Synapse]):
+        # all cost_functions should handle False as an indication that the problem was unsolvable and assign it a value of np.inf
+        synapse_copy = self.synapse
+        synapse_copy.solution = response.solution
+        try:
+            swaps, objective_score = self.cost_function(synapse_copy)
+            return swaps, objective_score
+        except Exception as e:
+            # AssertionError or ValueError indicating an invalid solution
+            print(e)
+            return 100000, 0
+
+    def score_response(self, response: Union[GraphV1Synapse, GraphV2Synapse]):
+        if is_valid_solution(self.problem, response.solution):
+            swaps, objective_score = self.get_score(response)
+            # check if the response beats greedy algorithm: return 0 if it performs poorer than greedy
+            return swaps, objective_score
+        elif response.solution == False:
+            return 100000, 0
+        else:
+            # the miner's response is invalid, return 0
+            return 100000, 0
+    
 # we let scores range from 0.2 to 1 based on min_max_scaling w.r.t benchmark and best scores
 # if no score is better than benchmark, scores that fail the benchmark (already set to None) are given a reward of 0 and the rest that match the benchmark get 1.0
 def scaled_rewards(scores, benchmark: float, objective_function:str = 'min'):
@@ -141,6 +184,60 @@ def scaled_rewards(scores, benchmark: float, objective_function:str = 'min'):
     else:
         return [score_gap(score, best_score, benchmark) for score in scores]
 
+def scaled_portfolio_rewards(scores, benchmark: float, objective_function:str = 'min'):
+    def score_gap(score, best_score, reference):
+        if is_approximately_equal(score, reference):
+            return 0.2 # matched the benchmark so assign a floor score
+        elif score_worse_than_reference(score, reference, objective_function):
+            return 0 # scored worse than the required benchmark
+        else:
+            # proportionally scale rewards based on the relative normalized scores
+            assert (not is_approximately_equal(best_score, reference) and not score_worse_than_reference(best_score, reference, objective_function)), ValueError(f"Best score is worse than reference: best-{best_score}, ref-{reference}")
+            return ((1 - abs(best_score-score)/abs(best_score-reference))**2)*0.8 + 0.2
+    
+
+    swap_values = [1/score[0] for score in scores if score[0] != 100000 and score[1] != 0] + [benchmark[0]]
+    objective_score_values = [score[1] for score in scores if score[0] != 100000 and score[1] != 0] + [benchmark[1]]
+
+    def normalize(values):
+        min_val = min(values)
+        max_val = max(values)
+        return [(x - min_val) / (max_val - min_val) if max_val != min_val else 0.0 for x in values]
+
+    norm_swap_values = normalize(swap_values)
+    norm_objective_score_values = normalize(objective_score_values)
+    normalized_data = [[f, s] for f, s in zip(norm_swap_values, norm_objective_score_values)]
+
+    weighted_scores = []
+    for score in normalized_data:
+        weighted_scores.append(score[0]*0.5 + score[1]*0.5)
+
+    benchmark_score = [len(weighted_scores)-1]
+    weighted_scores = weighted_scores[:-1]
+
+    if weighted_scores:
+        best_score = max(weighted_scores) 
+        worst_score = min(weighted_scores) 
+    else:
+        # this means that no valid score was found
+        return [0 for score in scores]
+
+    final_scores = []
+    i = 0  
+    for score in scores:
+        if score[0] == 100000 or score[1] == 0:
+            final_scores.append(0)
+        else:
+            final_scores.append(weighted_scores[i])
+            i += 1
+            
+    if benchmark_score == np.inf:
+        return [score_gap(score, best_score, worst_score) for score in scores]
+    elif not score_worse_than_reference(worst_score, benchmark_score, 'max'):
+        return [score_gap(score, best_score, worst_score) for score in scores]
+    else:
+        return [score_gap(score, best_score, benchmark_score) for score in scores]
+
 def get_rewards(
     self,
     score_handler: ScoreResponse,
@@ -162,6 +259,32 @@ def get_rewards(
 
     # Compute rewards
     rewards = scaled_rewards(miner_scores, score_handler.benchmark_score)
+
+    return torch.FloatTensor(
+        rewards
+    ).to(self.device)
+
+def get_portfolio_rewards(
+    self,
+    score_handler: ScorePortfolioResponse,
+    responses: List[Union[GraphV1PortfolioSynapse]],
+) -> torch.FloatTensor:
+    """
+    Returns a tensor of rewards for the given query and responses.
+
+    Args:
+    - query (int): The query sent to the miner.
+    - responses (List[float]): A list of responses from the miner.
+    - score_handl (ScoreResponse): An instance of the ScoreResponse class that corresponds to the given problem
+
+    Returns:
+    - torch.FloatTensor: A tensor of rewards for the given query and responses.
+    """
+    # Get all the reward results by iteratively calling your reward() function.
+    miner_scores = [score_handler.score_response(response) for response in responses]
+
+    # Compute rewards
+    rewards = scaled_portfolio_rewards(miner_scores, score_handler.score_response(score_handler.benchmark))
 
     return torch.FloatTensor(
         rewards
