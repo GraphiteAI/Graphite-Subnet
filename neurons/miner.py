@@ -30,7 +30,7 @@ from graphite.protocol import IsAlive
 
 from graphite.solvers import NearestNeighbourSolver, DPSolver, NearestNeighbourMultiSolver, NearestNeighbourMultiSolver2, NearestNeighbourMultiSolver4, InsertionMultiSolver, GreedyPortfolioSolver
 from graphite.protocol import GraphV2Problem, GraphV1Synapse, GraphV2Synapse, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV1PortfolioProblem, GraphV1PortfolioSynapse
-from graphite.utils.graph_utils import get_multi_minmax_tour_distance
+from graphite.utils.graph_utils import get_multi_minmax_tour_distance, get_portfolio_distribution_similarity
 
 class Miner(BaseMinerNeuron):
     """
@@ -246,11 +246,15 @@ class Miner(BaseMinerNeuron):
             bt.logging.info(f"Selecting algorithm {scores.index(min(scores))}")
             synapse.solution = routes[scores.index(min(scores))]
         elif isinstance(synapse.problem, GraphV1PortfolioProblem):
-            swaps_1 = await self.solvers['portfolio_v1'].solve_problem(synapse.problem)
-            synapse.solution = swaps_1
-
+            n_swaps, objective_score = None, None
+            while n_swaps is None or objective_score == 0:
+                swaps_1 = await self.solvers['portfolio_v1'].solve_problem(synapse.problem)
+                synapse.solution = swaps_1
+                n_swaps, objective_score = get_portfolio_distribution_similarity(synapse)
+        
         # empty out large distance matrix
-        synapse.problem.edges = None
+        if hasattr(synapse.problem, 'edges'):
+            synapse.problem.edges = None
         
         bt.logging.info(
             f"Miner returned value {synapse.solution} {len(synapse.solution) if isinstance(synapse.solution, list) else synapse.solution}"
