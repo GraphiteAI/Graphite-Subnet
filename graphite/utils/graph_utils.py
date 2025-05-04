@@ -20,13 +20,14 @@
 import math
 from typing import List, Union
 import numpy as np
-from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained
+from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV1PortfolioSynapse, GraphV1PortfolioProblem
 from functools import wraps, partial
 import bittensor as bt
 import asyncio
 import sys
 from concurrent.futures import ThreadPoolExecutor
 import time
+from graphite.base.subnetPool import SubnetPool
 
 ### Generic functions for neurons
 def is_valid_path(path:List[int])->bool:
@@ -148,6 +149,87 @@ def get_multi_minmax_tour_distance(synapse: GraphV2Synapse)->float:
             bt.logging.trace(f"Received invalid paths: {paths}")
     return max_distance if not np.isnan(distance) else np.inf
 
+def get_portfolio_distribution_similarity(synapse: GraphV1PortfolioSynapse):
+    '''
+    Returns the number of swaps and objective score
+
+    Takes a synapse as its only argument
+    '''
+    problem = synapse.problem
+
+    if not synapse.solution:
+        print("Solution not found")
+        return 1000000, 0
+    
+    swaps = synapse.solution
+    initial_portfolio_np = np.array(problem.initialPortfolios)
+    
+    if not all([len(swap)==4 for swap in swaps]):
+        print("Incorrect swap length")
+        return 1000000, 0
+
+    def instantiate_pools(problem: Union[GraphV1PortfolioProblem]):
+        current_pools: List[SubnetPool] = []
+        for netuid, pool in enumerate(problem.pools):
+            current_pools.append(SubnetPool(pool[0], pool[1], netuid))
+        return current_pools
+    
+    current_pools = instantiate_pools(problem)
+
+    ### iterate through all the swaps in the solution
+    for swap in swaps:
+        # [portfolio_idx, from_subnet_idx, to_subnet_idx, from_num_alpha_tokens]
+        portfolio_idx = swap[0]
+        from_subnet_idx = swap[1]
+        to_subnet_idx = swap[2]
+        from_num_alpha_tokens = swap[3]
+        if initial_portfolio_np[portfolio_idx, from_subnet_idx] >= from_num_alpha_tokens or np.isclose(initial_portfolio_np[portfolio_idx, from_subnet_idx], from_num_alpha_tokens, atol=1e-7):
+            tao_emitted = current_pools[from_subnet_idx].swap_alpha_to_tao(from_num_alpha_tokens)
+            alpha_emitted = current_pools[to_subnet_idx].swap_tao_to_alpha(tao_emitted)
+            if np.isclose(initial_portfolio_np[portfolio_idx, from_subnet_idx], from_num_alpha_tokens, atol=1e-7):
+                initial_portfolio_np[portfolio_idx, from_subnet_idx] = 0
+            else:
+                initial_portfolio_np[portfolio_idx, from_subnet_idx] -= from_num_alpha_tokens
+            initial_portfolio_np[portfolio_idx, to_subnet_idx] += alpha_emitted
+        else:
+            print(swap, initial_portfolio_np[portfolio_idx, from_subnet_idx], from_num_alpha_tokens)
+            print("Not enough alpha")
+            return 1000000, 0
+
+    ### calculate the new distribution of tao
+    total_tokens_in_each_subnet_in_portfolios = initial_portfolio_np.sum(axis=0)
+    updated_poools_np = np.array([[pool.num_tao_tokens, pool.num_alpha_tokens] for pool in current_pools])
+    total_equivalent_tao_in_each_subnet_in_portfolios = np.append(np.array([total_tokens_in_each_subnet_in_portfolios[0]]), updated_poools_np[1:, 0] - updated_poools_np[1:, 0]*updated_poools_np[1:, 1] / (updated_poools_np[1:, 1] + total_tokens_in_each_subnet_in_portfolios[1:]))
+    final_tao_total = sum(total_equivalent_tao_in_each_subnet_in_portfolios)
+    final_tao_distribution = total_equivalent_tao_in_each_subnet_in_portfolios/final_tao_total * 100
+
+    ### penalize any deviation
+    objective_score = 100
+    assert len(final_tao_distribution)==len(problem.constraintValues) , ValueError('len(final_tao_distribution) != len(problem.constraintValues)')
+    for netuid, constraintValue in enumerate(problem.constraintValues):
+        constraintType = problem.constraintTypes[netuid]
+        ## penalize differences squared
+        if constraintType == "ge":
+            if final_tao_distribution[netuid] < constraintValue:
+                if constraintValue - final_tao_distribution[netuid] > 0.5: # 0.5% deviation threshold
+                    deviation = constraintValue - final_tao_distribution[netuid]
+                    return 1000000, 0
+                objective_score -= (constraintValue - final_tao_distribution[netuid])**2
+        elif constraintType == "eq":
+            if final_tao_distribution[netuid] != constraintValue:
+                if abs(constraintValue - final_tao_distribution[netuid]) > 0.5: # 0.5% deviation threshold
+                    deviation = constraintValue - final_tao_distribution[netuid]
+                    return 1000000, 0
+                objective_score -= abs(constraintValue - final_tao_distribution[netuid])**2
+        elif constraintType == "le":
+            if final_tao_distribution[netuid] > constraintValue:
+                if final_tao_distribution[netuid] - constraintValue > 0.5: # 0.5% deviation threshold
+                    deviation = constraintValue - final_tao_distribution[netuid]
+                    return 1000000, 0
+                objective_score -= (final_tao_distribution[netuid] - constraintValue)**2
+    
+    return len(swaps), max(0, objective_score)**3
+
 def normalize_coordinates(coordinates:List[List[Union[int,float]]]):
     '''
     Normalizes all coordinates against the max x or y value.
@@ -212,7 +294,7 @@ def check_nodes(solution:List[int], n_cities:int):
 def start_and_end(solution:List[int]):
     return solution[0] == solution[-1]
 
-def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained], solution:Union[List[List[int]],List[int]]):
+def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV1PortfolioProblem], solution:Union[List[List[Union[float, int]]],List[int]]):
     # nested function to validate solution type
     def is_valid_solution_type(solution, problem_type):
         try:
@@ -221,6 +303,12 @@ def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2Probl
                 assert all(isinstance(row, list) and all(isinstance(x, int) for x in row) for row in solution)
             elif "TSP" in problem_type:
                 assert all(isinstance(row, int) for row in solution)
+            elif "PortfolioReallocation" in problem_type:
+                assert all(isinstance(row[0], int) for row in solution)
+                assert all(isinstance(row[1], int) for row in solution)
+                assert all(isinstance(row[2], int) for row in solution)
+                assert all(isinstance(row[3], int) or isinstance(row[3], float) for row in solution)
+                assert all(len(row)==4 for row in solution)
             else:
                 # received invalid problem type
                 return False
@@ -287,7 +375,8 @@ def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2Probl
                     and set(all_non_depot_nodes) == set(range(problem.n_nodes)).difference(problem.depots)):
                     return False
             return True
-        
+        elif "PortfolioReallocation" in problem.problem_type:
+            return True
         else:
             if problem.to_origin == True:
                 if problem.visit_all == True:
@@ -302,7 +391,20 @@ def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2Probl
     else:
         return False
 
-def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem])->bool:
+def is_valid_portfolio_solution(problem:Union[GraphV1PortfolioProblem], solution):
+
+    if not all([len(swap)==4 for swap in solution]):
+        return False
+    if not all([swap[0]<problem.n_portfolio for swap in solution]):
+        return False
+    if not all([swap[1]<len(problem.pools) for swap in solution]):
+        return False
+    if not all([swap[2]<len(problem.pools) for swap in solution]):
+        return False
+    
+    return True
+
+def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem, GraphV1PortfolioProblem])->bool:
     if problem.problem_type == 'Metric TSP':
         if (problem.directed==False) and (problem.visit_all==True) and (problem.to_origin==True) and (problem.objective_function=='min'):
             return True
@@ -336,6 +438,7 @@ def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem])->bool:
             bt.logging.info(f"Received an invalid Metric mTSP problem")
             bt.logging.info(problem.get_info(verbosity=2))
             return False
+        
     elif problem.problem_type == 'General mTSP':
         if (problem.directed==True) \
             and (problem.visit_all==True) \
@@ -374,6 +477,7 @@ def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem])->bool:
             bt.logging.info(f"Received an invalid Metric mTSP problem")
             bt.logging.info(problem.get_info(verbosity=2))
             return False
+        
     elif problem.problem_type == 'General cmTSP':
         if (problem.directed==True) \
             and (problem.visit_all==True) \
@@ -394,6 +498,81 @@ def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem])->bool:
             bt.logging.info(f"Received an invalid General mTSP problem")
             bt.logging.info(problem.get_info(verbosity=2))
             return False
+        
+    elif problem.problem_type == 'PortfolioReallocation':
+        def assert_portfolio_count(problem):
+            if not len(problem.initialPortfolios) == problem.n_portfolio:
+                return False
+            return True
+        def assert_portfolio_subnet_count(problem):
+            subnetsCount = len(problem.initialPortfolios[0])
+            if not all([len(portfolio)==subnetsCount for portfolio in problem.initialPortfolios]):
+                return False
+            if not all([[subnetToken>=0 for subnetToken in portfolio] for portfolio in problem.initialPortfolios]):
+                return False
+            if not all([[type(subnetToken)==float or type(subnetToken)==int for subnetToken in portfolio] for portfolio in problem.initialPortfolios]):
+                return False
+            return True
+        def assert_constraintValues_type_count(problem):
+            if problem.constraintValues:
+                if not len(problem.constraintValues) == len(problem.initialPortfolios[0]):
+                    return False
+                if not all([type(constraintValue)==float or type(constraintValue)==int for constraintValue in problem.constraintValues]):
+                    return False
+                if not all([constraintValue>=0 for constraintValue in problem.constraintValues]):
+                    return False
+            return True
+        def assert_constraintTypes_type_count(problem):
+            if problem.constraintTypes:
+                if not len(problem.constraintTypes) == len(problem.initialPortfolios[0]):
+                    return False
+                if not all([constraintType=="eq" or constraintType=="ge" or constraintType=="le" for constraintType in problem.constraintTypes]):
+                    return False
+            return True
+        def assert_pool_type_count(problem):
+            if problem.pools:
+                if not len(problem.pools) == len(problem.initialPortfolios[0]):
+                    return False
+                if not all([len(pool)==2 for pool in problem.pools]):
+                    return False
+                if not all([(type(pool[0])==float or type(pool[0])==int) and (type(pool[1])==float or type(pool[1])==int) for pool in problem.pools]):
+                    return False
+                if not all([pool[0]>=0 and pool[1]>=0 for pool in problem.pools]):
+                    return False
+            return True
+        def assert_feasible_constraint(problem):
+            if problem.constraintTypes and problem.constraintValues:
+
+                def check_constraints_feasibility(types, values):
+                    """
+                    types: list of 10 strings, each one of 'eq', 'ge', 'le'
+                    values: list of 10 numbers (floats or ints), each representing a percentage
+                    Returns True if types are feasible (some valid assignment can total 100%), False otherwise
+                    """
+
+                    eq_total = sum(t for c, t in zip(types, values) if c == "eq")
+                    min_total = sum(t if c in ("eq", "ge") else 0 for c, t in zip(types, values))
+                    max_total = sum(t if c in ("eq", "le") else 100 for c, t in zip(types, values))
+
+                    return (
+                        round(eq_total, 2) <= 100 and
+                        round(min_total, 2) <= 100 and
+                        round(max_total, 2) >= 100
+                    )
+                
+                if not check_constraints_feasibility(problem.constraintTypes, problem.constraintValues) == True:
+                    return False
+            return True
+        if (assert_portfolio_count(problem) \
+            and assert_portfolio_subnet_count(problem) \
+            and assert_constraintValues_type_count(problem) \
+            and assert_constraintTypes_type_count(problem) \
+            and assert_pool_type_count(problem) \
+            and assert_feasible_constraint(problem)):
+            return True
+        else:
+            return False
+
         
 def timeout(seconds=30, error_message="Solver timed out"):
     '''

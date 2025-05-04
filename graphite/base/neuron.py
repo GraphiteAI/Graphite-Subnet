@@ -31,9 +31,11 @@ from graphite import __spec_version__ as spec_version
 from graphite.mock import MockSubtensor, MockMetagraph
 from graphite.data.dataset_utils import load_default_dataset
 
-from graphite.protocol import GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained
+from graphite.protocol import GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV1PortfolioProblem
 from graphite.data.distance import geom_edges, man_2d_edges, euc_2d_edges
 import numpy as np
+
+from graphite.base.subnetPool import SubnetPool
 
 class BaseNeuron(ABC):
     """
@@ -156,6 +158,12 @@ class BaseNeuron(ABC):
             return man_2d_edges(node_coords)
         else:
             return "Only Geom, Euclidean2D, and Manhatten2D supported for now."
+
+    def instantiate_pools(self, problem: Union[GraphV1PortfolioProblem]):
+        current_pools = []
+        for netuid, pool in enumerate(problem.pools):
+            current_pools.append(SubnetPool(pool[0], pool[1], netuid))
+        return current_pools
 
     def check_registered(self):
         # --- Check for registration.
