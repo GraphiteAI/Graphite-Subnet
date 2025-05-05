@@ -249,12 +249,6 @@ class Miner(BaseMinerNeuron):
             scores = [score_1]
             bt.logging.info(f"Selecting algorithm {scores.index(min(scores))}")
             synapse.solution = routes[scores.index(min(scores))]
-        elif isinstance(synapse.problem, GraphV1PortfolioProblem):
-            n_swaps, objective_score = None, None
-            while n_swaps is None or objective_score == 0:
-                swaps_1 = await self.solvers['portfolio_v1'].solve_problem(synapse.problem)
-                synapse.solution = swaps_1
-                n_swaps, objective_score = get_portfolio_distribution_similarity(synapse)
         
         # empty out large distance matrix
         if hasattr(synapse.problem, 'edges'):
@@ -294,7 +288,6 @@ class Miner(BaseMinerNeuron):
                 swaps_1 = await self.solvers['portfolio_v1'].solve_problem(synapse.problem)
                 synapse.solution = swaps_1
                 n_swaps, objective_score = get_portfolio_distribution_similarity(synapse)
-        
         
         bt.logging.info(
             f"Miner returned value {synapse.solution} {len(synapse.solution) if isinstance(synapse.solution, list) else synapse.solution}"
