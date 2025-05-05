@@ -249,7 +249,7 @@ async def forward(self):
                 ge_indices = [i for i, typ in enumerate(constraintTypes) if typ == "ge"]
                 excess = min_total - 100
                 if ge_indices:
-                    for idx in ge_indices:
+                    for idx in ge_indices[::-1]:
                         if constraintValues[idx] > 0:
                             reduction = min(constraintValues[idx], excess)
                             constraintValues[idx] -= reduction
