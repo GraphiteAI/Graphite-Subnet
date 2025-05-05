@@ -384,7 +384,7 @@ async def forward(self):
         score_response_obj.current_num_concurrent_forwards = self.current_num_concurrent_forwards
 
         print(responses[0])
-        print([len(response.solution) for response in responses])
+        print([len(response.solution) if response.solution != None else None for response in responses])
 
         rewards = get_portfolio_rewards(self, score_handler=score_response_obj, responses=responses)
         rewards = rewards.numpy(force=True)
