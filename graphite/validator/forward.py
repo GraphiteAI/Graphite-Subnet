@@ -80,10 +80,10 @@ async def forward(self):
         api_response_output = []
 
     # problem weights
-    ref_tsp_value = 0.1
-    ref_mtsp_value = 0.1
-    ref_mdmtsp_value = 0.2 
-    ref_cmdmtsp_value = 0.4
+    ref_tsp_value = 0 # 0.1
+    ref_mtsp_value = 0 # 0.1
+    ref_mdmtsp_value = 0 # 0.2 
+    ref_cmdmtsp_value = 0 # 0.4
     ref_portfolioV1_value = 0.2
 
     # randomly select n_nodes indexes from the selected graph
@@ -378,10 +378,13 @@ async def forward(self):
         rewards = rewards.numpy(force=True)
     else:
         graphsynapse_req_updated = GraphV1PortfolioSynapse(problem=test_problem_obj)
-        ## to be continued
+        
         score_response_obj = ScorePortfolioResponse(graphsynapse_req_updated, swaps)
 
         score_response_obj.current_num_concurrent_forwards = self.current_num_concurrent_forwards
+
+        print(responses[0])
+        print([len(response.solution) for response in responses])
 
         rewards = get_portfolio_rewards(self, score_handler=score_response_obj, responses=responses)
         rewards = rewards.numpy(force=True)
