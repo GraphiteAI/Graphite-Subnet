@@ -226,14 +226,15 @@ def scaled_portfolio_rewards(scores, benchmark: any, objective_function:str = 'm
             i += 1
 
     if final_scores:
-        best_score = max(final_scores) 
+        best_score = max(final_scores)
         worst_score = min(final_scores) 
     else:
         # this means that no valid score was found
         return [0 for score in scores]
 
-    if benchmark_score == np.inf:
-        return [score_gap(score, best_score, worst_score) for score in final_scores]
+    if len(weighted_scores) == 1:
+        # NOTE: this means that none of the miners returned a valid solution even though the benchmark is valid
+        return [0 for score in scores]
     elif not score_worse_than_reference(worst_score, benchmark_score, 'max'):
         return [score_gap(score, best_score, worst_score) for score in final_scores]
     else:

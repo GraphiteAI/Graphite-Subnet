@@ -209,7 +209,7 @@ async def forward(self):
             # Create initialPortfolios: random non-negative token allocations
             initialPortfolios: List[List[Union[float, int]]] = []
             for _ in range(num_portfolio):
-                portfolio = [random.uniform(0, avail_alpha//2) if netuid != 0 else random.uniform(0, 1000) for netuid, avail_alpha in enumerate(avail_alphas)]  # up to 1000 tao and random amounts of alpha_out tokens
+                portfolio = [random.uniform(0, avail_alpha//2/num_portfolio) if netuid != 0 else random.uniform(0, 10000//num_portfolio) for netuid, avail_alpha in enumerate(avail_alphas)]  # up to 1000 tao and random amounts of alpha_out tokens
                 initialPortfolios.append(portfolio)
 
             # Create constraintTypes: mix of 'eq', 'ge', 'le'
