@@ -299,6 +299,9 @@ def get_portfolio_rewards(
     benchmark_response.solution = score_handler.benchmark
     rewards = scaled_portfolio_rewards(miner_scores, get_portfolio_distribution_similarity(benchmark_response))
 
+    ## final checks
+    rewards = [reward if response.solution is not None else 0 for reward, response in zip(rewards, responses)]
+
     return torch.FloatTensor(
         rewards
     ).to(self.device)
