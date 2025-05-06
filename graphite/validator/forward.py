@@ -376,6 +376,19 @@ async def forward(self):
 
         rewards = get_rewards(self, score_handler=score_response_obj, responses=responses)
         rewards = rewards.numpy(force=True)
+
+        wandb_miner_distance = [np.inf for _ in range(self.metagraph.n.item())]
+        wandb_miner_solution = [[] for _ in range(self.metagraph.n.item())]
+        wandb_axon_elapsed = [np.inf for _ in range(self.metagraph.n.item())]
+        wandb_rewards = [0 for _ in range(self.metagraph.n.item())]
+        best_solution_uid = 0
+        for id, uid in enumerate(miner_uids):
+            wandb_rewards[uid] = rewards[id]
+            if wandb_rewards[uid] == rewards.max():
+                best_solution_uid = uid
+            wandb_miner_distance[uid] = score_response_obj.score_response(responses[id]) if score_response_obj.score_response(responses[id])!=None else 0
+            wandb_miner_solution[uid] = responses[id].solution
+            wandb_axon_elapsed[uid] = responses[id].dendrite.process_time
     else:
         graphsynapse_req_updated = GraphV1PortfolioSynapse(problem=test_problem_obj)
         
@@ -383,24 +396,25 @@ async def forward(self):
 
         score_response_obj.current_num_concurrent_forwards = self.current_num_concurrent_forwards
 
-        print(responses[0])
         print([len(response.solution) if response.solution != None else None for response in responses])
 
         rewards = get_portfolio_rewards(self, score_handler=score_response_obj, responses=responses)
         rewards = rewards.numpy(force=True)
 
-    wandb_miner_distance = [np.inf for _ in range(self.metagraph.n.item())]
-    wandb_miner_solution = [[] for _ in range(self.metagraph.n.item())]
-    wandb_axon_elapsed = [np.inf for _ in range(self.metagraph.n.item())]
-    wandb_rewards = [0 for _ in range(self.metagraph.n.item())]
-    best_solution_uid = 0
-    for id, uid in enumerate(miner_uids):
-        wandb_rewards[uid] = rewards[id]
-        if wandb_rewards[uid] == rewards.max():
-            best_solution_uid = uid
-        wandb_miner_distance[uid] = score_response_obj.score_response(responses[id]) if score_response_obj.score_response(responses[id])!=None else 0
-        wandb_miner_solution[uid] = responses[id].solution
-        wandb_axon_elapsed[uid] = responses[id].dendrite.process_time
+        wandb_miner_swaps = [np.inf for _ in range(self.metagraph.n.item())]
+        wandb_miner_objective = [np.inf for _ in range(self.metagraph.n.item())]
+        wandb_miner_solution = [[] for _ in range(self.metagraph.n.item())]
+        wandb_axon_elapsed = [np.inf for _ in range(self.metagraph.n.item())]
+        wandb_rewards = [0 for _ in range(self.metagraph.n.item())]
+        best_solution_uid = 0
+        for id, uid in enumerate(miner_uids):
+            wandb_rewards[uid] = rewards[id]
+            if wandb_rewards[uid] == rewards.max():
+                best_solution_uid = uid
+            wandb_miner_swaps[uid] = score_response_obj.score_response(responses[id])[0] if score_response_obj.score_response(responses[id])!=None else 0
+            wandb_miner_objective[uid] = score_response_obj.score_response(responses[id])[1] if score_response_obj.score_response(responses[id])!=None else 0
+            wandb_miner_solution[uid] = responses[id].solution
+            wandb_axon_elapsed[uid] = responses[id].dendrite.process_time
 
 
     # if len(responses) > 0 and did_organic_task == True:
@@ -593,7 +607,7 @@ async def forward(self):
                         }),
                 )
             for rewIdx in range(self.metagraph.n.item()):
-                wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}": wandb_rewards[rewIdx], f"swaps-{self.wallet.hotkey.ss58_address}": wandb_miner_distance[rewIdx]}, step=int(rewIdx))
+                wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}": wandb_rewards[rewIdx], f"swaps-{self.wallet.hotkey.ss58_address}": wandb_miner_swaps[rewIdx], f"objective-{self.wallet.hotkey.ss58_address}": wandb_miner_objective[rewIdx]}, step=int(rewIdx))
 
             self.cleanup_wandb(wandb)
         except Exception as e:
