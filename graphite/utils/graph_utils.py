@@ -183,7 +183,7 @@ def get_portfolio_distribution_similarity(synapse: GraphV1PortfolioSynapse):
         from_subnet_idx = swap[1]
         to_subnet_idx = swap[2]
         from_num_alpha_tokens = swap[3]
-        if initial_portfolio_np[portfolio_idx, from_subnet_idx] >= from_num_alpha_tokens or np.isclose(initial_portfolio_np[portfolio_idx, from_subnet_idx], from_num_alpha_tokens, atol=1e-7):
+        if initial_portfolio_np[portfolio_idx, from_subnet_idx] >= from_num_alpha_tokens or np.isclose(initial_portfolio_np[portfolio_idx, from_subnet_idx], from_num_alpha_tokens, atol=1e-2):
             tao_emitted = current_pools[from_subnet_idx].swap_alpha_to_tao(from_num_alpha_tokens)
             alpha_emitted = current_pools[to_subnet_idx].swap_tao_to_alpha(tao_emitted)
             if np.isclose(initial_portfolio_np[portfolio_idx, from_subnet_idx], from_num_alpha_tokens, atol=1e-7):
