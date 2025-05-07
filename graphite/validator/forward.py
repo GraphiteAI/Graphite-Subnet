@@ -391,12 +391,9 @@ async def forward(self):
             wandb_axon_elapsed[uid] = responses[id].dendrite.process_time
     else:
         graphsynapse_req_updated = GraphV1PortfolioSynapse(problem=test_problem_obj)
-        
         score_response_obj = ScorePortfolioResponse(graphsynapse_req_updated, swaps)
 
         score_response_obj.current_num_concurrent_forwards = self.current_num_concurrent_forwards
-
-        print([len(response.solution) if response.solution != None else None for response in responses])
 
         rewards = get_portfolio_rewards(self, score_handler=score_response_obj, responses=responses)
         rewards = rewards.numpy(force=True)
