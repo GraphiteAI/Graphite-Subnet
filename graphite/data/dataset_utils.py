@@ -221,6 +221,12 @@ def check_and_get_usa_poi():
     fp = get_file_path(USA_POI_DETAILS['ref_id'])
     if fp.exists():
         # we have already downloaded and processed the data
+        # attempt to load and check against the checksum
+        usa_dataset = np.load(fp)
+        usa_dataset_checksum = usa_dataset['checksum']
+        if usa_dataset_checksum != USA_POI_DETAILS['checksum']:
+            bt.logging.info(f"Downloading {USA_POI_DETAILS['ref_id']} data from huggingface")
+            hf_hub_download(repo_id="Graphite-AI/coordinate_data", filename="USA_POI.npz", repo_type="dataset", local_dir=DATASET_DIR)
         bt.logging.info(f"{USA_POI_DETAILS['ref_id']} already downloaded")
         return
     else:
