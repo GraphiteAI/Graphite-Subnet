@@ -197,11 +197,17 @@ async def forward(self):
             bt.logging.info(f"Posted: n_nodes V2 randomized-demand cmTSP {n_nodes}")
     else:
         solution_found = False
+        connection = False
+        while not connection:
+            try:
+                subtensor = bt.Subtensor("finney")
+                connection = True
+            except:
+                pass
+        subnets_info = subtensor.all_subnets()
         while not solution_found:
 
             num_portfolio = random.randint(50, 200)
-            subtensor = bt.Subtensor("finney")
-            subnets_info = subtensor.all_subnets()
             pools = [[subnet_info.tao_in.tao, subnet_info.alpha_in.tao] for subnet_info in subnets_info]
             num_subnets = len(pools)
             avail_alphas = [subnet_info.alpha_out.tao for subnet_info in subnets_info]
@@ -351,7 +357,7 @@ async def forward(self):
             axons=[self.metagraph.axons[uid] for uid in miner_uids], #miner_uids
             synapse=graphsynapse_req,
             deserialize=True,
-            timeout = 0.0005 * test_problem_obj.n_portfolio * len(test_problem_obj.constraintTypes),
+            timeout = 0.0007 * test_problem_obj.n_portfolio * len(test_problem_obj.constraintTypes),
         )
 
     for idx, res in enumerate(responses):
