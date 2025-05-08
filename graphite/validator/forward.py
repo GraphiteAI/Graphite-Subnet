@@ -197,11 +197,17 @@ async def forward(self):
             bt.logging.info(f"Posted: n_nodes V2 randomized-demand cmTSP {n_nodes}")
     else:
         solution_found = False
+        connection = False
+        while not connection:
+            try:
+                subtensor = bt.Subtensor("finney")
+                connection = True
+            except:
+                pass
+        subnets_info = subtensor.all_subnets()
         while not solution_found:
 
             num_portfolio = random.randint(50, 200)
-            subtensor = bt.Subtensor("finney")
-            subnets_info = subtensor.all_subnets()
             pools = [[subnet_info.tao_in.tao, subnet_info.alpha_in.tao] for subnet_info in subnets_info]
             num_subnets = len(pools)
             avail_alphas = [subnet_info.alpha_out.tao for subnet_info in subnets_info]
@@ -351,7 +357,7 @@ async def forward(self):
             axons=[self.metagraph.axons[uid] for uid in miner_uids], #miner_uids
             synapse=graphsynapse_req,
             deserialize=True,
-            timeout = 0.0005 * test_problem_obj.n_portfolio * len(test_problem_obj.constraintTypes),
+            timeout = 0.0007 * test_problem_obj.n_portfolio * len(test_problem_obj.constraintTypes),
         )
 
     for idx, res in enumerate(responses):
@@ -376,9 +382,21 @@ async def forward(self):
 
         rewards = get_rewards(self, score_handler=score_response_obj, responses=responses)
         rewards = rewards.numpy(force=True)
+
+        wandb_miner_distance = [np.inf for _ in range(self.metagraph.n.item())]
+        wandb_miner_solution = [[] for _ in range(self.metagraph.n.item())]
+        wandb_axon_elapsed = [np.inf for _ in range(self.metagraph.n.item())]
+        wandb_rewards = [0 for _ in range(self.metagraph.n.item())]
+        best_solution_uid = 0
+        for id, uid in enumerate(miner_uids):
+            wandb_rewards[uid] = rewards[id]
+            if wandb_rewards[uid] == rewards.max():
+                best_solution_uid = uid
+            wandb_miner_distance[uid] = score_response_obj.score_response(responses[id]) if score_response_obj.score_response(responses[id])!=None else 0
+            wandb_miner_solution[uid] = responses[id].solution
+            wandb_axon_elapsed[uid] = responses[id].dendrite.process_time
     else:
         graphsynapse_req_updated = GraphV1PortfolioSynapse(problem=test_problem_obj)
-        ## to be continued
         score_response_obj = ScorePortfolioResponse(graphsynapse_req_updated, swaps)
 
         score_response_obj.current_num_concurrent_forwards = self.current_num_concurrent_forwards
@@ -386,18 +404,20 @@ async def forward(self):
         rewards = get_portfolio_rewards(self, score_handler=score_response_obj, responses=responses)
         rewards = rewards.numpy(force=True)
 
-    wandb_miner_distance = [np.inf for _ in range(self.metagraph.n.item())]
-    wandb_miner_solution = [[] for _ in range(self.metagraph.n.item())]
-    wandb_axon_elapsed = [np.inf for _ in range(self.metagraph.n.item())]
-    wandb_rewards = [0 for _ in range(self.metagraph.n.item())]
-    best_solution_uid = 0
-    for id, uid in enumerate(miner_uids):
-        wandb_rewards[uid] = rewards[id]
-        if wandb_rewards[uid] == rewards.max():
-            best_solution_uid = uid
-        wandb_miner_distance[uid] = score_response_obj.score_response(responses[id]) if score_response_obj.score_response(responses[id])!=None else 0
-        wandb_miner_solution[uid] = responses[id].solution
-        wandb_axon_elapsed[uid] = responses[id].dendrite.process_time
+        wandb_miner_swaps = [np.inf for _ in range(self.metagraph.n.item())]
+        wandb_miner_objective = [np.inf for _ in range(self.metagraph.n.item())]
+        wandb_miner_solution = [[] for _ in range(self.metagraph.n.item())]
+        wandb_axon_elapsed = [np.inf for _ in range(self.metagraph.n.item())]
+        wandb_rewards = [0 for _ in range(self.metagraph.n.item())]
+        best_solution_uid = 0
+        for id, uid in enumerate(miner_uids):
+            wandb_rewards[uid] = rewards[id]
+            if wandb_rewards[uid] == rewards.max():
+                best_solution_uid = uid
+            wandb_miner_swaps[uid] = score_response_obj.score_response(responses[id])[0] if score_response_obj.score_response(responses[id])!=None else 0
+            wandb_miner_objective[uid] = score_response_obj.score_response(responses[id])[1] if score_response_obj.score_response(responses[id])!=None else 0
+            wandb_miner_solution[uid] = responses[id].solution
+            wandb_axon_elapsed[uid] = responses[id].dendrite.process_time
 
 
     # if len(responses) > 0 and did_organic_task == True:
@@ -590,7 +610,7 @@ async def forward(self):
                         }),
                 )
             for rewIdx in range(self.metagraph.n.item()):
-                wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}": wandb_rewards[rewIdx], f"distance-{self.wallet.hotkey.ss58_address}": wandb_miner_distance[rewIdx]}, step=int(rewIdx))
+                wandb.log({f"rewards-{self.wallet.hotkey.ss58_address}": wandb_rewards[rewIdx], f"swaps-{self.wallet.hotkey.ss58_address}": wandb_miner_swaps[rewIdx], f"objective-{self.wallet.hotkey.ss58_address}": wandb_miner_objective[rewIdx]}, step=int(rewIdx))
 
             self.cleanup_wandb(wandb)
         except Exception as e:

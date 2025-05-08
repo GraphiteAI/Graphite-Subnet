@@ -128,7 +128,7 @@ class ScorePortfolioResponse:
     def current_num_concurrent_forwards(self, value):
         self._current_num_concurrent_forwards = value
 
-    def get_score(self, response: Union[GraphV1Synapse, GraphV2Synapse]):
+    def get_score(self, response: Union[GraphV1PortfolioSynapse]):
         # all cost_functions should handle False as an indication that the problem was unsolvable and assign it a value of np.inf
         synapse_copy = self.synapse
         synapse_copy.solution = response.solution
@@ -298,6 +298,9 @@ def get_portfolio_rewards(
     benchmark_response = deepcopy(responses[0])
     benchmark_response.solution = score_handler.benchmark
     rewards = scaled_portfolio_rewards(miner_scores, get_portfolio_distribution_similarity(benchmark_response))
+
+    ## final checks
+    rewards = [reward if response.solution is not None else 0 for reward, response in zip(rewards, responses)]
 
     return torch.FloatTensor(
         rewards
