@@ -95,10 +95,11 @@ class GreedyPortfolioSolver(BaseSolver):
         portfolio_swaps = [] # [ [portfolio_idx, from_subnet_idx, to_subnet_idx, from_num_tokens], ... ]
         for idx, portfolio in enumerate(initialPortfolios):
             for netuid, alpha_token in enumerate(portfolio):
-                emitted_tao = start_pools[netuid].swap_alpha_to_tao(alpha_token)
-                portfolio_swaps.append([idx, netuid, 0, alpha_token])
-                total_tao += emitted_tao
-                portfolio_tao[idx] += emitted_tao
+                if alpha_token > 0:
+                    emitted_tao = start_pools[netuid].swap_alpha_to_tao(alpha_token)
+                    portfolio_swaps.append([idx, netuid, 0, int(alpha_token)])
+                    total_tao += emitted_tao
+                    portfolio_tao[idx] += emitted_tao
 
         for netuid, constraint_type in enumerate(formatted_problem.constraintTypes):
             if netuid != 0:
@@ -107,10 +108,11 @@ class GreedyPortfolioSolver(BaseSolver):
                 if constraint_type == "eq" or constraint_type == "ge":
                     for idx in range(len(portfolio_tao)):
                         tao_to_swap = min(portfolio_tao[idx], tao_required)
-                        alpha_emitted = start_pools[netuid].swap_tao_to_alpha(tao_to_swap)
-                        portfolio_swaps.append([idx, 0, netuid, (tao_to_swap//0.01/100 - 0.01)])
-                        tao_required -= tao_to_swap
-                        portfolio_tao[idx] -= tao_to_swap
+                        if tao_to_swap > 0:
+                            alpha_emitted = start_pools[netuid].swap_tao_to_alpha(tao_to_swap)
+                            portfolio_swaps.append([idx, 0, netuid, int(tao_to_swap)])
+                            tao_required -= tao_to_swap
+                            portfolio_tao[idx] -= tao_to_swap
 
         return portfolio_swaps
     
@@ -120,17 +122,20 @@ class GreedyPortfolioSolver(BaseSolver):
 
 
 if __name__=="__main__":
-    num_portfolio = random.randint(50, 200)
     subtensor = bt.Subtensor("finney")
     subnets_info = subtensor.all_subnets()
-    pools = [[subnet_info.tao_in.tao, subnet_info.alpha_in.tao] for subnet_info in subnets_info]
+    
+    num_portfolio = random.randint(50, 200)
+    pools = [[subnet_info.tao_in.rao, subnet_info.alpha_in.rao] for subnet_info in subnets_info]
     num_subnets = len(pools)
-    avail_alphas = [subnet_info.alpha_out.tao for subnet_info in subnets_info]
-
+    avail_alphas = [subnet_info.alpha_out.rao for subnet_info in subnets_info]
+    
     # Create initialPortfolios: random non-negative token allocations
-    initialPortfolios: List[List[Union[float, int]]] = []
+    initialPortfolios: List[List[int]] = []
     for _ in range(num_portfolio):
-        portfolio = [random.uniform(0, avail_alpha//(2*num_portfolio)) if netuid != 0 else random.uniform(0, 10000/num_portfolio) for netuid, avail_alpha in enumerate(avail_alphas)]  # up to 100k tao and random amounts of alpha_out tokens
+        portfolio = [int(random.uniform(0, avail_alpha//(2*num_portfolio))) if netuid != 0 else int(random.uniform(0, 10000*1e9/num_portfolio)) for netuid, avail_alpha in enumerate(avail_alphas)]  # up to 100k tao and random amounts of alpha_out tokens
+        # On average, we assume users will invest in about 50% of the subnets
+        portfolio = [portfolio[i] if random.random() < 0.5 else 0 for i in range(num_subnets)]
         initialPortfolios.append(portfolio)
 
     # Create constraintTypes: mix of 'eq', 'ge', 'le'
@@ -148,6 +153,11 @@ if __name__=="__main__":
             constraintValues.append(random.uniform(0.0, 5.0))   # lower bound
         elif ctype == "le":
             constraintValues.append(random.uniform(10.0, 100.0))  # upper bound
+    
+    for idx, constraintValue in enumerate(constraintValues):
+        if random.random() < 0.5:
+            constraintTypes[idx] = "eq"
+            constraintValues[idx] = 0
 
     ### Adjust constraintValues in-place to make sure feasibility is satisfied.
     eq_total = sum(val for typ, val in zip(constraintTypes, constraintValues) if typ == "eq")

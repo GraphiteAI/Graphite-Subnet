@@ -208,14 +208,16 @@ async def forward(self):
         while not solution_found:
 
             num_portfolio = random.randint(50, 200)
-            pools = [[subnet_info.tao_in.tao, subnet_info.alpha_in.tao] for subnet_info in subnets_info]
+            pools = [[subnet_info.tao_in.rao, subnet_info.alpha_in.rao] for subnet_info in subnets_info]
             num_subnets = len(pools)
-            avail_alphas = [subnet_info.alpha_out.tao for subnet_info in subnets_info]
-
+            avail_alphas = [subnet_info.alpha_out.rao for subnet_info in subnets_info]
+            
             # Create initialPortfolios: random non-negative token allocations
-            initialPortfolios: List[List[Union[float, int]]] = []
+            initialPortfolios: List[List[int]] = []
             for _ in range(num_portfolio):
-                portfolio = [random.uniform(0, avail_alpha//2/num_portfolio) if netuid != 0 else random.uniform(0, 10000//num_portfolio) for netuid, avail_alpha in enumerate(avail_alphas)]  # up to 1000 tao and random amounts of alpha_out tokens
+                portfolio = [int(random.uniform(0, avail_alpha//(2*num_portfolio))) if netuid != 0 else int(random.uniform(0, 10000*1e9/num_portfolio)) for netuid, avail_alpha in enumerate(avail_alphas)]  # up to 100k tao and random amounts of alpha_out tokens
+                # On average, we assume users will invest in about 50% of the subnets
+                portfolio = [portfolio[i] if random.random() < 0.5 else 0 for i in range(num_subnets)]
                 initialPortfolios.append(portfolio)
 
             # Create constraintTypes: mix of 'eq', 'ge', 'le'
@@ -233,6 +235,11 @@ async def forward(self):
                     constraintValues.append(random.uniform(0.0, 5.0))   # lower bound
                 elif ctype == "le":
                     constraintValues.append(random.uniform(10.0, 100.0))  # upper bound
+            
+            for idx, constraintValue in enumerate(constraintValues):
+                if random.random() < 0.5:
+                    constraintTypes[idx] = "eq"
+                    constraintValues[idx] = 0
 
             ### Adjust constraintValues in-place to make sure feasibility is satisfied.
             eq_total = sum(val for typ, val in zip(constraintTypes, constraintValues) if typ == "eq")
