@@ -192,9 +192,19 @@ def get_portfolio_distribution_similarity(synapse: GraphV1PortfolioSynapse):
                 initial_portfolio_np[portfolio_idx, from_subnet_idx] -= from_num_alpha_tokens
             initial_portfolio_np[portfolio_idx, to_subnet_idx] += alpha_emitted
         else:
-            print(swap, initial_portfolio_np[portfolio_idx, from_subnet_idx], from_num_alpha_tokens)
-            print("Not enough alpha")
-            return 1000000, 0
+            if abs(initial_portfolio_np[portfolio_idx, from_subnet_idx]-from_num_alpha_tokens)/from_num_alpha_tokens < 0.01:
+                # if the difference is less than 1% then we can assume that the swap is valid
+                tao_emitted = current_pools[from_subnet_idx].swap_alpha_to_tao(from_num_alpha_tokens)
+                alpha_emitted = current_pools[to_subnet_idx].swap_tao_to_alpha(tao_emitted)
+                if np.isclose(initial_portfolio_np[portfolio_idx, from_subnet_idx], from_num_alpha_tokens, atol=1e-7):
+                    initial_portfolio_np[portfolio_idx, from_subnet_idx] = 0
+                else:
+                    initial_portfolio_np[portfolio_idx, from_subnet_idx] -= from_num_alpha_tokens
+                initial_portfolio_np[portfolio_idx, to_subnet_idx] += alpha_emitted
+            else:
+                print(swap, initial_portfolio_np[portfolio_idx, from_subnet_idx], from_num_alpha_tokens)
+                print("Not enough alpha")
+                return 1000000, 0
 
     ### calculate the new distribution of tao
     total_tokens_in_each_subnet_in_portfolios = initial_portfolio_np.sum(axis=0)
@@ -211,19 +221,19 @@ def get_portfolio_distribution_similarity(synapse: GraphV1PortfolioSynapse):
         ## penalize differences squared
         if constraintType == "ge":
             if final_tao_distribution[netuid] < constraintValue:
-                if constraintValue - final_tao_distribution[netuid] > 0.5: # 0.5% deviation threshold
+                if constraintValue - final_tao_distribution[netuid] > 1: # 1% deviation threshold
                     deviation = constraintValue - final_tao_distribution[netuid]
                     return 1000000, 0
                 objective_score -= (constraintValue - final_tao_distribution[netuid])**2
         elif constraintType == "eq":
             if final_tao_distribution[netuid] != constraintValue:
-                if abs(constraintValue - final_tao_distribution[netuid]) > 0.5: # 0.5% deviation threshold
+                if abs(constraintValue - final_tao_distribution[netuid]) > 1: # 1% deviation threshold
                     deviation = constraintValue - final_tao_distribution[netuid]
                     return 1000000, 0
                 objective_score -= abs(constraintValue - final_tao_distribution[netuid])**2
         elif constraintType == "le":
             if final_tao_distribution[netuid] > constraintValue:
-                if final_tao_distribution[netuid] - constraintValue > 0.5: # 0.5% deviation threshold
+                if final_tao_distribution[netuid] - constraintValue > 1: # 1% deviation threshold
                     deviation = constraintValue - final_tao_distribution[netuid]
                     return 1000000, 0
                 objective_score -= (final_tao_distribution[netuid] - constraintValue)**2
@@ -510,7 +520,7 @@ def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem, GraphV1Portfolio
                 return False
             if not all([[subnetToken>=0 for subnetToken in portfolio] for portfolio in problem.initialPortfolios]):
                 return False
-            if not all([[type(subnetToken)==float or type(subnetToken)==int for subnetToken in portfolio] for portfolio in problem.initialPortfolios]):
+            if not all([[type(subnetToken)==int for subnetToken in portfolio] for portfolio in problem.initialPortfolios]):
                 return False
             return True
         def assert_constraintValues_type_count(problem):
@@ -535,7 +545,7 @@ def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem, GraphV1Portfolio
                     return False
                 if not all([len(pool)==2 for pool in problem.pools]):
                     return False
-                if not all([(type(pool[0])==float or type(pool[0])==int) and (type(pool[1])==float or type(pool[1])==int) for pool in problem.pools]):
+                if not all([(type(pool[0])==int) and (type(pool[1])==int) for pool in problem.pools]):
                     return False
                 if not all([pool[0]>=0 and pool[1]>=0 for pool in problem.pools]):
                     return False

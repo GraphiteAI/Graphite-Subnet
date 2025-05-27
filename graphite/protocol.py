@@ -135,10 +135,10 @@ class IsAlive(bt.Synapse):
 class GraphV1PortfolioProblem(BaseModel):
     problem_type: Literal['PortfolioReallocation'] = Field('PortfolioReallocation', description="Problem Type")
     n_portfolio: int = Field(3, description="Number of Portfolios")
-    initialPortfolios: List[List[Union[float, int]]] = Field([[0]*100]*3, description="Number of tokens in each subnet for each of the n_portfolio eg. 3 portfolios with 0 tokens in any of the 100 subnets")
+    initialPortfolios: List[List[int]] = Field([[0]*100]*3, description="Number of tokens in each subnet for each of the n_portfolio eg. 3 portfolios with 0 tokens in any of the 100 subnets")
     constraintValues: List[Union[float, int]] = Field([1.0]*100, description="Overall Percentage for each subnet in equivalent TAO after taking the sum of all portfolios; they do not need to add up to 100%")
     constraintTypes: List[str] = Field(["ge"]*100, description="eq = equal to, ge = greater or equals to, le = lesser or equals to - the value provided in constraintValues")
-    pools: List[List[Union[float, int]]] = Field([[1.0, 1.0]]*100, description="Snapshot of current AMM pool states of all subnets when problem is issued, list idx = netuid, [num_tao_tokens, num_alpha_tokens]")
+    pools: List[List[int]] = Field([[1.0, 1.0]]*100, description="Snapshot of current AMM pool states of all subnets when problem is issued, list idx = netuid, [num_tao_tokens, num_alpha_tokens]")
 
     @model_validator(mode='after')
     def assert_portfolio_count(self):
@@ -225,7 +225,7 @@ class GraphV1PortfolioSynapse(bt.Synapse):
     Implement necessary serialization and deserialization checks
     '''
     problem: Union[GraphV1PortfolioProblem]
-    solution: Optional[Union[List[List[Union[int, float]]], bool]] = None  #[ [portfolio_idx, from_subnet_idx, to_subnet_idx, from_num_alpha_tokens], ... ]
+    solution: Optional[Union[List[List[int]], bool]] = None  #[ [portfolio_idx, from_subnet_idx, to_subnet_idx, from_num_alpha_tokens], ... ]
 
     def to_headers(self) -> dict:
         """

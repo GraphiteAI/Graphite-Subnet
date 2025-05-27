@@ -7,7 +7,7 @@ class SubnetPool():
     # if the origin address is root pool or if the origin netuid is the same as the destination then charge the same
     def swap_alpha_to_tao(self, input_alpha_tokens):
         if self.netuid == 0:
-            fee = 50000/1e9
+            fee = 50000
             self.num_tao_tokens -= (input_alpha_tokens - fee)
             self.num_alpha_tokens += input_alpha_tokens
             return round(input_alpha_tokens - fee, 5)
@@ -24,12 +24,12 @@ class SubnetPool():
 
     def swap_tao_to_alpha(self, input_tao_tokens):
         if self.netuid == 0:
-            fee = 50000/1e9
+            fee = 50000
             self.num_tao_tokens += input_tao_tokens
             self.num_alpha_tokens -= (input_tao_tokens - fee)
             return round(input_tao_tokens - fee, 5)
         else:
-            fee = 50000/1e9 # in terms of tao
+            fee = 50000 # in terms of tao
 
             new_tao = self.num_tao_tokens + input_tao_tokens - fee
             new_alpha = self.num_alpha_tokens*self.num_tao_tokens / new_tao
