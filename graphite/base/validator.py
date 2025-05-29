@@ -28,14 +28,17 @@ import time
 import random
 import math
 
+from abc import abstractmethod
 from typing import List, Union
 from traceback import print_exception
+from pydantic import BaseModel, Field, field_validator, ConfigDict
+from enum import Enum
 
 from graphite.base.neuron import BaseNeuron
 from graphite.base.utils.weight_utils import process_weights_for_netuid, convert_weights_and_uids_for_emit #TODO: Replace when bittensor switches to numpy
 from graphite.mock import MockDendrite
 from graphite.utils.config import add_validator_args
-
+from graphite.utils.yield_utils import fetch_rebalancing_axon, fetch_performance_axon
 from graphite.protocol import IsAlive
 from graphite.utils.uids import check_uid_availability
 
@@ -46,6 +49,32 @@ import os
 import wandb
 import shutil
 import logging
+
+class ScoreType(Enum):
+    ORGANIC = "organic"
+    SYNTHETIC = "synthetic"
+    YIELD = "yield"
+
+class CompositeScore(BaseModel):
+    organic_score: np.ndarray = Field(default_factory=list)
+    synthetic_score: np.ndarray = Field(default_factory=list)
+    yield_score: np.ndarray = Field(default_factory=list)
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        arbitrary_types_allowed=True
+        )
+
+    @property
+    def composite_score(self):
+        '''
+        Returns net score for each uid with the weight distribution:
+        organic_score: 0.2
+        synthetic_score: 0.7
+        yield_score: 0.1
+        '''
+        return self.organic_score * 0.2 + self.synthetic_score * 0.7 + self.yield_score * 0.1
+    
 
 class BaseValidatorNeuron(BaseNeuron):
     """
@@ -58,6 +87,14 @@ class BaseValidatorNeuron(BaseNeuron):
     def add_args(cls, parser: argparse.ArgumentParser):
         super().add_args(parser)
         add_validator_args(cls, parser)
+
+    @abstractmethod
+    def organic_forward(self):
+        pass
+
+    @abstractmethod
+    def yield_forward(self):
+        pass
 
     def __init__(self, config=None):
         super().__init__(config=config)
@@ -82,6 +119,11 @@ class BaseValidatorNeuron(BaseNeuron):
 
         self.uid_query_sets = []
 
+        self.organic_axon = fetch_rebalancing_axon() # gets the axon info of the neuron that serves the rebalancing data
+        self.yield_axon = fetch_performance_axon() # gets the axon info of the neuron that serves the performance data
+        bt.logging.info(f"Rebalancing axon: {self.organic_axon}")
+        bt.logging.info(f"Performance axon: {self.yield_axon}")
+        
         self.sync()
 
         # Serve axon to enable external connections.
@@ -115,6 +157,26 @@ class BaseValidatorNeuron(BaseNeuron):
                 available_uids[uid] = uid
 
         return available_uids
+    
+    async def get_miner_uids(self):
+        # using the inverse of the validator recognition logic in blacklist fn
+        # Check if uid has validator permit
+        def valid_ip(ip: str):
+            return not "0.0.0.0" in ip
+        miner_uids = []
+        for uid in self.metagraph.uids:
+            if self.metagraph.validator_permit[uid]:
+                # this uid is recognized as a validator
+                continue
+            elif self.metagraph.stake[uid] >= 2000:
+                # this amount of stake is too high for a miner
+                continue
+            elif not valid_ip(self.metagraph.axons[uid].ip):
+                continue
+            else:
+                miner_uids.append(uid)
+        return miner_uids
+
     
     async def get_available_uids_alive(self):
         # get all axons in subnet
@@ -221,7 +283,6 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.error(f"Error when checking UID is_alive: {e}")
             return None
 
-
     def serve_axon(self):
         """Serve axon to enable external connections."""
 
@@ -293,6 +354,74 @@ class BaseValidatorNeuron(BaseNeuron):
         except:
             pass
 
+    async def organic_request_flow(self):
+        # trigger organic forward flow
+        while True:
+            try:
+                bt.logging.info(f"Organic request flow")
+                if self.organic_axon is None:
+                    bt.logging.error(f"Rebalancing axon is not set")
+                    self.organic_axon = fetch_rebalancing_axon()
+                else:
+                    await self.organic_forward()
+            except KeyboardInterrupt:
+                bt.logging.info(f"Organic request flow interrupted by keyboard interrupt")
+                break
+            except Exception as e:
+                bt.logging.error(f"Error in organic request flow: {e}")
+                continue
+            finally:
+                # poll for a new organmic rebalance job every block
+                await asyncio.sleep(12)
+            # Let the step management be handled by the synthetic request flow
+
+    async def yield_request_flow(self):
+        while True:
+            try:
+                bt.logging.info(f"Yield request flow")
+                if self.yield_axon is None:
+                    bt.logging.error(f"Yield axon is not set")
+                    self.yield_axon = fetch_performance_axon()
+                else:
+                    await self.yield_forward()
+            except KeyboardInterrupt:
+                bt.logging.info(f"Yield request flow interrupted by keyboard interrupt")
+                break
+            except Exception as e:
+                bt.logging.error(f"Error in yield request flow: {e}")
+                continue
+            finally:
+                await asyncio.sleep(30)
+
+    async def synthetic_request_flow(self):
+        while True:
+            try:
+                bt.logging.info(f"step({self.step}) block({self.block})")
+
+                # Run multiple forwards concurrently.
+                if self.block - self.last_synthetic_req > 25: # synthetic request every 25 blocks ~ 5 min
+                    self.last_synthetic_req = self.block
+                    self.concurrencyIdx = 0
+                    await self.concurrent_forward()
+
+                # Check if we should exit.
+                if self.should_exit:
+                    break
+
+                # Sync metagraph and set weights if 1 epoch (300 blocks) has passed.
+                bt.logging.info(f"METAGRAPH UPDATE {time.time()}")
+                self.sync()
+
+                # increment step each block and update view on the metagraph
+                self.step += 1
+            except KeyboardInterrupt:
+                bt.logging.info(f"Synthetic request flow interrupted by keyboard interrupt")
+                break
+            except Exception as e:
+                bt.logging.error(f"Error in synthetic request flow: {e}")
+                continue
+            await asyncio.sleep(12)
+
     def run(self):
         """
         Initiates and manages the main loop for the miner on the Bittensor network. The main loop handles graceful shutdown on keyboard interrupts and logs unforeseen errors.
@@ -318,32 +447,21 @@ class BaseValidatorNeuron(BaseNeuron):
 
         bt.logging.info(f"Validator starting at block: {self.block}")
         self.last_synthetic_req = 0
+
         # This loop maintains the validator's operations until intentionally stopped.
         try:
-            while True:
-                bt.logging.info(f"step({self.step}) block({self.block})")
+            # Create tasks for both request flows
+            self.organic_task = self.loop.create_task(self.organic_request_flow())
+            self.synthetic_task = self.loop.create_task(self.synthetic_request_flow())
+            self.yield_task = self.loop.create_task(self.yield_request_flow())
 
-                # Run multiple forwards concurrently.
-                if self.block - self.last_synthetic_req > 25: # synthetic request every 25 blocks ~ 5 min
-                    self.last_synthetic_req = self.block
-                    self.concurrencyIdx = 0
-                    self.loop.run_until_complete(self.concurrent_forward())
-
-                # Check if we should exit.
-                if self.should_exit:
-                    break
-
-                # Sync metagraph and set weights if 1 epoch (300 blocks) has passed.
-                time.sleep(12)
-                bt.logging.info(f"METAGRAPH UPDATE {time.time()}")
-                self.sync()
-
-                # increment step each block and update view on the metagraph
-                self.step += 1
+            # Run the event loop
+            self.loop.run_forever()
 
         # If someone intentionally stops the validator, it'll safely terminate operations.
         except KeyboardInterrupt:
             self.axon.stop()
+            self.loop.stop()
             bt.logging.success("Validator killed by keyboard interrupt.")
             exit()
 
@@ -374,6 +492,14 @@ class BaseValidatorNeuron(BaseNeuron):
         if self.is_running:
             bt.logging.debug("Stopping validator in background thread.")
             self.should_exit = True
+            # Cancel the running tasks
+            if hasattr(self, 'organic_task'):
+                self.organic_task.cancel()
+            if hasattr(self, 'synthetic_task'):
+                self.synthetic_task.cancel()
+            if hasattr(self, 'yield_task'):
+                self.yield_task.cancel()
+            self.loop.stop()
             self.thread.join(5)
             self.is_running = False
             bt.logging.debug("Stopped")
@@ -395,12 +521,7 @@ class BaseValidatorNeuron(BaseNeuron):
             traceback: A traceback object encoding the stack trace.
                        None if the context was exited without an exception.
         """
-        if self.is_running:
-            bt.logging.debug("Stopping validator in background thread.")
-            self.should_exit = True
-            self.thread.join(5)
-            self.is_running = False
-            bt.logging.debug("Stopped")
+        self.stop_run_thread()
 
     def set_weights(self):
         """
@@ -408,7 +529,7 @@ class BaseValidatorNeuron(BaseNeuron):
         """
 
         # Check if self.scores contains any NaN values and log a warning if it does.
-        if np.isnan(self.scores).any():
+        if np.isnan(self.scores.composite_score).any():
             bt.logging.warning(
                 f"Scores contain NaN values. This may be due to a lack of responses from miners, or a bug in your reward functions."
             )
@@ -416,7 +537,7 @@ class BaseValidatorNeuron(BaseNeuron):
         # Calculate the average reward for each uid across non-zero values.
         # Replace any NaN values with 0.
         try:
-            raw_weights = self.scores / np.linalg.norm(self.scores, ord=1, axis=0, keepdims=True)
+            raw_weights = self.scores.composite_score / np.linalg.norm(self.scores.composite_score, ord=1, axis=0, keepdims=True)
         except RuntimeWarning:
             bt.logging.info("Sum of scores = 0, skip setting weights for now")
             return None
@@ -475,7 +596,16 @@ class BaseValidatorNeuron(BaseNeuron):
         # Check if the metagraph axon info has changed.
         if previous_metagraph.axons == self.metagraph.axons:
             return
-
+        
+        # Fetch the yield and organic axons
+        try:
+            self.yield_axon = fetch_performance_axon()
+        except Exception as e:
+            bt.logging.error(f"Error fetching yield axon during resync: {e}")
+        try:
+            self.organic_axon = fetch_rebalancing_axon()
+        except Exception as e:
+            bt.logging.error(f"Error fetching organic axon during resync: {e}")
         bt.logging.info(
             "Metagraph updated, re-syncing hotkeys, dendrite pool and moving averages"
         )
@@ -487,18 +617,20 @@ class BaseValidatorNeuron(BaseNeuron):
         # Check to see if the metagraph has changed size.
         # If so, we need to add new hotkeys and moving averages.
         if len(self.hotkeys) < len(self.metagraph.hotkeys):
-            # Update the size of the moving average scores.
-            new_moving_average = np.zeros((self.metagraph.n))
-            min_len = min(len(self.hotkeys), len(self.scores))
-            new_moving_average[:min_len] = self.scores[:min_len]
-            self.scores = new_moving_average
+            for score_type in ScoreType:
+                # Update the size of the moving average scores.
+                new_moving_average = np.zeros((self.metagraph.n))
+                min_len = min(len(self.hotkeys), len(self.scores))
+                new_moving_average[:min_len] = getattr(self.scores, score_type.value)[:min_len]
+                setattr(self.scores, score_type.value, new_moving_average)
 
         # Update the hotkeys.
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
 
-    def update_scores(self, rewards: np.ndarray, uids: List[int]):
+    def update_scores(self, rewards: np.ndarray, uids: List[int], score_type: ScoreType):
         """Performs exponential moving average on the scores based on the rewards received from the miners."""
 
+        scoring_suffix = "_score"
         # Check if rewards contains NaN values.
         if np.isnan(rewards).any():
             bt.logging.warning(f"NaN values detected in rewards: {rewards}")
@@ -512,16 +644,18 @@ class BaseValidatorNeuron(BaseNeuron):
 
         # Compute forward pass rewards, assumes uids are mutually exclusive.
         # shape: [ metagraph.n ]
-        scattered_rewards: np.ndarray = np.zeros_like(self.scores)
+        scattered_rewards: np.ndarray = np.zeros_like(self.scores.composite_score)
         scattered_rewards[uids_array] = rewards
         bt.logging.debug(f"Scattered rewards: {rewards}")
 
         # Update scores with rewards produced by this step.
         # shape: [ metagraph.n ]
         alpha: float = self.config.neuron.moving_average_alpha
-        self.scores: np.ndarray = alpha * scattered_rewards + (
-            1 - alpha
-        ) * self.scores
+        current_score = getattr(self.scores, score_type.value + scoring_suffix)
+        current_score = alpha * scattered_rewards + (
+                1 - alpha
+            ) * current_score
+        setattr(self.scores, score_type.value + scoring_suffix, current_score)
         bt.logging.debug(f"Updated moving avg scores: {self.scores}")
 
     def save_state(self):
@@ -532,7 +666,7 @@ class BaseValidatorNeuron(BaseNeuron):
         np.savez(
             self.config.neuron.full_path + "/state.npz",
             step=self.step,
-            scores=self.scores,
+            scores=self.scores.model_dump(),
             hotkeys=self.hotkeys,
         )
 
@@ -557,7 +691,8 @@ class BaseValidatorNeuron(BaseNeuron):
         # else:
             # self.step = 0 # already set in BaseNeuron init
         current_incentive = np.array(self.metagraph.I)
-        self.scores = (current_incentive - np.min(current_incentive))/(np.max(current_incentive)-np.min(current_incentive))
+        metagraph_scores = (current_incentive - np.min(current_incentive))/(np.max(current_incentive)-np.min(current_incentive))
+        self.scores = CompositeScore(organic_score=metagraph_scores, synthetic_score=metagraph_scores, yield_score=metagraph_scores)
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
         
         # call resync metagraph to make appropriate updates from saved state
