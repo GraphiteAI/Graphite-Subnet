@@ -324,10 +324,10 @@ class ScoreYieldResponse:
 
     def get_last_week_average(self, data: Optional[list[float]]) -> float:
         if data is None:
-            return 0
+            return - np.inf
         window_size = 7
         if len(data) < window_size:
-            return 0
+            return - np.inf
         else:
             data = data[-window_size:]
             # Create exponential weights where more recent data has higher weight
@@ -352,14 +352,29 @@ class ScoreYieldResponse:
         Takes the transposed data and computes a score for each of the fields.
         Uses ordinal ranking where equal values get the same rank.
         '''
+        def map_null_to_inf(data: List[Union[float, int]], negative: bool = False) -> List[Union[float, int]]:
+            '''
+            Args:
+                data: List[Union[float, int]]
+                negative: bool - Set True if the field semantically ranks higher values as better
+            Returns:
+                List[Union[float, int]]
+            '''
+            if negative:
+                return [-np.inf if value is None else value for value in data]
+            else:
+                return [np.inf if value is None else value for value in data]
+        
         scores = {}
         for field_name, field_data in transposed_data.items():
             if field_name == "historical_daily_pnl":
                 values = [self.get_last_week_average(data) for data in field_data]
             elif field_name == "max_drawdown":
                 # we want to minimize the max drawdown so we negate the values
+                field_data = map_null_to_inf(field_data)
                 values = [-value for value in field_data]
             else:
+                field_data = map_null_to_inf(field_data, True)
                 values = field_data
             
             # Convert to numpy array and handle None values
@@ -371,7 +386,7 @@ class ScoreYieldResponse:
             # Initialize ranks array
             ranks = np.zeros_like(sort_indices)
             
-            # Assign ranks, handling ties
+            # Assign ranks, handling ties --> higher rank is better score
             current_rank = 0
             current_value = None
             for i, idx in enumerate(sort_indices):
