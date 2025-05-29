@@ -50,6 +50,8 @@ import wandb
 import shutil
 import logging
 
+load_dotenv()
+
 class ScoreType(Enum):
     ORGANIC = "organic"
     SYNTHETIC = "synthetic"
