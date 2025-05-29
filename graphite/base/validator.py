@@ -693,7 +693,10 @@ class BaseValidatorNeuron(BaseNeuron):
         # else:
             # self.step = 0 # already set in BaseNeuron init
         current_incentive = np.array(self.metagraph.I)
-        metagraph_scores = (current_incentive - np.min(current_incentive))/(np.max(current_incentive)-np.min(current_incentive))
+        if np.max(current_incentive) - np.min(current_incentive) != 0:
+            metagraph_scores = (current_incentive - np.min(current_incentive))/(np.max(current_incentive)-np.min(current_incentive))
+        else:
+            metagraph_scores = np.zeros_like(current_incentive)
         self.scores = CompositeScore(organic_score=metagraph_scores, synthetic_score=metagraph_scores, yield_score=metagraph_scores)
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
         
