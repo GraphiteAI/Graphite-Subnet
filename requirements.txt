@@ -1,4 +1,4 @@
-bittensor==9.0.0
+bittensor==9.7.0
 pydantic==2.8.2
 numpy==2.0.1
 pandas==2.2.2
