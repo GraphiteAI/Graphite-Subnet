@@ -30,6 +30,7 @@ import bittensor as bt
 import asyncio
 import time
 from copy import deepcopy
+from typing import Optional
 
 def is_approximately_equal(value1, value2, tolerance_percentage=0.00001):
     # Handle infinite values explicitly
@@ -306,6 +307,116 @@ def get_portfolio_rewards(
         rewards
     ).to(self.device)
 
+
+from graphite.yield_protocol import YieldDataRequestSynapse, MinerYield, LeaderPerformanceData
+
+class ScoreYieldResponse:
+    def __init__(self, mock_synapse: YieldDataRequestSynapse):
+        self.synapse = mock_synapse
+        self.weights = {
+            "historical_daily_pnl": 0.1, # We reward leaders for good recent performance
+            "sharpe_ratio": 0.55, # We want leaders to optimize for good stable returns
+            "max_drawdown": 0.1, # We also want to avoid large drawdowns
+            "num_copy_traders": 0.1, # We also want to reward leaders who have large impact on the copy trading community
+            "notional_value_of_copy_traders": 0.05,
+            "volume": 0.1 # We want to reward leaders who actively manage their portfolios which drives attributed volume
+        }
+
+    def get_last_week_average(self, data: Optional[list[float]]) -> float:
+        if data is None:
+            return - np.inf
+        window_size = 7
+        if len(data) < window_size:
+            return - np.inf
+        else:
+            data = data[-window_size:]
+            # Create exponential weights where more recent data has higher weight
+            weights = np.exp(np.linspace(-1, 0, window_size))
+            # Normalize weights to sum to 1
+            weights = weights / np.sum(weights)
+            # Calculate weighted average
+            return np.sum(data * weights)
+    
+    def transpose_data(self, performance_data_list: List[Union[LeaderPerformanceData, None]]) -> dict[str, np.ndarray]:
+        '''
+        returns a dictionary of data based on the data type
+        '''
+        data = {}
+        for field_name in LeaderPerformanceData.model_fields.keys():
+            data[field_name] = [getattr(performance_data, field_name) if isinstance(performance_data, LeaderPerformanceData) else None for performance_data in performance_data_list]
+        return data
+
+
+    def compute_score(self, transposed_data: dict[str, List[Union[float, int]]]) -> dict[str, np.ndarray]:
+        '''
+        Takes the transposed data and computes a score for each of the fields.
+        Uses ordinal ranking where equal values get the same rank.
+        '''
+        def map_null_to_inf(data: List[Union[float, int]], negative: bool = False) -> List[Union[float, int]]:
+            '''
+            Args:
+                data: List[Union[float, int]]
+                negative: bool - Set True if the field semantically ranks higher values as better
+            Returns:
+                List[Union[float, int]]
+            '''
+            if negative:
+                return [-np.inf if value is None else value for value in data]
+            else:
+                return [np.inf if value is None else value for value in data]
+        
+        scores = {}
+        for field_name, field_data in transposed_data.items():
+            if field_name == "historical_daily_pnl":
+                values = [self.get_last_week_average(data) for data in field_data]
+            elif field_name == "max_drawdown":
+                # we want to minimize the max drawdown so we negate the values
+                field_data = map_null_to_inf(field_data)
+                values = [-value for value in field_data]
+            else:
+                field_data = map_null_to_inf(field_data, True)
+                values = field_data
+            
+            # Convert to numpy array and handle None values
+            values = np.array([v if v is not None else -np.inf for v in values])
+            
+            # Get the indices that would sort the array
+            sort_indices = np.argsort(values)
+            
+            # Initialize ranks array
+            ranks = np.zeros_like(sort_indices)
+            
+            # Assign ranks, handling ties --> higher rank is better score
+            current_rank = 0
+            current_value = None
+            for i, idx in enumerate(sort_indices):
+                if values[idx] != current_value:
+                    current_rank = i
+                    current_value = values[idx]
+                ranks[idx] = current_rank
+            
+            # Normalize ranks to be between 0 and 1
+            if len(ranks) > 1:
+                scores[field_name] = ranks / (len(ranks) - 1)
+            else:
+                scores[field_name] = np.array([0.5])  # If only one value, give it middle rank
+                
+        return scores
+    
+    def get_composite_score(self, scores: dict[str, float]) -> float:
+        '''
+        returns a composite score for the leader
+        '''
+        return sum(score * self.weights[field_name] for field_name, score in scores.items())
+    
+    def get_rewards(self, synapse: YieldDataRequestSynapse):
+        miner_uids = [miner_yield.uid for miner_yield in synapse.yields]
+        # for each of the fields, we rank the miner_uids and generate a score
+        # a composite score is generate by taking the weighted sum of the scores
+        transposed_data = self.transpose_data([miner_yield.yield_data for miner_yield in synapse.yields])
+        scores = self.compute_score(transposed_data)
+        rewards = self.get_composite_score(scores)
+        return rewards
 if __name__=='__main__':
     # # simulate solvers and responses
     # test_problem = GraphV1Problem(n_nodes=10, directed=True)

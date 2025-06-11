@@ -26,6 +26,7 @@ from graphite.utils.uids import get_available_uids
 import time
 from datetime import datetime
 
+from graphite.base.validator import ScoreType
 from graphite.protocol import GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2Synapse, MAX_SALESMEN, GraphV1PortfolioProblem, GraphV1PortfolioSynapse
 from graphite.solvers.greedy_solver_multi_4 import NearestNeighbourMultiSolver4
 from graphite.solvers.greedy_portfolio_solver import GreedyPortfolioSolver
@@ -628,7 +629,7 @@ async def forward(self):
     
     
     if len(rewards) > 0 and max(rewards) == 1:
-        self.update_scores(rewards, miner_uids)
+        self.update_scores(rewards, miner_uids, ScoreType.SYNTHETIC)
         time.sleep(16) # for each block, limit 1 request per block
     elif max(rewards) == 0.2:
         new_rewards = []
@@ -639,5 +640,5 @@ async def forward(self):
                 new_miner_uids.append(miner_uids[i])
         new_rewards = np.array(new_rewards)  # Creates (N,)
         if len(new_miner_uids) > 0:
-            self.update_scores(new_rewards, new_miner_uids)
+            self.update_scores(new_rewards, new_miner_uids, ScoreType.SYNTHETIC)
             time.sleep(16) # for each block, limit 1 request per block

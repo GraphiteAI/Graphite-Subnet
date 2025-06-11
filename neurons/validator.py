@@ -25,7 +25,7 @@ import bittensor as bt
 
 # Bittensor Validator Template:
 import graphite
-from graphite.validator import forward
+from graphite.validator import forward, organic_forward, yield_forward
 
 # import base validator class which takes care of most of the boilerplate
 from graphite.base.validator import BaseValidatorNeuron
@@ -70,6 +70,15 @@ class Validator(BaseValidatorNeuron):
         # bt.logging.info(f"Available UIDs: {available_uids}")
 
         return await forward(self)
+    
+    async def organic_forward(self):
+        bt.logging.info(f"Organic forward")
+        return await organic_forward(self)
+    
+    async def yield_forward(self):
+        bt.logging.info(f"Yield forward")
+        return await yield_forward(self)
+
 
 
 # The main function parses the configuration and runs the validator.

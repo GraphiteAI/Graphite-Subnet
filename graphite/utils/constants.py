@@ -43,3 +43,9 @@ COST_FUNCTIONS = {
 HEURISTIC_SOLVERS = [NearestNeighbourSolver, BeamSearchSolver, HPNSolver]
 
 EXACT_SOLVERS = [DPSolver]
+
+DEFAULT_REBALANCING_INFO_ENDPOINT = "http://api.yield.taotrader.xyz/api/v1/validator/rebalancing_info" # Base URL for v1 API calls
+
+DEFAULT_PERFORMANCE_INFO_ENDPOINT = "http://api.yield.taotrader.xyz/api/v1/validator/performance_info"
+
+DEFAULT_YIELD_PROVIDER = "5GNAzXLXdX749B2ZXPzbromP3rgatDFUpFdHsNxrBKBfA1yi" # Trusted signer of the organic data
