@@ -77,9 +77,96 @@ For more detailed instructions on creating a wallet and registering onto a subne
 
 <hr>
 
+## Taotrader Miner Setup Guide
+
+This guide will walk you through the steps to set up your taotrader miner and understand the key metrics for success.
+
+### Step 1: Create or Sign In to Your taotrader Account
+Before you can start mining on taotrader, you'll need an account.
+- Visit taotrader.xyz/signup to create a new account.
+- If you already have an account, log in with your existing credentials.
+
+![Step 1: Sign In Page](../static/yield/Step0SignInPage.png)
+
+### Step 2: Choose Your Role: Leader
+After logging in, you'll be taken to the "Choose Your Role" page.
+- Select "Leader" as your role. This will direct you to the alias name and connected wallet confirmation screen.
+
+![Step 2: Choose Role Page](../static/yield/Step1ChooseRolePage.png)
+
+### Step 3: Confirm Your Alias and Wallet Connection
+On this page, you'll see:
+- The address of your connected wallet.
+- Your assigned alias name.
+- Click "Proceed" to go to the next step.
+
+![Step 3: Wallet Connection](../static/yield/Step2Wallet.png)
+
+### Step 4: Enter Your HotKey Address
+- Enter your Subnet 43 Miner HotKey Address. This is the address you'll use for mining.
+- Click "Check" to verify if the hotkey is already linked to another leader.
+- If the hotkey is not in use, you'll see a success message saying it's "Hotkey is unbounded."
+
+![Step 4: HotKey Check](../static/yield/Step3HotkeyCheck.png)
+
+### Step 5: Check Your TAO Balance
+- The system will check your balance.
+- You need a minimum of 5τ and maximum of 15τ (free balance + staked balance on the cold key) to start mining.
+
+![Step 5: Balance Check](../static/yield/Step4BalanceCheck.png)
+
+### Step 6: Verify Your HotKey Ownership
+- To prove you own the HotKey address, you need to sign a message.
+- Enter the signature in the provided field.
+- Click "Verify Signature."
+- You should see a success message: "Signature verified successfully" and "All Requirements Met!"
+
+![Step 6: Signature Check](../static/yield/Step5SignatureCheck.png)
+
+### Step 7: Activate Your Leader Status
+- Click "Proceed" to activate your leader status.
+- Upon success, you will be taken to the last page of the setup.
+
+![Step 7: Activate Leader](../static/yield/Step6ActivateLeader.png)
+
+### Step 8: Confirmation: All Requirements Met
+- This page confirms that your leader profile is set up.
+- Click "Go to Mining Dashboard" to access your mining dashboard.
+
+![Step 8: All Requirements Met](../static/yield/Step7AllRequirementsMet.png)
+
+### Step 9: Understanding Your Leader Portfolio and Metrics
+Your leader portfolio shows your mining activity. 
+
+You'll be scored based on the following metrics which accounts for 20% of the total subnet rewards:
+- **Historical Daily Profit and Losses (10%)**: This reflects the gains or losses from swapping your stake into different subnets. Higher profits improve your score.
+- **Sharpe Ratio (55%)**: This measures risk-adjusted return. A higher Sharpe Ratio means you're getting more return for the risk you take. It's a measure of investment efficiency.
+- **Volume Traded (10%)**: The total amount of TAO you've traded. Higher volume can indicate active and successful trading.
+- **Notional Value of Copy Traders (5%)**: The total value of the portfolios of those who copy your trades. A higher value means more people are trusting your strategy.
+- **Number of Copy Traders (10%)**: The more users copying you the better.
+- **Max Drawdown (10%)**: The maximum percentage of loss from the peak to the trough of the portfolio. A lower max drawdown is better.
+
+The organic portfolio rebalancing problem accounts for 20% of the total subnet rewards.
+
+The last 60% of the total subnet rewards is allocated to the previous synthetic graph problems which remains the main focus of the subnet.
+- TSP - 10%
+- MTSP - 10%
+- MDMTSP - 20%
+- CMDMTSP/RCMDMTSP - 40%
+- PORTFOLIO_REALLOCATION - 20%
+
+
+### Important Points
+- **Scoring**: Your score is calculated every hour.
+- **Rebalancing**: After updating your portfolio, you have 300 blocks to make adjustments.
+- **No-Trade Period**: There is a 6900 block no-trade period for leaders after updating your portfolio. This helps prevent scalping strategies. After this period, you can update your portfolio again.
+- **Transfers**: You cannot transfer TAO in or out of this account at any time.
+
+<hr>
+
 <a id="succeeding-as-a-miner"></a>
 
-## Succeeding as a Miner 🏆
+## Succeeding as a Miner for Graph problems 🏆
 
 Miners on the Graphite-AI subnet are tasked to solve graph optimization problems which have a myriad of real-world applications (refer to [subnet_overview.md](./subnet_overview.md) for more information.) Miners are rewarded based on their ability to produce good solutions within a given timeframe (default as 20 seconds).
 
