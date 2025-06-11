@@ -72,10 +72,10 @@ class CompositeScore(BaseModel):
         '''
         Returns net score for each uid with the weight distribution:
         organic_score: 0.2
-        synthetic_score: 0.7
-        yield_score: 0.1
+        synthetic_score: 0.6
+        yield_score: 0.2
         '''
-        return self.organic_score * 0.2 + self.synthetic_score * 0.7 + self.yield_score * 0.1
+        return self.organic_score * 0.2 + self.synthetic_score * 0.6 + self.yield_score * 0.2
     
 
 class BaseValidatorNeuron(BaseNeuron):
