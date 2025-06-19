@@ -205,8 +205,8 @@ def get_portfolio_distribution_similarity(synapse: GraphV1PortfolioSynapse):
                     initial_portfolio_np[portfolio_idx, from_subnet_idx] -= from_num_alpha_tokens
                 initial_portfolio_np[portfolio_idx, to_subnet_idx] += alpha_emitted
             else:
-                print(swap, initial_portfolio_np[portfolio_idx, from_subnet_idx], from_num_alpha_tokens)
-                print("Not enough alpha")
+                # print(swap, initial_portfolio_np[portfolio_idx, from_subnet_idx], from_num_alpha_tokens)
+                # print("Not enough alpha")
                 return 1000000, 0
 
     ### calculate the new distribution of tao
