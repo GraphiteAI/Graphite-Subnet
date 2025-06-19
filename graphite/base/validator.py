@@ -406,6 +406,11 @@ class BaseValidatorNeuron(BaseNeuron):
                     self.concurrencyIdx = 0
                     await self.concurrent_forward()
 
+                # re-align scoring after X validator epochs 
+                if self.block - self.last_load_state > 360*5:
+                    self.last_load_state = self.block
+                    self.load_state()
+
                 # Check if we should exit.
                 if self.should_exit:
                     break
@@ -449,6 +454,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
         bt.logging.info(f"Validator starting at block: {self.block}")
         self.last_synthetic_req = 0
+        self.last_load_state = 0
 
         # This loop maintains the validator's operations until intentionally stopped.
         try:
@@ -569,6 +575,7 @@ class BaseValidatorNeuron(BaseNeuron):
         )
         bt.logging.debug("uint_weights", uint_weights)
         bt.logging.debug("uint_uids", uint_uids)
+
 
         # Set the weights on chain via our subtensor connection.
         result, msg = self.subtensor.set_weights(
