@@ -44,6 +44,10 @@ async def yield_forward(self: BaseValidatorNeuron):
     score_handler = ScoreYieldResponse(mock_synapse=yield_synapse)
     miner_uids = [miner_yield.uid for miner_yield in yield_synapse.yields]
     rewards = score_handler.get_rewards(yield_synapse)
-    
+
+    for yield_uid in yield_synapse.yields:
+        if yield_uid.yield_data is None:
+            rewards[yield_uid.uid] = None
+
     # Update the scores
     self.update_scores(rewards, miner_uids, ScoreType.YIELD)

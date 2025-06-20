@@ -417,6 +417,7 @@ class ScoreYieldResponse:
         scores = self.compute_score(transposed_data)
         rewards = self.get_composite_score(scores)
         return rewards
+    
 if __name__=='__main__':
     # # simulate solvers and responses
     # test_problem = GraphV1Problem(n_nodes=10, directed=True)

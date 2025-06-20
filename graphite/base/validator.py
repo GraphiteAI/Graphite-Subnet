@@ -75,7 +75,10 @@ class CompositeScore(BaseModel):
         synthetic_score: 0.6
         yield_score: 0.2
         '''
-        return self.organic_score * 0.2 + self.synthetic_score * 0.6 + self.yield_score * 0.2
+        if self.yield_score is None:
+            return 0
+        else:
+            return self.organic_score * 0.2 + self.synthetic_score * 0.6 + self.yield_score * 0.2
     
 
 class BaseValidatorNeuron(BaseNeuron):
@@ -393,7 +396,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 bt.logging.error(f"Error in yield request flow: {e}")
                 continue
             finally:
-                await asyncio.sleep(30)
+                await asyncio.sleep(12)
 
     async def synthetic_request_flow(self):
         while True:
@@ -641,10 +644,14 @@ class BaseValidatorNeuron(BaseNeuron):
 
         scoring_suffix = "_score"
         # Check if rewards contains NaN values.
+
+        rewards_dup = rewards.copy()
+
         if np.isnan(rewards).any():
             bt.logging.warning(f"NaN values detected in rewards: {rewards}")
             # Replace any NaN values in rewards with 0.
             rewards = np.nan_to_num(rewards, nan=0)
+
         # Check if `uids` is already a numpy array and copy it to avoid the warning.
         if isinstance(uids, np.ndarray):
             uids_array = uids.copy()
@@ -664,6 +671,12 @@ class BaseValidatorNeuron(BaseNeuron):
         current_score = alpha * scattered_rewards + (
                 1 - alpha
             ) * current_score
+        
+        if score_type.value == ScoreType.YIELD:
+            for idx, score_uid in enumerate(current_score):
+                if rewards_dup[idx] is None:
+                    current_score[idx] = None
+
         setattr(self.scores, score_type.value + scoring_suffix, current_score)
         bt.logging.debug(f"Updated moving avg scores: {self.scores}")
 
@@ -704,8 +717,12 @@ class BaseValidatorNeuron(BaseNeuron):
             metagraph_scores = (current_incentive - np.min(current_incentive))/(np.max(current_incentive)-np.min(current_incentive))
         else:
             metagraph_scores = np.zeros_like(current_incentive)
+
+
         self.scores = CompositeScore(organic_score=metagraph_scores, synthetic_score=metagraph_scores, yield_score=metagraph_scores)
+
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
+        
         
         # call resync metagraph to make appropriate updates from saved state
         self.resync_metagraph()
