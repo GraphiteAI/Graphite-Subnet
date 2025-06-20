@@ -13,6 +13,7 @@ import copy
 from typing import List, Union, Optional
 from pydantic import ValidationError
 import asyncio
+import numpy as np
 
 async def fetch_yield_data(self: BaseValidatorNeuron):
     def create_empty_yield(hotkey: str, uid: int):
@@ -47,7 +48,7 @@ async def yield_forward(self: BaseValidatorNeuron):
 
     for idx, yield_uid in enumerate(yield_synapse.yields):
         if yield_uid.yield_data is None:
-            rewards[idx] = None
+            rewards[idx] = np.nan
 
     # Update the scores
     self.update_scores(rewards, miner_uids, ScoreType.YIELD)

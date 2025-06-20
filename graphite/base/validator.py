@@ -77,7 +77,7 @@ class CompositeScore(BaseModel):
         '''
         yield_score_ = np.array([y if y is not None else 0 for y in self.yield_score])
         score = self.organic_score * 0.2 + self.synthetic_score * 0.6 + yield_score_ * 0.2
-        mask = np.array([y is None or y is np.nan for y in self.yield_score])
+        mask = np.array([np.isnan(y) for y in self.yield_score])
         score[mask] = 0
 
         return score
@@ -674,10 +674,10 @@ class BaseValidatorNeuron(BaseNeuron):
                 1 - alpha
             ) * current_score
         
-        if score_type.value == ScoreType.YIELD:
-            for idx, score_uid in enumerate(current_score):
-                if rewards_dup[idx] is None:
-                    current_score[idx] = None
+        if score_type == ScoreType.YIELD:
+            for idx, uid in enumerate(uids_array):
+                if np.isnan(rewards_dup[idx]):
+                    current_score[uid] = np.nan
 
         setattr(self.scores, score_type.value + scoring_suffix, current_score)
         bt.logging.debug(f"Updated moving avg scores: {self.scores}")
