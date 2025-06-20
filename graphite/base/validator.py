@@ -650,7 +650,7 @@ class BaseValidatorNeuron(BaseNeuron):
         rewards_dup = rewards.copy()
 
         if np.isnan(rewards).any():
-            bt.logging.warning(f"NaN values detected in rewards: {rewards}")
+            # bt.logging.warning(f"NaN values detected in rewards: {rewards}")
             # Replace any NaN values in rewards with 0.
             rewards = np.nan_to_num(rewards, nan=0)
 
