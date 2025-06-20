@@ -75,10 +75,12 @@ class CompositeScore(BaseModel):
         synthetic_score: 0.6
         yield_score: 0.2
         '''
-        if self.yield_score is None:
-            return 0
-        else:
-            return self.organic_score * 0.2 + self.synthetic_score * 0.6 + self.yield_score * 0.2
+        yield_score_ = np.array([y if y is not None else 0 for y in self.yield_score])
+        score = self.organic_score * 0.2 + self.synthetic_score * 0.6 + yield_score_ * 0.2
+        mask = np.array([y is None for y in self.yield_score])
+        score[mask] = 0
+
+        return score
     
 
 class BaseValidatorNeuron(BaseNeuron):
