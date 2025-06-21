@@ -412,7 +412,7 @@ class BaseValidatorNeuron(BaseNeuron):
                     await self.concurrent_forward()
 
                 # re-align scoring after X validator epochs 
-                if self.block - self.last_load_state > 360*5:
+                if self.block - self.last_load_state > 360*3:
                     self.last_load_state = self.block
                     self.load_state()
 
