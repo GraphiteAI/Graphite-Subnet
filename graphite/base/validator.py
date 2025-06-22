@@ -78,7 +78,7 @@ class CompositeScore(BaseModel):
         yield_score_ = np.array([0 if y is None or (isinstance(y, float) and np.isnan(y)) else y for y in self.yield_score])
         score = self.organic_score * 0.2 + self.synthetic_score * 0.6 + yield_score_ * 0.2
         mask = np.array([np.isnan(y) for y in self.yield_score])
-        score[mask] = score[mask] * 0.7
+        score[mask] = 0
 
         return score
     
