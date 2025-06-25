@@ -75,10 +75,10 @@ class CompositeScore(BaseModel):
         synthetic_score: 0.6
         yield_score: 0.2
         '''
-        yield_score_ = np.array([0 if y is None or (isinstance(y, float) and np.isnan(y)) else y for y in self.yield_score])
+        yield_score_ = np.array([0 if y is None or np.isnan(y) else y for y in self.yield_score])
         score = self.organic_score * 0.2 + self.synthetic_score * 0.6 + yield_score_ * 0.2
-        mask = np.array([np.isnan(y) for y in self.yield_score])
-        score[mask] = 0
+        mask = np.array([y is None or np.isnan(y) for y in self.yield_score])
+        score[mask] *= 0.7
 
         return score
     
@@ -389,6 +389,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 if self.yield_axon is None:
                     bt.logging.error(f"Yield axon is not set")
                     self.yield_axon = fetch_performance_axon()
+                    await self.yield_forward()
                 else:
                     await self.yield_forward()
             except KeyboardInterrupt:
@@ -464,9 +465,11 @@ class BaseValidatorNeuron(BaseNeuron):
         # This loop maintains the validator's operations until intentionally stopped.
         try:
             # Create tasks for both request flows
-            self.organic_task = self.loop.create_task(self.organic_request_flow())
-            self.synthetic_task = self.loop.create_task(self.synthetic_request_flow())
             self.yield_task = self.loop.create_task(self.yield_request_flow())
+            time.sleep(15)
+            self.organic_task = self.loop.create_task(self.organic_request_flow())
+            time.sleep(30)
+            self.synthetic_task = self.loop.create_task(self.synthetic_request_flow())
 
             # Run the event loop
             self.loop.run_forever()
