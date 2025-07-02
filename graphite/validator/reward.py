@@ -403,19 +403,48 @@ class ScoreYieldResponse:
                 
         return scores
     
-    def get_composite_score(self, scores: dict[str, float]) -> float:
+    def get_composite_score(self, scores: dict[str, np.ndarray]) -> np.ndarray:
         '''
         returns a composite score for the leader
         '''
         return sum(score * self.weights[field_name] for field_name, score in scores.items())
     
+    def penalize_scores(self, rewards: np.ndarray, last_traded_date_list: np.ndarray) -> dict[str, float]:
+        '''
+        Penalizes the rewards based on the last traded date.
+        If the last traded date is more than 7 days ago, we penalize the scores by 10%.
+        If the last traded date is more than 14 days ago, we penalize the scores by an additional 30% of the remainder.
+        If the last traded date is more than 28 days ago, we penalize the scores by an additional 70% of the remainder.
+        '''
+        current_time = time.time()
+        time_7_days_ago = current_time - (7 * 24 * 3600)  # 7 days in seconds
+        time_14_days_ago = current_time - (14 * 24 * 3600)  # 14 days in seconds
+        time_28_days_ago = current_time - (28 * 24 * 3600)  # 28 days in seconds
+                                                                                    
+        # Apply penalty if last traded date is more than 7 days ago
+        penalty_mask = last_traded_date_list < time_7_days_ago
+        rewards[penalty_mask] *= 0.9  # Apply a 10%
+
+        # Apply additional penalty if last traded date is more than 14 days ago
+        penalty_mask = last_traded_date_list < time_14_days_ago
+        rewards[penalty_mask] *= 0.7  # Apply an additional 30%
+
+        # Apply additional penalty if last traded date is more than 28 days ago
+        penalty_mask = last_traded_date_list < time_28_days_ago
+        rewards[penalty_mask] *= 0.3  # Apply an additional 70
+        
+        return rewards
+    
     def get_rewards(self, synapse: YieldDataRequestSynapse):
         miner_uids = [miner_yield.uid for miner_yield in synapse.yields]
-        # for each of the fields, we rank the miner_uids and generate a score
-        # a composite score is generate by taking the weighted sum of the scores
+        ### For each of the fields, we rank the miner_uids and generate a score
+        ### A composite score is generate by taking the weighted sum of the scores
         transposed_data = self.transpose_data([miner_yield.yield_data for miner_yield in synapse.yields])
+        # last_traded_date_list = transposed_data["last_traded_date"].copy()
+        # del transposed_data["last_traded_date"]  # remove last_traded_date from the data to be scored
         scores = self.compute_score(transposed_data)
         rewards = self.get_composite_score(scores)
+        # rewards = self.penalize_scores(rewards, last_traded_date_list)
         return rewards
     
 if __name__=='__main__':
