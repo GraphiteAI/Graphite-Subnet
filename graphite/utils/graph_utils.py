@@ -20,7 +20,7 @@
 import math
 from typing import List, Union
 import numpy as np
-from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV1PortfolioSynapse, GraphV1PortfolioProblem
+from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2ProblemMultiConstrainedTW, GraphV1PortfolioSynapse, GraphV1PortfolioProblem
 from functools import wraps, partial
 import bittensor as bt
 import asyncio
@@ -123,7 +123,7 @@ def get_multi_minmax_tour_distance(synapse: GraphV2Synapse)->float:
     if not synapse.solution:
         return np.inf
     distance=np.nan
-    assert isinstance(problem, GraphV2ProblemMulti) or isinstance(problem, GraphV2ProblemMultiConstrained), ValueError(f"Attempting to use multi-path function for problem of type: {type(problem)}")
+    assert isinstance(problem, GraphV2ProblemMulti) or isinstance(problem, GraphV2ProblemMultiConstrained) or isinstance(problem, GraphV2ProblemMultiConstrainedTW), ValueError(f"Attempting to use multi-path function for problem of type: {type(problem)}")
     
     assert len(problem.edges) == len(problem.edges[0]) and len(problem.edges)==problem.n_nodes, ValueError(f"Wrong distance matrix shape of: ({len(problem.edges[0])}, {len(problem.edges)}) for problem of n_nodes: {problem.n_nodes}")
     edges=problem.edges
@@ -307,7 +307,7 @@ def check_nodes(solution:List[int], n_cities:int):
 def start_and_end(solution:List[int]):
     return solution[0] == solution[-1]
 
-def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV1PortfolioProblem], solution:Union[List[List[Union[float, int]]],List[int]]):
+def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2ProblemMultiConstrainedTW, GraphV1PortfolioProblem], solution:Union[List[List[Union[float, int]]],List[int]]):
     # nested function to validate solution type
     def is_valid_solution_type(solution, problem_type):
         try:
@@ -492,6 +492,48 @@ def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem, GraphV1Portfolio
             return False
         
     elif problem.problem_type == 'General cmTSP':
+        if (problem.directed==True) \
+            and (problem.visit_all==True) \
+            and (problem.to_origin==True) \
+            and (problem.objective_function=='min') \
+            and (problem.n_salesmen > 1) \
+            and (len(problem.depots)==problem.n_salesmen) \
+            and (len(problem.demand) == problem.n_nodes) \
+            and (len(problem.constraint) == problem.n_salesmen) \
+            and (sum(problem.demand) <= sum(problem.constraint)):
+            if problem.single_depot == True:
+                # assert that all the depots be at source city #0
+                return True if all([depot==0 for depot in problem.depots]) else False
+            else:
+                # assert that all depots are different
+                return True if len(set(problem.depots)) == len(problem.depots) else False
+        else:
+            bt.logging.info(f"Received an invalid General mTSP problem")
+            bt.logging.info(problem.get_info(verbosity=2))
+            return False
+        
+    elif problem.problem_type == 'Metric cmTSPTW':
+        if (problem.directed==False) \
+            and (problem.visit_all==True) \
+            and (problem.to_origin==True) \
+            and (problem.objective_function=='min') \
+            and (problem.n_salesmen > 1) \
+            and (len(problem.depots)==problem.n_salesmen) \
+            and (len(problem.demand) == problem.n_nodes) \
+            and (len(problem.constraint) == problem.n_salesmen) \
+            and (sum(problem.demand) <= sum(problem.constraint)):
+            if problem.single_depot == True:
+                # assert that all the depots be at source city #0
+                return True if all([depot==0 for depot in problem.depots]) else False
+            else:
+                # assert that all depots are different
+                return True if len(set(problem.depots)) == len(problem.depots) else False
+        else:
+            bt.logging.info(f"Received an invalid Metric mTSP problem")
+            bt.logging.info(problem.get_info(verbosity=2))
+            return False
+        
+    elif problem.problem_type == 'General cmTSPTW':
         if (problem.directed==True) \
             and (problem.visit_all==True) \
             and (problem.to_origin==True) \

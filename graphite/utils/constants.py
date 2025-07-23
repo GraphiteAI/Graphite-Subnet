@@ -27,6 +27,8 @@ BENCHMARK_SOLUTIONS = {
     'General mTSP': NearestNeighbourMultiSolver2,
     'Metric cmTSP': NearestNeighbourMultiSolver4,
     'General cmTSP': NearestNeighbourMultiSolver4,
+    'Metric cmTSPTW': NearestNeighbourMultiSolver4,
+    'General cmTSPTW': NearestNeighbourMultiSolver4,
     'PortfolioReallocation': GreedyPortfolioSolver
 } # mapping benchmark solvers to each problem
 
@@ -37,6 +39,8 @@ COST_FUNCTIONS = {
     'General mTSP': get_multi_minmax_tour_distance,
     'Metric cmTSP': get_multi_minmax_tour_distance,
     'General cmTSP': get_multi_minmax_tour_distance,
+    'Metric cmTSPTW': get_multi_minmax_tour_distance,
+    'General cmTSPTW': get_multi_minmax_tour_distance,
     'PortfolioReallocation': get_portfolio_distribution_similarity
 }
 
