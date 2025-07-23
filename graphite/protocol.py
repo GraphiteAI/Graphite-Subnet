@@ -485,17 +485,14 @@ class GraphV2ProblemMultiConstrained(GraphV2Problem):
         return info
 
 class GraphV2ProblemMultiConstrainedTW(GraphV2Problem):
-    problem_type: Literal['Metric cmTSP', 'General cmTSP'] = Field('Metric cmTSP', description="Problem Type")
+    problem_type: Literal['Metric cmTSPTW', 'General cmTSPTW'] = Field('Metric cmTSPTW', description="Problem Type")
     n_nodes: conint(ge=500, le=2000) = Field(500, description="Number of Nodes (must be between 500 and 2000) for mTSP")
     n_salesmen: conint(ge=2, le=MAX_SALESMEN) = Field(2, description="Number of Salesmen in the mTSP formulation")
     demand: List[int] = Field([1, 1], description="Demand of each node, we are starting with 1")
     constraint: List[int] = Field([100, 100], description="Constaint of each salesmen/delivery vehicle")
     single_depot: bool = Field(default=False, description="Whether problem is a single or multi depot formulation")
     depots: List[int] = Field([0,0], description="List of selected 'city' indices for which the respective salesmen paths begin")
-    time_windows: List[Tuple[int, int]] = Field(
-        default_factory=lambda: [(0, 100)]*500,
-        description="Time window per node: (start_time, end_time)"
-    )
+    time_windows: List[Tuple[float, float]] = Field([(0.0, 100.0)]*500, description="Time window per node: (start_time, end_time)")
 
     @model_validator(mode='after')
     def assert_salesmen_depot(self):
@@ -504,7 +501,7 @@ class GraphV2ProblemMultiConstrainedTW(GraphV2Problem):
 
     @model_validator(mode='after')
     def force_obj_function(self):
-        if self.problem_type in ['Metric cmTSP', 'General cmTSP']:
+        if self.problem_type in ['Metric cmTSPTW', 'General cmTSPTW']:
             assert self.objective_function == 'min', ValueError('Subnet currently only supports minimization TSP')
         return self
     
