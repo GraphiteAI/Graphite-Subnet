@@ -37,8 +37,8 @@ rel_v1_path = os.path.join(os.path.dirname(__file__), "schema_v1.json")
 with open(rel_v1_path, "r") as f:
     MODEL_V1_SCHEMA = json.load(f)
 
-rel_v2_path = os.path.join(os.path.dirname(__file__), "schema_v2.json")
-with open(rel_v2_path, "r") as f:
+rel_v4_path = os.path.join(os.path.dirname(__file__), "schema_v4.json")
+with open(rel_v4_path, "r") as f:
     MODEL_V2_SCHEMA = json.load(f)
 
 rel_v3_path = os.path.join(os.path.dirname(__file__), "schema_v3.json")
@@ -557,7 +557,7 @@ class GraphV2Synapse(bt.Synapse):
     '''
     Implement necessary serialization and deserialization checks
     '''
-    problem: Union[GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained]
+    problem: Union[GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2ProblemMultiConstrainedTW]
     solution: Optional[Union[List[List[int]], List[int], bool]] = None
 
     def to_headers(self) -> dict:
