@@ -81,12 +81,19 @@ async def forward(self):
         api_response_output = []
 
     # problem weights
-    ref_tsp_value = 0.1
-    ref_mtsp_value = 0.1
-    ref_mdmtsp_value = 0.2 
-    ref_cmdmtsp_value = 0.2
-    ref_cmdmtsptw_value = 0.2
-    ref_portfolioV1_value = 0.2
+    # ref_tsp_value = 0.1
+    # ref_mtsp_value = 0.1
+    # ref_mdmtsp_value = 0.2 
+    # ref_cmdmtsp_value = 0.2
+    # ref_cmdmtsptw_value = 0.2
+    # ref_portfolioV1_value = 0.2
+
+    ref_tsp_value = 0
+    ref_mtsp_value = 0
+    ref_mdmtsp_value = 0 
+    ref_cmdmtsp_value = 0
+    ref_cmdmtsptw_value = 1
+    ref_portfolioV1_value = 0
 
     # randomly select n_nodes indexes from the selected graph
     prob_select = random.randint(0, len(list(self.loaded_datasets.keys()))-1)
