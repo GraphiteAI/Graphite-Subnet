@@ -149,6 +149,65 @@ def get_multi_minmax_tour_distance(synapse: GraphV2Synapse)->float:
             bt.logging.trace(f"Received invalid paths: {paths}")
     return max_distance if not np.isnan(distance) else np.inf
 
+def get_multi_minmax_tour_distance_tw(synapse: GraphV2Synapse, edges)->float:
+    '''
+    Returns the maximum tour distance across salesmen for the mTSP as a float.
+
+    Takes a synapse as its only argument
+    '''
+    problem = synapse.problem
+    if 'mTSP' not in problem.problem_type:
+        raise ValueError(f"get_multi_tour_distance is an invalid function for processing {problem.problem_type}")
+
+    if not synapse.solution:
+        return np.inf
+    distance=np.nan
+    assert isinstance(problem, GraphV2ProblemMulti) or isinstance(problem, GraphV2ProblemMultiConstrained) or isinstance(problem, GraphV2ProblemMultiConstrainedTW), ValueError(f"Attempting to use multi-path function for problem of type: {type(problem)}")
+    
+    assert len(problem.edges) == len(problem.edges[0]) and len(problem.edges)==problem.n_nodes, ValueError(f"Wrong distance matrix shape of: ({len(problem.edges[0])}, {len(problem.edges)}) for problem of n_nodes: {problem.n_nodes}")
+    edges=problem.edges
+    paths=synapse.solution
+    depots=problem.depots
+
+    if isinstance(paths, list):
+        paths_are_valid =  is_valid_multi_path(paths, depots, problem.n_nodes)
+        if paths_are_valid:
+            # assert len(path) == problem.n_nodes+1, ValueError('An invalid number of cities are contained within the provided path')
+            distances = []
+            for path in paths:
+                distance = 0
+                for i, source in enumerate(path[:-1]):
+                    destination = path[i+1]
+                    try:
+                        distance += edges[source][destination]
+                    except IndexError as e:
+                        print(f"IndexError with source: {source}, destination: {destination}, distance_mat_shape: {np.array(edges).shape}")
+                distances.append(distance)
+            max_distance = max(distances)
+
+            ### Penalty for time windows is applied for every node 
+            travel_time_min = (edges / 1000 / 50 * 60)  # travel time in minutes, assume distance are in meters, travelling at an average of 50km/h
+            # obtain the amount of time take to travel to each node, 0 at the start of each depot
+            travel_times = [0 for _ in range(synapse.problem.n_nodes)]
+            for path in paths:
+                travel_time_elapsed = 0
+                for idx, node in enumerate(path[:-1]):
+                    if idx == 0:
+                        travel_times[node] = 0
+                    else:
+                        travel_time_elapsed += travel_time_min[path[idx-1], node]
+                        travel_times[node] = float(travel_time_elapsed)
+            for start, end in synapse.problem.time_windows:
+                if travel_times[node] < start:
+                    # penalize the time spent earlier than the time window. Discount 50% as it is not as bad as being late
+                    max_distance += (start - travel_times[node]) * 1000 * 50 / 60 * 5
+                elif travel_times[node] > end:
+                    # penalize the time spent later than the time window
+                    max_distance += (travel_times[node] - end) * 1000 * 50 / 60 * 10
+        else:
+            bt.logging.trace(f"Received invalid paths: {paths}")
+    return max_distance if not np.isnan(distance) else np.inf
+
 def get_portfolio_distribution_similarity(synapse: GraphV1PortfolioSynapse):
     '''
     Returns the number of swaps and objective score
