@@ -208,7 +208,7 @@ async def forward(self):
         solution_found = False
         while not solution_found:
             n_nodes = random.randint(500, 2000)
-            bt.logging.info(f"n_nodes V2 randomized-demand cmTSP {n_nodes}")
+            bt.logging.info(f"n_nodes V2 randomized-demand cmTSP TW {n_nodes}")
             bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
             selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
             m = random.randint(2, 10)
@@ -271,7 +271,7 @@ async def forward(self):
                                                     time_windows=time_windows)
                 solution_found = True
                 test_problem_obj.edges = None
-        print(f"Posted: n_nodes V2 randomized-demand cmTSP TW {n_nodes}")
+        bt.logging.info(f"Posted: n_nodes V2 randomized-demand cmTSP TW {n_nodes}")
     else:
         # portfolio problem
         solution_found = False
