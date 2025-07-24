@@ -22,7 +22,7 @@ import numpy as np
 from typing import List, Union
 from graphite.utils.constants import BENCHMARK_SOLUTIONS, COST_FUNCTIONS
 from graphite.utils.graph_utils import is_valid_solution, get_portfolio_distribution_similarity
-from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse, GraphV1PortfolioSynapse
+from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse, GraphV1PortfolioSynapse, GraphV2ProblemMultiConstrainedTW
 from graphite.solvers import NearestNeighbourSolver, BeamSearchSolver, DPSolver, HPNSolver
 from graphite.solvers.greedy_solver_vali import NearestNeighbourSolverVali
 import bittensor as bt
@@ -86,21 +86,24 @@ class ScoreResponse:
         self.benchmark_score = self.score_response(self.synapse)
         bt.logging.info(f"Validator score: {self.benchmark_score}")
 
-    def get_score(self, response: Union[GraphV1Synapse, GraphV2Synapse]):
+    def get_score(self, response: Union[GraphV1Synapse, GraphV2Synapse], edges = None):
         # all cost_functions should handle False as an indication that the problem was unsolvable and assign it a value of np.inf
         synapse_copy = self.synapse
         synapse_copy.solution = response.solution
         try:
-            path_cost = self.cost_function(synapse_copy)
+            if edges:
+                path_cost = self.cost_function(synapse_copy, edges)
+            else:
+                path_cost = self.cost_function(synapse_copy)
         except Exception as e:
             # AssertionError or ValueError indicating an invalid solution
             print(e)
             path_cost = np.inf
         return path_cost
 
-    def score_response(self, response: Union[GraphV1Synapse, GraphV2Synapse]):
+    def score_response(self, response: Union[GraphV1Synapse, GraphV2Synapse], edges = None):
         if is_valid_solution(self.problem, response.solution):
-            response_score = self.get_score(response)
+            response_score = self.get_score(response, edges)
             # check if the response beats greedy algorithm: return 0 if it performs poorer than greedy
             return response_score
         elif response.solution == False:
@@ -258,7 +261,10 @@ def get_rewards(
     - torch.FloatTensor: A tensor of rewards for the given query and responses.
     """
     # Get all the reward results by iteratively calling your reward() function.
-    miner_scores = [score_handler.score_response(response) for response in responses]
+    if isinstance(score_handler.problem, GraphV2ProblemMultiConstrainedTW):
+        miner_scores = [score_handler.score_response(response, score_handler.problem.edges) for response in responses]
+    else:
+        miner_scores = [score_handler.score_response(response) for response in responses]
 
     # Compute rewards
     rewards = scaled_rewards(miner_scores, score_handler.benchmark_score)
