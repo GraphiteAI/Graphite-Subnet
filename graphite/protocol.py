@@ -492,7 +492,7 @@ class GraphV2ProblemMultiConstrainedTW(GraphV2Problem):
     constraint: List[int] = Field([100, 100], description="Constaint of each salesmen/delivery vehicle")
     single_depot: bool = Field(default=False, description="Whether problem is a single or multi depot formulation")
     depots: List[int] = Field([0,0], description="List of selected 'city' indices for which the respective salesmen paths begin")
-    time_windows: List[Tuple[float, float]] = Field([(0.0, 100.0)]*500, description="Time window per node: (start_time, end_time)")
+    time_windows: List[Tuple[Union[int, float], Union[int, float]]] = Field([(0.0, 100.0)]*500, description="Time window per node: (start_time, end_time)")
 
     @model_validator(mode='after')
     def assert_salesmen_depot(self):
@@ -522,8 +522,8 @@ class GraphV2ProblemMultiConstrainedTW(GraphV2Problem):
         assert len(self.time_windows) == self.n_nodes, \
             ValueError('Number of time windows must match number of nodes')
         for idx, (start, end) in enumerate(self.time_windows):
-            assert isinstance(start, int) and isinstance(end, int), \
-                ValueError(f'Time window at index {idx} must contain integers')
+            assert isinstance(start, Union[int, float]) and isinstance(end, Union[int, float]), \
+                ValueError(f'Time window at index {idx} must contain integers or floats')
             assert start >= 0 and end >= 0, \
                 ValueError(f'Time window at index {idx} must be non-negative')
             assert start <= end, \
