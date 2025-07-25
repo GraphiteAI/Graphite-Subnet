@@ -36,7 +36,7 @@ class NearestNeighbourMultiSolver4(BaseSolver):
     '''
     This solver is a constructive nearest_neighbour algorithm that assigns cities to subtours based on the min increase in objective function value.
     '''
-    def __init__(self, problem_types:List[GraphV2Problem]=[GraphV2ProblemMultiConstrained()]):
+    def __init__(self, problem_types:List[GraphV2Problem]=[GraphV2ProblemMultiConstrained(), GraphV2ProblemMultiConstrainedTW()]):
         super().__init__(problem_types=problem_types)
     
     def get_valid_start(self, depot_id, distance_matrix, taken_nodes:list[int]=[], selection_range:int=5) -> int:

@@ -588,7 +588,7 @@ def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem, GraphV1Portfolio
                 # assert that all depots are different
                 return True if len(set(problem.depots)) == len(problem.depots) else False
         else:
-            bt.logging.info(f"Received an invalid Metric mTSP problem")
+            bt.logging.info(f"Received an invalid Metric mTSP TW problem")
             bt.logging.info(problem.get_info(verbosity=2))
             return False
         
@@ -609,7 +609,7 @@ def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem, GraphV1Portfolio
                 # assert that all depots are different
                 return True if len(set(problem.depots)) == len(problem.depots) else False
         else:
-            bt.logging.info(f"Received an invalid General mTSP problem")
+            bt.logging.info(f"Received an invalid General mTSP TW problem")
             bt.logging.info(problem.get_info(verbosity=2))
             return False
         
