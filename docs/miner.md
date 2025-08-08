@@ -83,7 +83,7 @@ This guide will walk you through the steps to set up your taotrader miner and un
 
 ### Step 1: Create or Sign In to Your taotrader Account
 Before you can start mining on taotrader, you'll need an account.
-- Visit taotrader.xyz/signup to create a new account.
+- Visit https://www.taotrader.xyz/yield/signup to create a new account.
 - If you already have an account, log in with your existing credentials.
 
 ![Step 1: Sign In Page](../static/yield/Step0SignInPage.png)
