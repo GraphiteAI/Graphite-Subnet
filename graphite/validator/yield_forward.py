@@ -41,7 +41,6 @@ async def yield_forward(self: BaseValidatorNeuron):
     if yield_synapse is None:
         return
     bt.logging.info(f"Yield synapse with {len([miner_yield for miner_yield in yield_synapse.yields if miner_yield.yield_data is not None])} valid yields")
-
     score_handler = ScoreYieldResponse(mock_synapse=yield_synapse)
     miner_uids = [miner_yield.uid for miner_yield in yield_synapse.yields]
     rewards = score_handler.get_rewards(yield_synapse)

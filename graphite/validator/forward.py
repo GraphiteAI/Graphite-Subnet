@@ -451,7 +451,7 @@ async def forward(self):
         if isinstance(test_problem_obj, GraphV2ProblemMultiConstrainedTW):
             score_response_obj.benchmark_path = tw_greedy_solution
             score_response_obj.synapse.solution = tw_greedy_solution
-            score_response_obj.benchmark_score = score_response_obj.score_response(score_response_obj.synapse)
+            score_response_obj.benchmark_score = score_response_obj.score_response(score_response_obj.synapse, edges=test_problem_obj.edges)
             score_response_obj.problem.edges = pre_test_problem_obj.edges
         else:
             try:
