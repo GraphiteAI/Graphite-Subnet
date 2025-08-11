@@ -91,7 +91,7 @@ class ScoreResponse:
         synapse_copy = self.synapse
         synapse_copy.solution = response.solution
         try:
-            if edges:
+            if isinstance(response.problem, GraphV2ProblemMultiConstrainedTW):
                 path_cost = self.cost_function(synapse_copy, edges)
             else:
                 path_cost = self.cost_function(synapse_copy)

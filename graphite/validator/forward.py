@@ -474,7 +474,10 @@ async def forward(self):
             wandb_rewards[uid] = rewards[id]
             if wandb_rewards[uid] == rewards.max():
                 best_solution_uid = uid
-            wandb_miner_distance[uid] = score_response_obj.score_response(responses[id]) if score_response_obj.score_response(responses[id])!=None else 0
+            if isinstance(test_problem_obj, GraphV2ProblemMultiConstrainedTW):
+                wandb_miner_distance[uid] = score_response_obj.score_response(responses[id], edges=pre_test_problem_obj.edges) if score_response_obj.score_response(responses[id])!=None else 0
+            else:
+                wandb_miner_distance[uid] = score_response_obj.score_response(responses[id]) if score_response_obj.score_response(responses[id])!=None else 0
             wandb_miner_solution[uid] = responses[id].solution
             wandb_axon_elapsed[uid] = responses[id].dendrite.process_time
     else:
