@@ -29,8 +29,8 @@ from graphite.base.miner import BaseMinerNeuron
 from graphite.protocol import IsAlive
 
 from graphite.solvers import NearestNeighbourSolver, DPSolver, NearestNeighbourMultiSolver, NearestNeighbourMultiSolver2, NearestNeighbourMultiSolver4, InsertionMultiSolver, GreedyPortfolioSolver
-from graphite.protocol import GraphV2Problem, GraphV1Synapse, GraphV2Synapse, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV1PortfolioProblem, GraphV1PortfolioSynapse
-from graphite.utils.graph_utils import get_multi_minmax_tour_distance, get_portfolio_distribution_similarity
+from graphite.protocol import GraphV2Problem, GraphV1Synapse, GraphV2Synapse, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2ProblemMultiConstrainedTW, GraphV1PortfolioProblem, GraphV1PortfolioSynapse
+from graphite.utils.graph_utils import get_multi_minmax_tour_distance, get_portfolio_distribution_similarity, get_multi_minmax_tour_distance_tw
 
 class Miner(BaseMinerNeuron):
     """
@@ -212,10 +212,10 @@ class Miner(BaseMinerNeuron):
         bt.logging.info(f"synapse dendrite timeout {synapse.timeout}")
 
         # Conditional assignment of problems to each solver
-        if not isinstance(synapse.problem, GraphV2ProblemMulti) and not isinstance(synapse.problem, GraphV2ProblemMultiConstrained):
+        if not isinstance(synapse.problem, GraphV2ProblemMulti) and not isinstance(synapse.problem, GraphV2ProblemMultiConstrained) and not isinstance(synapse.problem, GraphV2ProblemMultiConstrainedTW):
             route = await self.solvers['large'].solve_problem(synapse.problem)
             synapse.solution = route
-        elif not isinstance(synapse.problem, GraphV2ProblemMultiConstrained):
+        elif not isinstance(synapse.problem, GraphV2ProblemMultiConstrained) and not isinstance(synapse.problem, GraphV2ProblemMultiConstrainedTW):
             # further split
             if not synapse.problem.single_depot:
                 # run all 3 basic algorithms and return the best scoring solution
@@ -241,10 +241,13 @@ class Miner(BaseMinerNeuron):
                 scores = [score_1, score_2, score_3]
             bt.logging.info(f"Selecting algorithm {scores.index(min(scores))}")
             synapse.solution = routes[scores.index(min(scores))]
-        elif isinstance(synapse.problem, GraphV2ProblemMultiConstrained):
+        elif isinstance(synapse.problem, GraphV2ProblemMultiConstrained) or isinstance(synapse.problem, GraphV2ProblemMultiConstrainedTW):
             routes_1 = await self.solvers['multi_constrained'].solve_problem(synapse.problem)
             synapse.solution = routes_1
-            score_1 = get_multi_minmax_tour_distance(synapse)
+            if isinstance(synapse.problem, GraphV2ProblemMultiConstrainedTW):
+                score_1 = get_multi_minmax_tour_distance_tw(synapse, synapse.problem.edges)
+            else:
+                score_1 = get_multi_minmax_tour_distance(synapse)
             routes = [routes_1]
             scores = [score_1]
             bt.logging.info(f"Selecting algorithm {scores.index(min(scores))}")

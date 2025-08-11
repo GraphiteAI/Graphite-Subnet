@@ -20,7 +20,7 @@
 import math
 from typing import List, Union
 import numpy as np
-from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV1PortfolioSynapse, GraphV1PortfolioProblem
+from graphite.protocol import GraphV1Problem, GraphV1Synapse, GraphV2Problem, GraphV2Synapse, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2ProblemMultiConstrainedTW, GraphV1PortfolioSynapse, GraphV1PortfolioProblem
 from functools import wraps, partial
 import bittensor as bt
 import asyncio
@@ -123,7 +123,7 @@ def get_multi_minmax_tour_distance(synapse: GraphV2Synapse)->float:
     if not synapse.solution:
         return np.inf
     distance=np.nan
-    assert isinstance(problem, GraphV2ProblemMulti) or isinstance(problem, GraphV2ProblemMultiConstrained), ValueError(f"Attempting to use multi-path function for problem of type: {type(problem)}")
+    assert isinstance(problem, GraphV2ProblemMulti) or isinstance(problem, GraphV2ProblemMultiConstrained) or isinstance(problem, GraphV2ProblemMultiConstrainedTW), ValueError(f"Attempting to use multi-path function for problem of type: {type(problem)}")
     
     assert len(problem.edges) == len(problem.edges[0]) and len(problem.edges)==problem.n_nodes, ValueError(f"Wrong distance matrix shape of: ({len(problem.edges[0])}, {len(problem.edges)}) for problem of n_nodes: {problem.n_nodes}")
     edges=problem.edges
@@ -145,6 +145,65 @@ def get_multi_minmax_tour_distance(synapse: GraphV2Synapse)->float:
                         print(f"IndexError with source: {source}, destination: {destination}, distance_mat_shape: {np.array(edges).shape}")
                 distances.append(distance)
             max_distance = max(distances)
+        else:
+            bt.logging.trace(f"Received invalid paths: {paths}")
+    return max_distance if not np.isnan(distance) else np.inf
+
+def get_multi_minmax_tour_distance_tw(synapse: GraphV2Synapse, edges)->float:
+    '''
+    Returns the maximum tour distance across salesmen for the mTSP as a float.
+
+    Takes a synapse as its only argument
+    '''
+    problem = synapse.problem
+    if 'mTSP' not in problem.problem_type:
+        raise ValueError(f"get_multi_tour_distance is an invalid function for processing {problem.problem_type}")
+
+    if not synapse.solution:
+        return np.inf
+    distance=np.nan
+    assert isinstance(problem, GraphV2ProblemMulti) or isinstance(problem, GraphV2ProblemMultiConstrained) or isinstance(problem, GraphV2ProblemMultiConstrainedTW), ValueError(f"Attempting to use multi-path function for problem of type: {type(problem)}")
+    
+    assert len(problem.edges) == len(problem.edges[0]) and len(problem.edges)==problem.n_nodes, ValueError(f"Wrong distance matrix shape of: ({len(problem.edges[0])}, {len(problem.edges)}) for problem of n_nodes: {problem.n_nodes}")
+    edges=problem.edges
+    paths=synapse.solution
+    depots=problem.depots
+
+    if isinstance(paths, list):
+        paths_are_valid =  is_valid_multi_path(paths, depots, problem.n_nodes)
+        if paths_are_valid:
+            # assert len(path) == problem.n_nodes+1, ValueError('An invalid number of cities are contained within the provided path')
+            distances = []
+            for path in paths:
+                distance = 0
+                for i, source in enumerate(path[:-1]):
+                    destination = path[i+1]
+                    try:
+                        distance += edges[source][destination]
+                    except IndexError as e:
+                        print(f"IndexError with source: {source}, destination: {destination}, distance_mat_shape: {np.array(edges).shape}")
+                distances.append(distance)
+            max_distance = max(distances)
+
+            ### Penalty for time windows is applied for every node 
+            travel_time_min = (edges / 1000 / 50 * 60)  # travel time in minutes, assume distance are in meters, travelling at an average of 50km/h
+            # obtain the amount of time take to travel to each node, 0 at the start of each depot
+            travel_times = [0 for _ in range(synapse.problem.n_nodes)]
+            for path in paths:
+                travel_time_elapsed = 0
+                for idx, node in enumerate(path[:-1]):
+                    if idx == 0:
+                        travel_times[node] = 0
+                    else:
+                        travel_time_elapsed += travel_time_min[path[idx-1], node]
+                        travel_times[node] = float(travel_time_elapsed)
+            for start, end in synapse.problem.time_windows:
+                if travel_times[node] < start:
+                    # penalize the time spent earlier than the time window. Discount 50% as it is not as bad as being late
+                    max_distance += (start - travel_times[node]) * 1000 * 50 / 60 * 5
+                elif travel_times[node] > end:
+                    # penalize the time spent later than the time window
+                    max_distance += (travel_times[node] - end) * 1000 * 50 / 60 * 10
         else:
             bt.logging.trace(f"Received invalid paths: {paths}")
     return max_distance if not np.isnan(distance) else np.inf
@@ -307,7 +366,7 @@ def check_nodes(solution:List[int], n_cities:int):
 def start_and_end(solution:List[int]):
     return solution[0] == solution[-1]
 
-def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV1PortfolioProblem], solution:Union[List[List[Union[float, int]]],List[int]]):
+def is_valid_solution(problem:Union[GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2ProblemMultiConstrainedTW, GraphV1PortfolioProblem], solution:Union[List[List[Union[float, int]]],List[int]]):
     # nested function to validate solution type
     def is_valid_solution_type(solution, problem_type):
         try:
@@ -509,6 +568,48 @@ def valid_problem(problem:Union[GraphV1Problem, GraphV2Problem, GraphV1Portfolio
                 return True if len(set(problem.depots)) == len(problem.depots) else False
         else:
             bt.logging.info(f"Received an invalid General mTSP problem")
+            bt.logging.info(problem.get_info(verbosity=2))
+            return False
+        
+    elif problem.problem_type == 'Metric cmTSPTW':
+        if (problem.directed==False) \
+            and (problem.visit_all==True) \
+            and (problem.to_origin==True) \
+            and (problem.objective_function=='min') \
+            and (problem.n_salesmen > 1) \
+            and (len(problem.depots)==problem.n_salesmen) \
+            and (len(problem.demand) == problem.n_nodes) \
+            and (len(problem.constraint) == problem.n_salesmen) \
+            and (sum(problem.demand) <= sum(problem.constraint)):
+            if problem.single_depot == True:
+                # assert that all the depots be at source city #0
+                return True if all([depot==0 for depot in problem.depots]) else False
+            else:
+                # assert that all depots are different
+                return True if len(set(problem.depots)) == len(problem.depots) else False
+        else:
+            bt.logging.info(f"Received an invalid Metric mTSP TW problem")
+            bt.logging.info(problem.get_info(verbosity=2))
+            return False
+        
+    elif problem.problem_type == 'General cmTSPTW':
+        if (problem.directed==True) \
+            and (problem.visit_all==True) \
+            and (problem.to_origin==True) \
+            and (problem.objective_function=='min') \
+            and (problem.n_salesmen > 1) \
+            and (len(problem.depots)==problem.n_salesmen) \
+            and (len(problem.demand) == problem.n_nodes) \
+            and (len(problem.constraint) == problem.n_salesmen) \
+            and (sum(problem.demand) <= sum(problem.constraint)):
+            if problem.single_depot == True:
+                # assert that all the depots be at source city #0
+                return True if all([depot==0 for depot in problem.depots]) else False
+            else:
+                # assert that all depots are different
+                return True if len(set(problem.depots)) == len(problem.depots) else False
+        else:
+            bt.logging.info(f"Received an invalid General mTSP TW problem")
             bt.logging.info(problem.get_info(verbosity=2))
             return False
         

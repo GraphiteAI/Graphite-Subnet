@@ -18,7 +18,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 from graphite.solvers import NearestNeighbourSolver, NearestNeighbourMultiSolver, BeamSearchSolver, HPNSolver, DPSolver, NearestNeighbourMultiSolver2, NearestNeighbourMultiSolver4, GreedyPortfolioSolver
-from graphite.utils.graph_utils import get_tour_distance, get_multi_minmax_tour_distance, get_portfolio_distribution_similarity
+from graphite.utils.graph_utils import get_tour_distance, get_multi_minmax_tour_distance, get_portfolio_distribution_similarity, get_multi_minmax_tour_distance_tw
 
 BENCHMARK_SOLUTIONS = {
     'Metric TSP': NearestNeighbourSolver,
@@ -27,6 +27,8 @@ BENCHMARK_SOLUTIONS = {
     'General mTSP': NearestNeighbourMultiSolver2,
     'Metric cmTSP': NearestNeighbourMultiSolver4,
     'General cmTSP': NearestNeighbourMultiSolver4,
+    'Metric cmTSPTW': NearestNeighbourMultiSolver4,
+    'General cmTSPTW': NearestNeighbourMultiSolver4,
     'PortfolioReallocation': GreedyPortfolioSolver
 } # mapping benchmark solvers to each problem
 
@@ -37,6 +39,8 @@ COST_FUNCTIONS = {
     'General mTSP': get_multi_minmax_tour_distance,
     'Metric cmTSP': get_multi_minmax_tour_distance,
     'General cmTSP': get_multi_minmax_tour_distance,
+    'Metric cmTSPTW': get_multi_minmax_tour_distance_tw,
+    'General cmTSPTW': get_multi_minmax_tour_distance_tw,
     'PortfolioReallocation': get_portfolio_distribution_similarity
 }
 

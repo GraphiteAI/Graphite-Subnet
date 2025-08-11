@@ -29,7 +29,7 @@ class LeaderPerformanceData(BaseModel):
     num_copy_traders: int
     volume: int # volume in RAO of attributed rebalances
     notional_value_of_copy_traders: float
-    last_traded_date: int # unix timestamp of last leader rebalance
+    # last_traded_date: int # unix timestamp of last leader rebalance
 
 class MinerYield(BaseModel):
     uid: int

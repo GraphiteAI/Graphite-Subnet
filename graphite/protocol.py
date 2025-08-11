@@ -18,7 +18,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 from pydantic import BaseModel, Field, model_validator, conint, confloat, ValidationError, field_validator
-from typing import List, Union, Optional, Literal, Iterable
+from typing import List, Union, Optional, Literal, Iterable, Tuple
 import numpy as np
 import bittensor as bt
 import pprint
@@ -37,8 +37,8 @@ rel_v1_path = os.path.join(os.path.dirname(__file__), "schema_v1.json")
 with open(rel_v1_path, "r") as f:
     MODEL_V1_SCHEMA = json.load(f)
 
-rel_v2_path = os.path.join(os.path.dirname(__file__), "schema_v2.json")
-with open(rel_v2_path, "r") as f:
+rel_v4_path = os.path.join(os.path.dirname(__file__), "schema_v4.json")
+with open(rel_v4_path, "r") as f:
     MODEL_V2_SCHEMA = json.load(f)
 
 rel_v3_path = os.path.join(os.path.dirname(__file__), "schema_v3.json")
@@ -484,11 +484,80 @@ class GraphV2ProblemMultiConstrained(GraphV2Problem):
                 info[description] = value
         return info
 
+class GraphV2ProblemMultiConstrainedTW(GraphV2Problem):
+    problem_type: Literal['Metric cmTSPTW', 'General cmTSPTW'] = Field('Metric cmTSPTW', description="Problem Type")
+    n_nodes: conint(ge=500, le=2000) = Field(500, description="Number of Nodes (must be between 500 and 2000) for mTSP")
+    n_salesmen: conint(ge=2, le=MAX_SALESMEN) = Field(2, description="Number of Salesmen in the mTSP formulation")
+    demand: List[int] = Field([1, 1], description="Demand of each node, we are starting with 1")
+    constraint: List[int] = Field([100, 100], description="Constaint of each salesmen/delivery vehicle")
+    single_depot: bool = Field(default=False, description="Whether problem is a single or multi depot formulation")
+    depots: List[int] = Field([0,0], description="List of selected 'city' indices for which the respective salesmen paths begin")
+    time_windows: List[Tuple[Union[int, float], Union[int, float]]] = Field([(0.0, 100.0)]*500, description="Time window per node: (start_time, end_time)")
+
+    @model_validator(mode='after')
+    def assert_salesmen_depot(self):
+        assert len(self.depots) == self.n_salesmen, ValueError('Number of salesmen must match number of depots')
+        return self
+
+    @model_validator(mode='after')
+    def force_obj_function(self):
+        if self.problem_type in ['Metric cmTSPTW', 'General cmTSPTW']:
+            assert self.objective_function == 'min', ValueError('Subnet currently only supports minimization TSP')
+        return self
+    
+    @model_validator(mode="after")
+    def assert_depots(self):
+        bt.logging.debug(f"Logging for cmTSP TW: single_depot: {self.single_depot}, depots: {self.depots}")
+        if self.single_depot:
+            assert all([depot==0 for depot in self.depots]), ValueError('Single depot definition of cmTSP requires depots to be an array of 0')
+        return self
+    
+    @model_validator(mode="after")
+    def assert_fulfilment(self):
+        assert sum(self.demand) <= sum(self.constraint), ValueError('Demand exceeds constraint for cmTSP')
+        return self
+    
+    @model_validator(mode='after')
+    def validate_time_windows(self):
+        assert len(self.time_windows) == self.n_nodes, \
+            ValueError('Number of time windows must match number of nodes')
+        for idx, (start, end) in enumerate(self.time_windows):
+            assert isinstance(start, Union[int, float]) and isinstance(end, Union[int, float]), \
+                ValueError(f'Time window at index {idx} must contain integers or floats')
+            assert start >= 0 and end >= 0, \
+                ValueError(f'Time window at index {idx} must be non-negative')
+            assert start <= end, \
+                ValueError(f'Time window start must be <= end at index {idx}')
+        return self
+    
+    def get_info(self, verbosity: int = 1) -> dict:
+        info = {}
+        if verbosity == 1:
+            info["Problem Type"] = self.problem_type
+        elif verbosity == 2:
+            info["Problem Type"] = self.problem_type
+            info["Objective Function"] = self.objective_function
+            info["To Visit All Nodes"] = self.visit_all
+            info["To Return to Origin"] = self.to_origin
+            info["Number of Nodes"] = self.n_nodes
+            info["Directed"] = self.directed
+            info["Simple"] = self.simple
+            info["Weighted"] = self.weighted
+            info["Repeating"] = self.repeating
+            info["Demands"] = self.demand
+            info["Constraints"] = self.constraint
+        elif verbosity == 3:
+            for field in self.model_fields:
+                description = self.model_fields[field].description
+                value = getattr(self, field)
+                info[description] = value
+        return info
+
 class GraphV2Synapse(bt.Synapse):
     '''
     Implement necessary serialization and deserialization checks
     '''
-    problem: Union[GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained]
+    problem: Union[GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2ProblemMultiConstrainedTW]
     solution: Optional[Union[List[List[int]], List[int], bool]] = None
 
     def to_headers(self) -> dict:

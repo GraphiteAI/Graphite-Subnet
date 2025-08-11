@@ -27,7 +27,7 @@ import time
 from datetime import datetime
 
 from graphite.base.validator import ScoreType
-from graphite.protocol import GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2Synapse, MAX_SALESMEN, GraphV1PortfolioProblem, GraphV1PortfolioSynapse
+from graphite.protocol import GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2ProblemMultiConstrainedTW, GraphV2Synapse, MAX_SALESMEN, GraphV1PortfolioProblem, GraphV1PortfolioSynapse
 from graphite.solvers.greedy_solver_multi_4 import NearestNeighbourMultiSolver4
 from graphite.solvers.greedy_portfolio_solver import GreedyPortfolioSolver
 import numpy as np
@@ -84,7 +84,8 @@ async def forward(self):
     ref_tsp_value = 0.1
     ref_mtsp_value = 0.1
     ref_mdmtsp_value = 0.2 
-    ref_cmdmtsp_value = 0.4
+    ref_cmdmtsp_value = 0.2
+    ref_cmdmtsptw_value = 0.2
     ref_portfolioV1_value = 0.2
 
     # randomly select n_nodes indexes from the selected graph
@@ -184,19 +185,88 @@ async def forward(self):
                 ## Run greedy to make sure there is a valid solution before we send out the problem
                 test_problem_obj.edges = self.recreate_edges(test_problem_obj)
                 solver1 = NearestNeighbourMultiSolver4(problem_types=[test_problem_obj])
-                async def main(timeout, test_problem_obj):
+                async def test_solve(timeout, test_problem_obj):
                     try:
                         route1 = await asyncio.wait_for(solver1.solve_problem(test_problem_obj), timeout=timeout)
                         return route1
                     except asyncio.TimeoutError:
                         print(f"Solver1 timed out after {timeout} seconds")
                         return None  # Handle timeout case as needed
-                route1 = await main(10, test_problem_obj)
+                route1 = await test_solve(10, test_problem_obj)
                 if route1 != None:
                     solution_found = True
                     test_problem_obj.edges = None
             bt.logging.info(f"Posted: n_nodes V2 randomized-demand cmTSP {n_nodes}")
+    elif selected_problem_type_prob < ref_tsp_value + ref_mtsp_value + ref_mdmtsp_value + ref_cmdmtsp_value + ref_cmdmtsptw_value:
+        solution_found = False
+        while not solution_found:
+            n_nodes = random.randint(500, 2000)
+            bt.logging.info(f"n_nodes V2 randomized-demand cmTSP TW {n_nodes}")
+            bt.logging.info(f"dataset ref {dataset_ref} selected from {list(self.loaded_datasets.keys())}" )
+            selected_node_idxs = random.sample(range(len(self.loaded_datasets[dataset_ref]['data'])), n_nodes)
+            m = random.randint(2, 10)
+            constraint = []
+            depots = sorted(random.sample(list(range(n_nodes)), k=m))
+            demand = [random.randint(1, 9) for _ in range(n_nodes)]
+            for depot in depots:
+                demand[depot] = 0
+            while sum(demand) > sum(constraint):
+                total_demand_padded = sum(demand) + 9*m # padded to prevent invalid knap-sack problem conditions
+                constraint = [(math.ceil(total_demand_padded/m) + random.randint(0, int(total_demand_padded/m * 0.3)) - random.randint(0, int(total_demand_padded/m * 0.2))) for _ in range(m-1)]
+                constraint += [(math.ceil(total_demand_padded/m) + random.randint(0, int(total_demand_padded/m * 0.3)) - random.randint(0, int(total_demand_padded/m * 0.2)))] if sum(constraint) > total_demand_padded - (math.ceil(total_demand_padded/m) - int(total_demand_padded/m * 0.2)) else [(total_demand_padded - sum(constraint) + random.randint(int(total_demand_padded/m * 0.2), int(total_demand_padded/m * 0.3)))]
+            pre_test_problem_obj = GraphV2ProblemMultiConstrained(problem_type="Metric cmTSP", 
+                                                    n_nodes=n_nodes, 
+                                                    selected_ids=selected_node_idxs, 
+                                                    cost_function="Geom", 
+                                                    dataset_ref=dataset_ref, 
+                                                    n_salesmen=m, 
+                                                    depots=depots, 
+                                                    single_depot=False,
+                                                    demand=demand,
+                                                    constraint=constraint)
+            
+            ## Run greedy to make sure there is a valid solution before we send out the problem
+            pre_test_problem_obj.edges = self.recreate_edges(pre_test_problem_obj)
+            solver1 = NearestNeighbourMultiSolver4(problem_types=[pre_test_problem_obj])
+            async def test_solve(timeout, pre_test_problem_obj):
+                try:
+                    route1 = await asyncio.wait_for(solver1.solve_problem(pre_test_problem_obj), timeout=timeout)
+                    return route1
+                except asyncio.TimeoutError:
+                    print(f"Solver1 timed out after {timeout} seconds")
+                    return None  # Handle timeout case as needed
+            tw_greedy_solution = await test_solve(10, pre_test_problem_obj)
+            if tw_greedy_solution != None:
+                # add in base restrictions, scaled down by 30%, minimum improvements we expect to see by a miner as compared to greedy
+                expected_improvement = 0.3
+                travel_time_min = (pre_test_problem_obj.edges / 1000 / 50 * 60)  # travel time in minutes, assume distance are in meters, travelling at an average of 50km/h
+                # obtain the amount of time take to travel to each node, 0 at the start of each depot
+                travel_times = [0 for _ in range(n_nodes)]
+                for route in tw_greedy_solution:
+                    travel_time_elapsed = 0
+                    for idx, node in enumerate(route[:-1]):
+                        if idx == 0:
+                            travel_times[node] = 0
+                        else:
+                            travel_time_elapsed += travel_time_min[route[idx-1], node]
+                            travel_times[node] = travel_time_elapsed * (1-expected_improvement)
+                time_windows = [(round(float(travel_time)*0.9, 5), round(float(travel_time), 5)) for travel_time in travel_times]
+                test_problem_obj = GraphV2ProblemMultiConstrainedTW(problem_type="Metric cmTSPTW", 
+                                                    n_nodes=n_nodes, 
+                                                    selected_ids=selected_node_idxs, 
+                                                    cost_function="Geom", 
+                                                    dataset_ref=dataset_ref, 
+                                                    n_salesmen=m, 
+                                                    depots=depots, 
+                                                    single_depot=False,
+                                                    demand=demand,
+                                                    constraint=constraint,
+                                                    time_windows=time_windows)
+                solution_found = True
+                test_problem_obj.edges = None
+        bt.logging.info(f"Posted: n_nodes V2 randomized-demand cmTSP TW {n_nodes}")
     else:
+        # portfolio problem
         solution_found = False
         connection = False
         while not connection:
@@ -296,14 +366,14 @@ async def forward(self):
                                             pools=pools)
             
             solver1 = GreedyPortfolioSolver(problem_types=[test_problem_obj])
-            async def main(timeout, test_problem_obj):
+            async def test_solve(timeout, test_problem_obj):
                 try:
                     swaps = await asyncio.wait_for(solver1.solve_problem(test_problem_obj), timeout=timeout)
                     return swaps
                 except asyncio.TimeoutError:
                     print(f"Solver1 timed out after {timeout} seconds")
                     return None  # Handle timeout case as needed
-            swaps = await main(10, test_problem_obj)
+            swaps = await test_solve(10, test_problem_obj)
 
             test_synapse = GraphV1PortfolioSynapse(problem = test_problem_obj, solution = swaps)
             swap_count, objective_score = get_portfolio_distribution_similarity(test_synapse)
@@ -313,7 +383,8 @@ async def forward(self):
                     if len(swaps) > 0 and swap_count != 1000000 and objective_score != 0:
                         solution_found = True
         bt.logging.info(f"Posted: V1 portfolio_allocation ports: {num_portfolio}, subnets: {num_subnets}")
-            
+
+    ### Creation of Synapse            
     try:
         if isinstance(test_problem_obj, GraphV1PortfolioProblem):
             graphsynapse_req = GraphV1PortfolioSynapse(problem=test_problem_obj)
@@ -329,9 +400,7 @@ async def forward(self):
         bt.logging.debug(e.errors())
         bt.logging.debug(e)
 
-
-    # available_uids = await self.get_available_uids()
-    
+    ### Miner selections
     if len(api_response_output) > 0:
         # if this is an organic request, we select the top k miners by incentive (with a mix of some outside the top k to increase solution diversity)
         selected_uids = await self.get_top_k_uids()
@@ -339,11 +408,10 @@ async def forward(self):
         # select random 30 miners that are available (i.e. responded to the isAlive synapse)
         selected_uids = await self.get_k_uids()
     # selected_uids = await self.get_available_uids()
-
     miner_uids = list(selected_uids.keys())
     bt.logging.info(f"Selected UIDS: {miner_uids}")
 
-
+    ### Emit dendrite request
     if isinstance(test_problem_obj, GraphV2Problem):
         reconstruct_edge_start_time = time.time()
         edges = self.recreate_edges(test_problem_obj)
@@ -368,25 +436,31 @@ async def forward(self):
             timeout = 0.0007 * test_problem_obj.n_portfolio * len(test_problem_obj.constraintTypes),
         )
 
+    ### Logging and processing responses
     for idx, res in enumerate(responses):
-        # trace log the process times
         bt.logging.trace(f"Miner {miner_uids[idx]} status code: {res.dendrite.status_code}, process_time: {res.dendrite.process_time}")
-
     bt.logging.info(f"NUMBER OF RESPONSES: {len(responses)}")
 
+    ### Score responses
     if isinstance(test_problem_obj, GraphV2Problem):
         graphsynapse_req_updated = GraphV2Synapse(problem=test_problem_obj) # reconstruct with edges
         score_response_obj = ScoreResponse(graphsynapse_req_updated)
 
         score_response_obj.current_num_concurrent_forwards = self.current_num_concurrent_forwards
 
-        try:
-            await score_response_obj.get_benchmark()
-        except:
+        if isinstance(test_problem_obj, GraphV2ProblemMultiConstrainedTW):
+            score_response_obj.benchmark_path = tw_greedy_solution
+            score_response_obj.synapse.solution = tw_greedy_solution
+            score_response_obj.problem.edges = pre_test_problem_obj.edges
+            score_response_obj.benchmark_score = score_response_obj.score_response(score_response_obj.synapse, edges=pre_test_problem_obj.edges)
+        else:
             try:
                 await score_response_obj.get_benchmark()
             except:
-                await score_response_obj.get_benchmark()
+                try:
+                    await score_response_obj.get_benchmark()
+                except:
+                    await score_response_obj.get_benchmark()
 
         rewards = get_rewards(self, score_handler=score_response_obj, responses=responses)
         rewards = rewards.numpy(force=True)
@@ -400,7 +474,10 @@ async def forward(self):
             wandb_rewards[uid] = rewards[id]
             if wandb_rewards[uid] == rewards.max():
                 best_solution_uid = uid
-            wandb_miner_distance[uid] = score_response_obj.score_response(responses[id]) if score_response_obj.score_response(responses[id])!=None else 0
+            if isinstance(test_problem_obj, GraphV2ProblemMultiConstrainedTW):
+                wandb_miner_distance[uid] = score_response_obj.score_response(responses[id], edges=pre_test_problem_obj.edges) if score_response_obj.score_response(responses[id])!=None else 0
+            else:
+                wandb_miner_distance[uid] = score_response_obj.score_response(responses[id]) if score_response_obj.score_response(responses[id])!=None else 0
             wandb_miner_solution[uid] = responses[id].solution
             wandb_axon_elapsed[uid] = responses[id].dendrite.process_time
     else:
@@ -456,6 +533,8 @@ async def forward(self):
     # except:
     #     pass
 
+
+    ### Wandb logging
     configDict = {
                     "save_code": False,
                     "log_code": False,
@@ -463,8 +542,6 @@ async def forward(self):
                     "log_model": False,
                     "sync_tensorboard": False,
                 }
-    
-    
     if isinstance(test_problem_obj, GraphV2Problem):
         try:
             configDict["problem_type"] = graphsynapse_req.problem.problem_type
@@ -538,6 +615,11 @@ async def forward(self):
             pass
 
         try:
+            configDict["time_windows"] = graphsynapse_req.problem.time_windows
+        except:
+            pass
+
+        try:
             configDict["time_elapsed"] = wandb_axon_elapsed
         except:
             pass
@@ -546,7 +628,7 @@ async def forward(self):
             configDict["best_solution"] = wandb_miner_solution[best_solution_uid]
         except:
             pass
-        
+
         try:
             if self.subtensor.network == "test":
                 wandb.init(
@@ -624,13 +706,11 @@ async def forward(self):
         except Exception as e:
             print(f"Error initializing W&B: {e}")
 
-    
+    ### Update scores
     bt.logging.info(f"Scored responses: {rewards}")
-    
-    
     if len(rewards) > 0 and max(rewards) == 1:
         self.update_scores(rewards, miner_uids, ScoreType.SYNTHETIC)
-        time.sleep(16) # for each block, limit 1 request per block
+        time.sleep(16) # for each block, limit 1 request per block, use longest possible block time
     elif max(rewards) == 0.2:
         new_rewards = []
         new_miner_uids = []
@@ -641,4 +721,94 @@ async def forward(self):
         new_rewards = np.array(new_rewards)  # Creates (N,)
         if len(new_miner_uids) > 0:
             self.update_scores(new_rewards, new_miner_uids, ScoreType.SYNTHETIC)
-            time.sleep(16) # for each block, limit 1 request per block
+            time.sleep(16) # for each block, limit 1 request per block, use longest possible block time
+
+
+if __name__ == "__main__":
+    from graphite.data.distance import geom_edges, man_2d_edges, euc_2d_edges
+    def recreate_edges(loaded_datasets, problem: Union[GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2ProblemMultiConstrainedTW]):
+        node_coords_np = loaded_datasets[problem.dataset_ref]["data"]
+        node_coords = np.array([node_coords_np[i][1:] for i in problem.selected_ids])
+        if problem.cost_function == "Geom":
+            return geom_edges(node_coords)
+        elif problem.cost_function == "Euclidean2D":
+            return euc_2d_edges(node_coords)
+        elif problem.cost_function == "Manhatten2D":
+            return man_2d_edges(node_coords)
+        else:
+            return "Only Geom, Euclidean2D, and Manhatten2D supported for now."
+        
+    async def test_main():
+        solution_found = False
+        while not solution_found:
+            n_nodes = 569
+            bt.logging.info(f"n_nodes V2 randomized-demand cmTSP {n_nodes}")
+            dataset_ref = "Asia_MSB"
+            loaded_datasets = {dataset_ref:{"data": []}}
+            with np.load(f'dataset/{dataset_ref}.npz') as f: # "dataset/Asia_MSB.npz"
+                node_coords_np = f['data']
+            loaded_datasets[dataset_ref]["data"] = np.array(node_coords_np)
+            selected_node_idxs = random.sample(range(len(loaded_datasets[dataset_ref]['data'])), n_nodes)
+            m = random.randint(2, 10)
+            constraint = []
+            depots = [1] + sorted(random.sample(list(range(n_nodes)), k=m))[:-1]
+            demand = [random.randint(1, 9) for _ in range(n_nodes)]
+            for depot in depots:
+                demand[depot] = 0
+            while sum(demand) > sum(constraint):
+                total_demand_padded = sum(demand) + 9*m # padded to prevent invalid knap-sack problem conditions
+                constraint = [(math.ceil(total_demand_padded/m) + random.randint(0, int(total_demand_padded/m * 0.3)) - random.randint(0, int(total_demand_padded/m * 0.2))) for _ in range(m-1)]
+                constraint += [(math.ceil(total_demand_padded/m) + random.randint(0, int(total_demand_padded/m * 0.3)) - random.randint(0, int(total_demand_padded/m * 0.2)))] if sum(constraint) > total_demand_padded - (math.ceil(total_demand_padded/m) - int(total_demand_padded/m * 0.2)) else [(total_demand_padded - sum(constraint) + random.randint(int(total_demand_padded/m * 0.2), int(total_demand_padded/m * 0.3)))]
+            test_problem_obj = GraphV2ProblemMultiConstrained(problem_type="Metric cmTSP", 
+                                                    n_nodes=n_nodes, 
+                                                    selected_ids=selected_node_idxs, 
+                                                    cost_function="Geom", 
+                                                    dataset_ref=dataset_ref, 
+                                                    n_salesmen=m, 
+                                                    depots=depots, 
+                                                    single_depot=False,
+                                                    demand=demand,
+                                                    constraint=constraint)
+            
+            ## Run greedy to make sure there is a valid solution before we send out the problem
+            test_problem_obj.edges = recreate_edges(loaded_datasets, test_problem_obj)
+            solver1 = NearestNeighbourMultiSolver4(problem_types=[test_problem_obj])
+            async def test_solve(timeout, test_problem_obj):
+                try:
+                    route1 = await asyncio.wait_for(solver1.solve_problem(test_problem_obj), timeout=timeout)
+                    return route1
+                except asyncio.TimeoutError:
+                    print(f"Solver1 timed out after {timeout} seconds")
+                    return None  # Handle timeout case as needed
+            route1 = await test_solve(3, test_problem_obj)
+            if route1 != None:
+                # add in base restrictions, scaled down by 30%, minimum improvements we expect to see by a miner as compared to greedy
+                expected_improvement = 0.3
+                travel_time_min = (test_problem_obj.edges / 1000 / 50 * 60)  # travel time in minutes, assume distance are in meters, travelling at an average of 50km/h
+                # obtain the amount of time take to travel to each node, 0 at the start of each depot
+                travel_times = [0 for _ in range(n_nodes)]
+                for route in route1:
+                    travel_time_elapsed = 0
+                    for idx, node in enumerate(route[:-1]):
+                        if idx == 0:
+                            travel_times[node] = 0
+                        else:
+                            travel_time_elapsed += travel_time_min[route[idx-1], node]
+                            travel_times[node] = travel_time_elapsed * (1-expected_improvement)
+                time_windows = [(round(float(travel_time)*0.9, 5), round(float(travel_time), 5)) for travel_time in travel_times]
+                test_problem_obj = GraphV2ProblemMultiConstrainedTW(problem_type="Metric cmTSPTW", 
+                                                    n_nodes=n_nodes, 
+                                                    selected_ids=selected_node_idxs, 
+                                                    cost_function="Geom", 
+                                                    dataset_ref=dataset_ref, 
+                                                    n_salesmen=m, 
+                                                    depots=depots, 
+                                                    single_depot=False,
+                                                    demand=demand,
+                                                    constraint=constraint,
+                                                    time_windows=time_windows)
+                solution_found = True
+                test_problem_obj.edges = None
+        print(f"Posted: n_nodes V2 randomized-demand cmTSP TW {n_nodes}")
+
+    asyncio.run(test_main())

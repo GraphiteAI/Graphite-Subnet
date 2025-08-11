@@ -21,7 +21,7 @@ from typing import List, Union
 import matplotlib.pyplot as plt
 from graphite.solvers.base_solver import BaseSolver
 from graphite.solvers.greedy_solver_multi import NearestNeighbourMultiSolver
-from graphite.protocol import GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2Synapse
+from graphite.protocol import GraphV1Problem, GraphV2Problem, GraphV2ProblemMulti, GraphV2ProblemMultiConstrained, GraphV2ProblemMultiConstrainedTW, GraphV2Synapse
 from graphite.utils.graph_utils import timeout, get_multi_minmax_tour_distance
 from graphite.data.dataset_utils import load_default_dataset
 from graphite.data.distance import geom_edges, euc_2d_edges, man_2d_edges
@@ -36,7 +36,7 @@ class NearestNeighbourMultiSolver4(BaseSolver):
     '''
     This solver is a constructive nearest_neighbour algorithm that assigns cities to subtours based on the min increase in objective function value.
     '''
-    def __init__(self, problem_types:List[GraphV2Problem]=[GraphV2ProblemMultiConstrained()]):
+    def __init__(self, problem_types:List[GraphV2Problem]=[GraphV2ProblemMultiConstrained(), GraphV2ProblemMultiConstrainedTW()]):
         super().__init__(problem_types=problem_types)
     
     def get_valid_start(self, depot_id, distance_matrix, taken_nodes:list[int]=[], selection_range:int=5) -> int:
