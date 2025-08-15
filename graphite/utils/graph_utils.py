@@ -197,7 +197,7 @@ def get_multi_minmax_tour_distance_tw(synapse: GraphV2Synapse, edges)->float:
                     else:
                         travel_time_elapsed += travel_time_min[path[idx-1], node]
                         travel_times[node] = float(travel_time_elapsed)
-            for start, end in synapse.problem.time_windows:
+            for node, (start, end) in enumerate(synapse.problem.time_windows):
                 if travel_times[node] < start:
                     # penalize the time spent earlier than the time window. Discount 50% as it is not as bad as being late
                     max_distance += (start - travel_times[node]) * 1000 * 50 / 60 * 5
