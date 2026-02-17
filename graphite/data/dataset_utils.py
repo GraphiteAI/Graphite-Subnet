@@ -96,7 +96,7 @@ def check_and_get_msb():
             create_directory_if_not_exists(DATASET_DIR)
             bt.logging.info(f"Downloading {ASIA_MSB_DETAILS['ref_id']} data from huggingface")
             hf_hub_download(repo_id="Graphite-AI/coordinate_data", filename="Asia_MSB.npz", repo_type="dataset", local_dir=DATASET_DIR)
-        except:
+        except Exception:
             # Obtain byte content through get request to endpoint
             bt.logging.info(f"Downloading {ASIA_MSB_DETAILS['endpoint']} data from source")
             start_time = time.time()
@@ -164,7 +164,7 @@ def check_and_get_wtsp():
             create_directory_if_not_exists(DATASET_DIR)
             bt.logging.info(f"Downloading {WORLD_TSP_DETAILS['ref_id']} data from huggingface")
             hf_hub_download(repo_id="Graphite-AI/coordinate_data", filename="World_TSP.npz", repo_type="dataset", local_dir=DATASET_DIR)
-        except:
+        except Exception:
             bt.logging.info(f"Downloading {WORLD_TSP_DETAILS['ref_id']} data from source")
             # Obtain byte content through get request to endpoint
             start_time = time.time()
@@ -234,7 +234,7 @@ def check_and_get_usa_poi():
             create_directory_if_not_exists(DATASET_DIR)
             bt.logging.info(f"Downloading {USA_POI_DETAILS['ref_id']} data from huggingface")
             hf_hub_download(repo_id="Graphite-AI/coordinate_data", filename="USA_POI.npz", repo_type="dataset", local_dir=DATASET_DIR)
-        except:
+        except Exception:
             bt.logging.error(f"Error downloading {USA_POI_DETAILS['ref_id']} data from huggingface")
 
 def download_default_datasets():

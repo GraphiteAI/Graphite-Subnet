@@ -358,7 +358,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 parent_dir = os.path.dirname(run_dir)
                 shutil.rmtree(parent_dir)
                 bt.logging.debug(f"Deleted {run_dir}")
-        except:
+        except Exception:
             pass
 
     async def organic_request_flow(self):

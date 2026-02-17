@@ -77,7 +77,7 @@ async def forward(self):
             # bt.logging.info(f"ORGANIC TRAFFIC {api_response.text}")
         else:
             api_response_output = []
-    except:
+    except Exception:
         api_response_output = []
 
     # problem weights
@@ -273,7 +273,7 @@ async def forward(self):
             try:
                 subtensor = bt.Subtensor("finney")
                 connection = True
-            except:
+            except Exception:
                 pass
         subnets_info = subtensor.all_subnets()
         while not solution_found:
@@ -456,10 +456,10 @@ async def forward(self):
         else:
             try:
                 await score_response_obj.get_benchmark()
-            except:
+            except Exception:
                 try:
                     await score_response_obj.get_benchmark()
-                except:
+                except Exception:
                     await score_response_obj.get_benchmark()
 
         rewards = get_rewards(self, score_handler=score_response_obj, responses=responses)
@@ -545,88 +545,88 @@ async def forward(self):
     if isinstance(test_problem_obj, GraphV2Problem):
         try:
             configDict["problem_type"] = graphsynapse_req.problem.problem_type
-        except:
+        except Exception:
             pass
         try:
             configDict["objective_function"] = graphsynapse_req.problem.objective_function
-        except:
+        except Exception:
             pass
         try:
             configDict["visit_all"] = graphsynapse_req.problem.visit_all
-        except:
+        except Exception:
             pass
         try:
             configDict["to_origin"] = graphsynapse_req.problem.to_origin
-        except:
+        except Exception:
             pass
         try:
             configDict["n_nodes"] = graphsynapse_req.problem.n_nodes
-        except:
+        except Exception:
             pass
         try:
             configDict["nodes"] = graphsynapse_req.problem.nodes
-        except:
+        except Exception:
             pass
         try:
             configDict["edges"] = []
-        except:
+        except Exception:
             pass
         try:
             configDict["directed"] = graphsynapse_req.problem.directed
-        except:
+        except Exception:
             pass
         try:
             configDict["simple"] = graphsynapse_req.problem.simple
-        except:
+        except Exception:
             pass
         try:
             configDict["weighted"] = graphsynapse_req.problem.weighted
-        except:
+        except Exception:
             pass
         try:
             configDict["repeating"] = graphsynapse_req.problem.repeating
-        except:
+        except Exception:
             pass
         try:
             configDict["selected_ids"] = graphsynapse_req.problem.selected_ids
-        except:
+        except Exception:
             pass
         try:
             configDict["cost_function"] = graphsynapse_req.problem.cost_function
-        except:
+        except Exception:
             pass
         try:
             configDict["dataset_ref"] = graphsynapse_req.problem.dataset_ref
-        except:
+        except Exception:
             pass
         try:
             configDict["selected_uids"] = miner_uids
-        except:
+        except Exception:
             pass
         try:
             configDict["n_salesmen"] = graphsynapse_req.problem.n_salesmen
             configDict["depots"] = graphsynapse_req.problem.depots
-        except:
+        except Exception:
             pass
         try:
             configDict["demand"] = graphsynapse_req.problem.demand
             configDict["constraint"] = graphsynapse_req.problem.constraint
-        except:
+        except Exception:
             pass
 
         try:
             configDict["time_windows"] = graphsynapse_req.problem.time_windows
-        except:
+        except Exception:
             pass
 
         try:
             configDict["time_elapsed"] = wandb_axon_elapsed
-        except:
+        except Exception:
             pass
 
         try:
             configDict["best_solution"] = wandb_miner_solution[best_solution_uid]
-        except:
+        except Exception:
             pass
 
         try:
@@ -661,19 +661,19 @@ async def forward(self):
     else:
         try:
             configDict["problem_type"] = graphsynapse_req.problem.problem_type
-        except:
+        except Exception:
             pass
         try:
             configDict["initialPortfolios"] = graphsynapse_req.problem.initialPortfolios
-        except:
+        except Exception:
             pass
         try:
             configDict["constraintValues"] = graphsynapse_req.problem.constraintValues
-        except:
+        except Exception:
             pass
         try:
             configDict["constraintTypes"] = graphsynapse_req.problem.constraintTypes
-        except:
+        except Exception:
             pass
        
         try:
